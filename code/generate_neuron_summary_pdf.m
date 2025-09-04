@@ -87,20 +87,16 @@ for i_cluster = 1:nClusters
         event_times = session_data.eventTimes.pdsOutcomeOn;
         win = [-0.5, 1.0]; % Time window around event
         bin_size = 0.05; % 50 ms bins
-        bins = win(1):bin_size:win(2);
 
-        valid_trials_idx = find(~isnan(event_times));
-        n_valid_trials = numel(valid_trials_idx);
-        psth = zeros(size(bins));
+        [~, psth, bin_centers] = alignAndBinSpikes(spike_times, ...
+            event_times, win(1), win(2), bin_size);
 
-        if n_valid_trials > 0
-            for i_trial = 1:n_valid_trials
-                event_time = event_times(valid_trials_idx(i_trial));
-                relative_spikes = spike_times - event_time;
-                psth = psth + histcounts(relative_spikes, [bins, bins(end)+bin_size]);
-            end
-            psth_rate = psth / (n_valid_trials * bin_size); % Convert to firing rate (Hz)
-            bar(ax3, bins, psth_rate, 'hist');
+        % Convert to firing rate
+        n_trials = size(psth, 1);
+        psth_rate = sum(psth, 1) / (n_trials * bin_size);
+
+        if ~isempty(psth_rate)
+            barStairsFill(bin_centers, psth_rate, zeros(size(psth_rate)));
             title(ax3, 'PSTH around Outcome');
             xlabel(ax3, 'Time from Outcome (s)');
             ylabel(ax3, 'Firing Rate (Hz)');
