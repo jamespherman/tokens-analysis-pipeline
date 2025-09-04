@@ -68,9 +68,24 @@ else
     error('Unknown session type in unique_id. Cannot determine which screening function to run.');
 end
 
-%% Step 3: Generate diagnostic PDF
-giveFeed('Step 3: Generating diagnostic PDF...');
-% This function is a placeholder and will not generate a real PDF.
+%% Step 3: Calculate and Store Diagnostic Metrics
+giveFeed('Step 3: Calculating and storing diagnostic metrics...');
+
+% Calculate baseline firing rates and add to session_data
+session_data.metrics.baseline_frs = calculate_baseline_fr(session_data);
+
+% Calculate waveform metrics and add to session_data
+nClusters = height(session_data.spikes.cluster_info);
+for i_cluster = 1:nClusters
+    % Note: Assuming a sampling rate of 30000 Hz, which is typical for this data
+    session_data.metrics.wf_metrics(i_cluster) = ...
+        calculate_waveform_metrics(session_data.spikes.wfMeans{i_cluster}, 30000);
+end
+giveFeed('Diagnostic metrics calculated and stored.');
+
+
+%% Step 4: Generate diagnostic PDF
+giveFeed('Step 4: Generating diagnostic PDF...');
 try
     generate_neuron_summary_pdf(session_data, selected_neurons, unique_id);
     giveFeed('Diagnostic PDF generation step complete.');
@@ -80,6 +95,4 @@ catch ME_pdf
 end
 
 %% Done
-giveFeed('Test complete. Check the output for messages.');
-fprintf('NOTE: The called function "generate_neuron_summary_pdf" is a placeholder.\n');
-fprintf('A real PDF will not be generated in the figures directory.\n');
+giveFeed('Test complete. Check the generated PDF for session diagnostics.');

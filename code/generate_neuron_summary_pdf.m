@@ -34,9 +34,6 @@ all_spike_clusters = session_data.spikes.clusters;
 % Create a new figure for the PDF
 fig = figure('Color', 'w', 'Visible', 'off', 'PaperOrientation', 'landscape');
 
-% Pre-calculate metrics for all neurons
-baseline_frs = calculate_baseline_fr(session_data);
-
 % Loop through each cluster to create a page of plots
 for i_cluster = 1:nClusters
     cluster_id = cluster_ids(i_cluster);
@@ -120,8 +117,9 @@ for i_cluster = 1:nClusters
         phy_quality = cluster_info.group(info_row);
     end
 
-    % Waveform duration calculation
-    wf_metrics = calculate_waveform_metrics(session_data.spikes.wfMeans{i_cluster}, 30000);
+    % Retrieve pre-calculated metrics
+    baseline_fr = session_data.metrics.baseline_frs(i_cluster);
+    wf_metrics = session_data.metrics.wf_metrics(i_cluster);
     wf_duration = sprintf('%.2f ms', wf_metrics.peak_trough_ms);
 
     % Create summary text
@@ -129,7 +127,7 @@ for i_cluster = 1:nClusters
         sprintf('Cluster ID: %d', cluster_id), ...
         sprintf('Phy Quality: %s', phy_quality), ...
         sprintf('Screening Status: %s', screening_status), ...
-        sprintf('Baseline FR: %.2f Hz', baseline_frs(i_cluster)), ...
+        sprintf('Baseline FR: %.2f Hz', baseline_fr), ...
         sprintf('Waveform Duration: %s', wf_duration)
     };
 
