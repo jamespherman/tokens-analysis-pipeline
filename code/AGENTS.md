@@ -1,5 +1,21 @@
 # Agent Instructions
 
+## IMPORTANT: Data Structures
+
+**Before writing or modifying any code that interacts with `session_data.mat` files, you MUST consult the data dictionary.**
+
+The canonical definition for the main data structure, `session_data`, is located in:
+`docs/preprocessing_docs/session_data_dictionary.md`
+
+Do not make assumptions about the fields or layout of this structure. The documentation is the single source of truth. For example:
+- The number of clusters/neurons should be derived from `session_data.spikes.cluster_info`, not a field like `nClusters`.
+- Trial-related event times are in the `session_data.eventTimes` struct, not a `trials` struct.
+- Spike times are stored as a single vector (`spikes.times`) and mapped to clusters via `spikes.clusters`, not as a cell array per neuron.
+
+Consulting the documentation first will prevent bugs and ensure your code is compatible with the project's data standards.
+
+---
+
 When creating new MATLAB scripts in this directory, please ensure you add the `utils` directory to the MATLAB path. This is necessary for helper functions to be found.
 
 You can use the following code snippet at the beginning of your script to achieve this:
