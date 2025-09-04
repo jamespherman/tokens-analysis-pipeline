@@ -11,7 +11,7 @@ function baseline_frs = calculate_baseline_fr(session_data)
 %                  - spikes.cluster_info: Table with information about each cluster.
 %                  - spikes.times: Vector of all spike times.
 %                  - spikes.clusters: Vector mapping each spike to a cluster ID.
-%                  - eventTimes.targOn: Vector of target onset times for each trial.
+%                  - eventTimes.targetOn: Vector of target onset times for each trial.
 %
 % OUTPUT:
 %   baseline_frs - A vector (nClusters x 1) containing the average baseline
@@ -32,8 +32,8 @@ all_spike_times = session_data.spikes.times;
 all_spike_clusters = session_data.spikes.clusters;
 
 % Get event times from the standardized 'eventTimes' struct.
-if isfield(session_data, 'eventTimes') && isfield(session_data.eventTimes, 'targOn')
-    target_on_times = session_data.eventTimes.targOn;
+if isfield(session_data, 'eventTimes') && isfield(session_data.eventTimes, 'targetOn')
+    target_on_times = session_data.eventTimes.targetOn;
 else
     error('calculate_baseline_fr: session_data.eventTimes.targOn not found.');
 end
