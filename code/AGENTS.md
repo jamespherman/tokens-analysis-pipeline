@@ -71,3 +71,23 @@ Code should be organized into logical sections using `%%` headers. For example:
 %% Plotting
 % ... plotting code here ...
 ```
+
+---
+## General Principles
+
+### **Selecting Trials by Task**
+It is crucial to filter trials based on the specific task being analyzed. Neural responses are highly task-dependent, and calculations must be performed only on the relevant behavioral data. Use the `session_data.trialInfo.taskCode` field to select trials corresponding to a given task.
+
+First, load the task code definitions, then create a logical mask to select the desired trial indices.
+
+Example:
+```matlab
+% Load the structure containing all task codes
+codes = initCodes();
+
+% Find the indices of trials that belong to the 'tokens' task
+tokens_trial_indices = session_data.trialInfo.taskCode == codes.uniqueTaskCode_tokens;
+
+% Subsequent analyses should use these indices to filter the data
+valid_cue_on_times = session_data.eventTimes.CUE_ON(tokens_trial_indices);
+```
