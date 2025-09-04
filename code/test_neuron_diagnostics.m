@@ -40,7 +40,7 @@ selected_neurons = []; % Initialize empty
 if contains(unique_id, 'SNc')
     giveFeed('Session is SNc type. Running screen_da_neurons...');
     % Assumes screen_da_neurons is in the path
-    selected_neurons = screen_da_neurons(session_data);
+    selected_neurons = screen_da_neurons(session_data, unique_id);
     giveFeed('DA neuron screening complete.');
 elseif contains(unique_id, 'SC')
     giveFeed('Session is SC type. Loading gsac_data and running screen_sc_neurons...');
