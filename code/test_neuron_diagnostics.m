@@ -11,12 +11,14 @@ giveFeed = @(x)disp([num2str(toc) 's - ' x]);
 
 %% Setup
 unique_id = 'Feynman_08_12_2025_SNc'; % Hardcoded session
-giveFeed(sprintf('Testing diagnostic workflow for session: %s', unique_id));
+giveFeed(sprintf('Testing diagnostic workflow for session: %s', ...
+    unique_id));
 
 %% Step 1: Load session data
 giveFeed('Step 1: Loading session data...');
 one_drive_path = findOneDrive;
-session_data_path = fullfile(one_drive_path, 'data', unique_id, [unique_id '_session_data.mat']);
+session_data_path = fullfile(one_drive_path, 'data', unique_id, ...
+    [unique_id '_session_data.mat']);
 
 % Note: The following line will error if the data file does not exist.
 % This is expected in a test environment without the actual data.

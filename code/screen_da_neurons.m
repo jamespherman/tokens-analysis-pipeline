@@ -17,7 +17,9 @@ function selected_neurons = screen_da_neurons(session_data)
 %                      a putative DA neuron.
 %
 
-fprintf('--> Screening DA neurons for session: %s\n', session_data.session_id);
+try
+fprintf('--> Screening DA neurons for session: %s\n', ...
+    session_data.session_id);
 
 nNeurons = session_data.nClusters;
 if nNeurons == 0
@@ -48,7 +50,8 @@ end
 % Select neurons with a baseline firing rate < 20 sp/s
 selected_neurons = baseline_frs < 20;
 
-fprintf('... found %d putative DA neurons (FR < 20 sp/s).\n', nnz(selected_neurons));
+fprintf('... found %d putative DA neurons (FR < 20 sp/s).\n', ...
+    nnz(selected_neurons));
 
 
 % --- 3. Generate and Save Diagnostic Plot ---
@@ -59,11 +62,13 @@ if ~exist('figures', 'dir')
 end
 
 fig_handle = figure('Visible', 'off');
-scatter(waveform_durations_ms, baseline_frs, 36, 'filled', 'MarkerFaceAlpha', 0.6);
+scatter(waveform_durations_ms, baseline_frs, 36, 'filled', ...
+    'MarkerFaceAlpha', 0.6);
 hold on;
 
 % Highlight the selected neurons
-scatter(waveform_durations_ms(selected_neurons), baseline_frs(selected_neurons), ...
+scatter(waveform_durations_ms(selected_neurons), ...
+    baseline_frs(selected_neurons), ...
         36, 'r', 'filled', 'MarkerFaceAlpha', 0.8);
 
 % Add a line for the firing rate cutoff
@@ -71,14 +76,20 @@ yline(20, '--r', 'Label', 'FR Cutoff (20 sp/s)', 'LineWidth', 1.5);
 
 xlabel('Waveform Peak-to-Trough Duration (ms)');
 ylabel('Baseline Firing Rate (sp/s)');
-title(sprintf('DA Neuron Screening: %s', session_data.session_id), 'Interpreter', 'none');
+title(sprintf('DA Neuron Screening: %s', session_data.session_id), ...
+    'Interpreter', 'none');
 legend({'All Neurons', 'Selected (Putative DA)'}, 'Location', 'northeast');
 grid on;
 
 % Save the figure
-fig_filename = fullfile('figures', sprintf('da_screening_%s.png', session_data.session_id));
+fig_filename = fullfile('figures', sprintf('da_screening_%s.png', ...
+    session_data.session_id));
 saveas(fig_handle, fig_filename);
 fprintf('... diagnostic plot saved to %s\n', fig_filename);
 close(fig_handle);
+
+catch me
+    keyboard
+end
 
 end
