@@ -17,7 +17,7 @@ giveFeed(sprintf('Testing diagnostic workflow for session: %s', ...
 %% Step 1: Load session data
 giveFeed('Step 1: Loading session data...');
 one_drive_path = findOneDrive;
-session_data_path = fullfile(one_drive_path, 'data', unique_id, ...
+session_data_path = fullfile(one_drive_path, 'Neuronal Data Analysis', unique_id, ...
     [unique_id '_session_data.mat']);
 
 % Note: The following line will error if the data file does not exist.
@@ -46,7 +46,7 @@ elseif contains(unique_id, 'SC')
     giveFeed('Session is SC type. Loading gsac_data and running screen_sc_neurons...');
     % This part requires gsac_data, which is not available in this test.
     % We will simulate a placeholder for gsac_data.
-    gsac_data_path = fullfile(one_drive_path, 'data', unique_id, [unique_id '_gsac_data.mat']);
+    gsac_data_path = fullfile(one_drive_path, 'Neuronal Data Analysis', unique_id, [unique_id '_gsac_data.mat']);
     try
         gsac_data = load(gsac_data_path);
         giveFeed('gSac_jph task data loaded successfully.');
