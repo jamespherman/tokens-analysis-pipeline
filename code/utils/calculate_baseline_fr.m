@@ -1,96 +1,98 @@
 function baseline_frs = calculate_baseline_fr(session_data)
-% calculate_baseline_fr - Computes the average baseline firing rate for neurons.
+% calculate_baseline_fr - Computes baseline firing rates for the 'tokens' task.
 %
-% This function calculates the firing rate for each neuron during a
-% predefined baseline period, averaged across all valid trials.
+% This function is specialized for the 'tokens' task. It calculates the
+% mean firing rate for each neuron during a dynamically determined baseline
+% period. The baseline for each trial is the window between the trial's
+% start and the first subsequent event (CUE_ON, pdsOutcomeOn, or reward).
 %
 % INPUTS:
-%   session_data - A struct containing session-specific data, conforming to
-%                  the structure defined in 'docs/preprocessing_docs/session_data_dictionary.md'.
-%                  It must include:
-%                  - spikes.cluster_info: Table with information about each cluster.
-%                  - spikes.times: Vector of all spike times.
-%                  - spikes.clusters: Vector mapping each spike to a cluster ID.
-%                  - eventTimes.targOn: Vector of target onset times for each trial.
+%   session_data - A struct containing session-specific data. It must include:
+%                  - spikes: Struct with cluster_info, times, and clusters.
+%                  - trialInfo: Struct with taskCode for each trial.
+%                  - eventTimes: Struct with CUE_ON, pdsOutcomeOn, and reward times.
+%                  - trialTimes: Struct with trialStart times.
 %
 % OUTPUT:
-%   baseline_frs - A vector (nClusters x 1) containing the average baseline
-%                  firing rate for each cluster in spikes/sec.
+%   baseline_frs - A vector (nNeurons x 1) containing the average baseline
+%                  firing rate for each neuron in spikes/sec.
 %
 
-% --- Setup ---
-% Get cluster information from the standardized session_data structure.
-if ~isfield(session_data, 'spikes') || ~isfield(session_data.spikes, 'cluster_info')
-    error('calculate_baseline_fr: session_data.spikes.cluster_info not found.');
-end
+% --- Setup and Data Extraction ---
+codes = initCodes();
 cluster_info = session_data.spikes.cluster_info;
 cluster_ids = cluster_info.cluster_id;
-nClusters = height(cluster_info);
+nNeurons = height(cluster_info);
 
-% Get all spike times and their cluster assignments.
 all_spike_times = session_data.spikes.times;
 all_spike_clusters = session_data.spikes.clusters;
 
-% Get event times from the standardized 'eventTimes' struct.
-if isfield(session_data, 'eventTimes') && isfield(session_data.eventTimes, 'targOn')
-    target_on_times = session_data.eventTimes.targOn;
-else
-    error('calculate_baseline_fr: session_data.eventTimes.targOn not found.');
+% --- Task-Specific Trial Selection ---
+% Identify trials belonging to the 'tokens' task.
+tokens_trial_indices = find(session_data.trialInfo.taskCode == codes.uniqueTaskCode_tokens);
+
+if isempty(tokens_trial_indices)
+    fprintf("Warning in calculate_baseline_fr: No 'tokens' task trials found.\n");
+    baseline_frs = zeros(nNeurons, 1);
+    return;
 end
 
-% --- Define Baseline Period ---
-% We define the baseline period as the 100ms window immediately preceding
-% the target onset on each trial.
-baseline_start_offset = -0.100; % 100 ms before target onset
-baseline_end_offset   = 0.000;  % at target onset
-baseline_duration_sec = baseline_end_offset - baseline_start_offset; % should be 0.1
+% --- Firing Rate Calculation ---
+baseline_frs = zeros(nNeurons, 1);
+total_baseline_duration_per_neuron = zeros(nNeurons, 1);
+total_spike_count_per_neuron = zeros(nNeurons, 1);
 
-% --- Calculate Firing Rates ---
-baseline_frs = zeros(nClusters, 1);
-valid_trials = find(~isnan(target_on_times));
-nValidTrials = numel(valid_trials);
-
-if nValidTrials == 0
-    fprintf('WARNING in calculate_baseline_fr: No valid trials with target onset found.\n');
-    return; % Returns a vector of zeros
-end
-
-% Total duration across all valid trials, used for averaging.
-total_baseline_duration = nValidTrials * baseline_duration_sec;
-
-if total_baseline_duration <= 0
-    fprintf('WARNING in calculate_baseline_fr: Total baseline duration is zero or negative.\n');
-    return; % Returns a vector of zeros
-end
-
-% Iterate through each cluster and calculate its baseline firing rate.
-for i_cluster = 1:nClusters
-    cluster_id = cluster_ids(i_cluster);
-
-    % Get spike times for the current cluster.
-    neuron_spike_times = all_spike_times(all_spike_clusters == cluster_id);
+% Iterate through each neuron to calculate its average firing rate.
+for i_neuron = 1:nNeurons
+    neuron_id = cluster_ids(i_neuron);
+    neuron_spike_times = all_spike_times(all_spike_clusters == neuron_id);
 
     if isempty(neuron_spike_times)
-        baseline_frs(i_cluster) = 0;
-        continue;
+        continue; % Skip neurons with no spikes.
     end
 
-    total_spike_count = 0;
+    % --- Dynamic Baseline Window Calculation ---
+    for i_trial = 1:length(tokens_trial_indices)
+        trial_idx = tokens_trial_indices(i_trial);
+        trial_start_time = session_data.trialTimes.trialStart(trial_idx);
 
-    % Sum spikes across the baseline window of all valid trials.
-    for i_trial = 1:nValidTrials
-        trial_idx = valid_trials(i_trial);
-        event_time = target_on_times(trial_idx);
+        % Convert event times to trial-relative time for comparison.
+        % CUE_ON and reward are on the master clock; pdsOutcomeOn is already trial-relative.
+        cue_on_relative = session_data.eventTimes.CUE_ON(trial_idx) - trial_start_time;
+        reward_relative = session_data.eventTimes.reward(trial_idx) - trial_start_time;
+        pds_outcome_relative = session_data.eventTimes.pdsOutcomeOn(trial_idx);
 
-        start_time = event_time + baseline_start_offset;
-        end_time   = event_time + baseline_end_offset;
+        % Find the earliest positive event time.
+        event_times = [cue_on_relative, reward_relative, pds_outcome_relative];
+        positive_event_times = event_times(event_times > 0);
 
-        % Count spikes within the baseline window for this trial.
-        total_spike_count = total_spike_count + sum(neuron_spike_times >= start_time & neuron_spike_times < end_time);
+        if isempty(positive_event_times)
+            continue; % Skip trial if no valid positive event time is found.
+        end
+
+        baseline_end_time = min(positive_event_times);
+        baseline_duration = baseline_end_time; % Starts from 0 (trial_start_time)
+
+        if baseline_duration <= 0
+            continue; % Skip if baseline duration is not positive.
+        end
+
+        % Define the absolute time window for spike counting.
+        start_time_abs = trial_start_time;
+        end_time_abs = trial_start_time + baseline_duration;
+
+        % Count spikes within this trial's baseline window.
+        spike_count = sum(neuron_spike_times >= start_time_abs & neuron_spike_times < end_time_abs);
+
+        total_spike_count_per_neuron(i_neuron) = total_spike_count_per_neuron(i_neuron) + spike_count;
+        total_baseline_duration_per_neuron(i_neuron) = total_baseline_duration_per_neuron(i_neuron) + baseline_duration;
     end
 
-    % Calculate average firing rate for this neuron.
-    baseline_frs(i_cluster) = total_spike_count / total_baseline_duration;
+    % --- Calculate Average Firing Rate ---
+    % Avoid division by zero if a neuron had no valid baseline windows.
+    if total_baseline_duration_per_neuron(i_neuron) > 0
+        baseline_frs(i_neuron) = total_spike_count_per_neuron(i_neuron) / total_baseline_duration_per_neuron(i_neuron);
+    end
 end
 
 end
