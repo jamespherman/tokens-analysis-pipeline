@@ -39,8 +39,24 @@ catch ME
     session_data = struct('spikes', rand(100,1), 'neuron_ids', 1:5);
 end
 
-%% Step 2: Run neuron screening
-giveFeed('Step 2: Running neuron screening...');
+%% Step 2: Calculate and Store Diagnostic Metrics
+giveFeed('Step 2: Calculating and storing diagnostic metrics...');
+
+% Calculate baseline firing rates and add to session_data
+session_data.metrics.baseline_frs = calculate_baseline_fr(session_data);
+
+% Calculate waveform metrics and add to session_data
+nClusters = height(session_data.spikes.cluster_info);
+for i_cluster = 1:nClusters
+    % Note: Assuming a sampling rate of 30000 Hz, which is typical for this data
+    session_data.metrics.wf_metrics(i_cluster) = ...
+        calculate_waveform_metrics(session_data.spikes.wfMeans{i_cluster}, 30000);
+end
+giveFeed('Diagnostic metrics calculated and stored.');
+
+
+%% Step 3: Run neuron screening
+giveFeed('Step 3: Running neuron screening...');
 selected_neurons = []; % Initialize empty
 
 if contains(unique_id, 'SNc')
@@ -67,22 +83,6 @@ elseif contains(unique_id, 'SC')
 else
     error('Unknown session type in unique_id. Cannot determine which screening function to run.');
 end
-
-%% Step 3: Calculate and Store Diagnostic Metrics
-giveFeed('Step 3: Calculating and storing diagnostic metrics...');
-
-% Calculate baseline firing rates and add to session_data
-session_data.metrics.baseline_frs = calculate_baseline_fr(session_data);
-
-% Calculate waveform metrics and add to session_data
-nClusters = height(session_data.spikes.cluster_info);
-for i_cluster = 1:nClusters
-    % Note: Assuming a sampling rate of 30000 Hz, which is typical for this data
-    session_data.metrics.wf_metrics(i_cluster) = ...
-        calculate_waveform_metrics(session_data.spikes.wfMeans{i_cluster}, 30000);
-end
-giveFeed('Diagnostic metrics calculated and stored.');
-
 
 %% Step 4: Generate diagnostic PDF
 giveFeed('Step 4: Generating diagnostic PDF...');

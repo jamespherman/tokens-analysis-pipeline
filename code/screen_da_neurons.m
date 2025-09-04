@@ -26,27 +26,16 @@ if nNeurons == 0
     return;
 end
 
-% --- 1. Calculate Metrics using Helper Functions ---
+% --- 1. Retrieve Pre-calculated Metrics ---
 
-% Calculate baseline firing rate for all neurons
-% This function is expected to return a vector of size [nNeurons x 1]
-baseline_frs = calculate_baseline_fr(session_data);
+% Retrieve baseline firing rates from session_data
+baseline_frs = session_data.metrics.baseline_frs;
 
-% Calculate waveform metrics for each neuron
+% Retrieve waveform metrics from session_data
+nNeurons = height(session_data.spikes.cluster_info);
 waveform_durations_ms = zeros(nNeurons, 1);
-fs = 30000; % sampling rate
 for i = 1:nNeurons
-    % wfMeans is a cell array, so access with {}
-    % Each cell contains the mean waveform for a neuron across channels
-    mean_waveform = session_data.spikes.wfMeans{i};
-
-    % Find the channel with the largest variance:
-    [~,maxVarChannel] = max(var(mean_waveform,[],2));
-
-    % This function is expected to return a struct with metrics
-    waveform_metrics = calculate_waveform_metrics(...
-        mean_waveform(maxVarChannel,:), fs);
-    waveform_durations_ms(i) = waveform_metrics.peak_trough_ms;
+    waveform_durations_ms(i) = session_data.metrics.wf_metrics(i).peak_trough_ms;
 end
 
 
