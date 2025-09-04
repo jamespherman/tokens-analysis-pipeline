@@ -56,7 +56,7 @@ for i_neuron = 1:nNeurons
     % --- Dynamic Baseline Window Calculation ---
     for i_trial = 1:length(tokens_trial_indices)
         trial_idx = tokens_trial_indices(i_trial);
-        trial_start_time = session_data.trialTimes.trialStart(trial_idx);
+        trial_start_time = session_data.eventTimes.trialBegin(trial_idx);
 
         % Convert event times to trial-relative time for comparison.
         % CUE_ON and reward are on the master clock; pdsOutcomeOn is already trial-relative.

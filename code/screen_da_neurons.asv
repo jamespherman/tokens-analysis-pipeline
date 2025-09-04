@@ -37,11 +37,15 @@ waveform_durations_ms = zeros(nNeurons, 1);
 fs = 30000; % sampling rate
 for i = 1:nNeurons
     % wfMeans is a cell array, so access with {}
-    % Each cell contains the mean waveform for a neuron on its primary channel
+    % Each cell contains the mean waveform for a neuron across channels
     mean_waveform = session_data.spikes.wfMeans{i};
 
+    % Find the channel with the largest variance:
+    [~,maxVarChannel] = max(var(mean_waveform,[],2));
+
     % This function is expected to return a struct with metrics
-    waveform_metrics = calculate_waveform_metrics(mean_waveform, fs);
+    waveform_metrics = calculate_waveform_metrics(...
+        mean_waveform(maxVarChannel,:), fs);
     waveform_durations_ms(i) = waveform_metrics.peak_trough_ms;
 end
 
