@@ -91,3 +91,23 @@ tokens_trial_indices = session_data.trialInfo.taskCode == codes.uniqueTaskCode_t
 % Subsequent analyses should use these indices to filter the data
 valid_cue_on_times = session_data.eventTimes.CUE_ON(tokens_trial_indices);
 ```
+
+---
+
+## Project Root Directory
+
+When writing code that needs to access files or directories relative to the project root, it is important to construct paths correctly. The project root for `tokens-analysis-pipeline` can be found by using the following MATLAB code:
+
+```matlab
+project_root = fullfile(findOneDrive, 'Code', 'tokens-analysis-pipeline');
+```
+
+This will ensure that paths are resolved correctly, regardless of the directory from which the code is executed.
+
+For example, to access the `figures` directory from within a script, you should use:
+
+```matlab
+figures_dir = fullfile(project_root, 'figures');
+```
+
+This is especially important for scripts located in the `code/` directory, which are executed from `/code` in the runtime environment.

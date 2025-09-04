@@ -17,7 +17,8 @@ function generate_neuron_summary_pdf(session_data, selected_neurons, unique_id)
 %       in the 'figures/' directory.
 
 % Define output directory and filename
-output_dir = 'figures';
+project_root = fullfile(findOneDrive, 'Code', 'tokens-analysis-pipeline');
+output_dir = fullfile(project_root, 'figures');
 if ~exist(output_dir, 'dir')
     mkdir(output_dir);
 end
