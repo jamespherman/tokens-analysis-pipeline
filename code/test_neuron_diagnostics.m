@@ -9,6 +9,12 @@ tic;
 % In-line function to report timing
 giveFeed = @(x)disp([num2str(toc) 's - ' x]);
 
+%% Setup Paths
+% Add the 'utils' directory to the path so that helper functions can be
+% found.
+[script_dir, ~, ~] = fileparts(mfilename('fullpath'));
+addpath(fullfile(script_dir, 'utils'));
+
 %% Setup
 unique_id = 'Feynman_08_12_2025_SNc'; % Hardcoded session
 giveFeed(sprintf('Testing diagnostic workflow for session: %s', ...
