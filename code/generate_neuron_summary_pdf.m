@@ -3,14 +3,13 @@ function generate_neuron_summary_pdf(session_data, selected_neurons, unique_id)
 %
 %   GENERATE_NEURON_SUMMARY_PDF(session_data, selected_neurons, unique_id)
 %   generates a multi-page PDF file where each page contains a summary of a
-%   single neuron. The function loops through all neurons, creating a 2x2
-%   panel of plots for each one.
+%   single neuron, conforming to the standardized `session_data` structure.
 %
 %   Inputs:
 %       session_data     - A struct for a single session, containing fields like
 %                          'spikes' and 'cluster_info'.
-%       selected_neurons - A logical vector (nNeurons x 1) indicating which
-%                          neurons were selected by the screening process.
+%       selected_neurons - A logical vector (nClusters x 1) indicating which
+%                          neurons were selected by a screening process.
 %       unique_id        - A string used to name the output PDF file.
 %
 %   Output:
@@ -24,8 +23,12 @@ if ~exist(output_dir, 'dir')
 end
 output_filename = fullfile(output_dir, [unique_id '_neuron_diagnostics.pdf']);
 
-% Get the number of neurons
-nNeurons = session_data.nClusters;
+% --- Setup and Data Extraction ---
+cluster_info = session_data.spikes.cluster_info;
+cluster_ids = cluster_info.cluster_id;
+nClusters = height(cluster_info);
+all_spike_times = session_data.spikes.times;
+all_spike_clusters = session_data.spikes.clusters;
 
 % Create a new figure for the PDF
 fig = figure('Color', 'w', 'Visible', 'off', 'PaperOrientation', 'landscape');
@@ -33,18 +36,20 @@ fig = figure('Color', 'w', 'Visible', 'off', 'PaperOrientation', 'landscape');
 % Pre-calculate metrics for all neurons
 baseline_frs = calculate_baseline_fr(session_data);
 
-% Loop through each neuron to create a page of plots
-for i_neuron = 1:nNeurons
+% Loop through each cluster to create a page of plots
+for i_cluster = 1:nClusters
+    cluster_id = cluster_ids(i_cluster);
+
     % Clear the figure for the new page
     clf(fig);
 
     % Add a title for the page
-    sgtitle(sprintf('Neuron Diagnostic Summary: Cluster %d', i_neuron));
+    sgtitle(sprintf('Neuron Diagnostic Summary: Cluster %d', cluster_id));
 
     % --- Panel 1: Mean Waveform ---
     ax1 = mySubPlot([2, 2, 1]);
-    if isfield(session_data, 'spikes') && isfield(session_data.spikes, 'wfMeans')
-        plot(ax1, session_data.spikes.wfMeans(:, i_neuron));
+    if isfield(session_data.spikes, 'wfMeans') && numel(session_data.spikes.wfMeans) >= i_cluster
+        plot(ax1, session_data.spikes.wfMeans{i_cluster});
         title(ax1, 'Mean Waveform');
         xlabel(ax1, 'Samples');
         ylabel(ax1, 'Amplitude (uV)');
@@ -55,44 +60,37 @@ for i_neuron = 1:nNeurons
 
     % --- Panel 2: ISI Histogram ---
     ax2 = mySubPlot([2, 2, 2]);
-    if isfield(session_data, 'spikes') && isfield(session_data.spikes, 'times')
-        spike_times = session_data.spikes.times{i_neuron};
-        if numel(spike_times) > 1
-            isi = diff(spike_times) * 1000; % in ms
-            histogram(ax2, isi, 'EdgeColor', 'k', 'FaceColor', [0.5 0.5 0.5]);
-            set(ax2, 'XScale', 'log');
-            title(ax2, 'ISI Histogram');
-            xlabel(ax2, 'Inter-Spike Interval (ms, log scale)');
-            ylabel(ax2, 'Count');
-        else
-            text(0.5, 0.5, 'Not enough spikes for ISI', 'Parent', ax2, 'HorizontalAlignment', 'center');
-        end
+    spike_times = all_spike_times(all_spike_clusters == cluster_id);
+    if numel(spike_times) > 1
+        isi = diff(spike_times) * 1000; % in ms
+        histogram(ax2, isi, 'EdgeColor', 'k', 'FaceColor', [0.5 0.5 0.5]);
+        set(ax2, 'XScale', 'log');
+        title(ax2, 'ISI Histogram');
+        xlabel(ax2, 'Inter-Spike Interval (ms, log scale)');
+        ylabel(ax2, 'Count');
     else
-        text(0.5, 0.5, 'Spike times not found', 'Parent', ax2, 'HorizontalAlignment', 'center');
+        text(0.5, 0.5, 'Not enough spikes for ISI', 'Parent', ax2, 'HorizontalAlignment', 'center');
     end
 
     % --- Panel 3: Basic PSTH ---
     ax3 = mySubPlot([2, 2, 3]);
-    if isfield(session_data, 'gSac') && isfield(session_data.gSac, 'outcomeOnTime')
-        event_times = session_data.gSac.outcomeOnTime;
-        spike_times = session_data.spikes.times{i_neuron};
-
+    if isfield(session_data, 'eventTimes') && isfield(session_data.eventTimes, 'pdsOutcomeOn')
+        event_times = session_data.eventTimes.pdsOutcomeOn;
         win = [-0.5, 1.0]; % Time window around event
         bin_size = 0.05; % 50 ms bins
         bins = win(1):bin_size:win(2);
 
+        valid_trials_idx = find(~isnan(event_times));
+        n_valid_trials = numel(valid_trials_idx);
         psth = zeros(size(bins));
-        valid_trials = 0;
-        for i_trial = 1:numel(event_times)
-            if ~isnan(event_times(i_trial))
-                valid_trials = valid_trials + 1;
-                relative_spikes = spike_times - event_times(i_trial);
+
+        if n_valid_trials > 0
+            for i_trial = 1:n_valid_trials
+                event_time = event_times(valid_trials_idx(i_trial));
+                relative_spikes = spike_times - event_time;
                 psth = psth + histcounts(relative_spikes, [bins, bins(end)+bin_size]);
             end
-        end
-
-        if valid_trials > 0
-            psth_rate = psth / (valid_trials * bin_size); % Convert to firing rate (Hz)
+            psth_rate = psth / (n_valid_trials * bin_size); % Convert to firing rate (Hz)
             bar(ax3, bins, psth_rate, 'hist');
             title(ax3, 'PSTH around Outcome');
             xlabel(ax3, 'Time from Outcome (s)');
@@ -102,41 +100,39 @@ for i_neuron = 1:nNeurons
             text(0.5, 0.5, 'No valid trials for PSTH', 'Parent', ax3, 'HorizontalAlignment', 'center');
         end
     else
-        text(0.5, 0.5, 'Event times not found', 'Parent', ax3, 'HorizontalAlignment', 'center');
+        text(0.5, 0.5, 'Event times (pdsOutcomeOn) not found', 'Parent', ax3, 'HorizontalAlignment', 'center');
     end
 
     % --- Panel 4: Summary Information ---
     ax4 = mySubPlot([2, 2, 4]);
     axis(ax4, 'off'); % Turn off axis for text
 
-    % Get screening status
-    if selected_neurons(i_neuron)
+    screening_status = 'Not Selected';
+    if numel(selected_neurons) >= i_cluster && selected_neurons(i_cluster)
         screening_status = 'Selected';
-    else
-        screening_status = 'Not Selected';
     end
 
-    % Get Phy quality
-    if isfield(session_data, 'cluster_info') && isfield(session_data.cluster_info, 'group')
-        phy_quality = session_data.cluster_info.group{i_neuron};
-    else
-        phy_quality = 'N/A';
+    phy_quality = 'N/A';
+    % Find the row corresponding to the current cluster_id
+    info_row = cluster_info.cluster_id == cluster_id;
+    if any(info_row) && ismember('group', cluster_info.Properties.VariableNames)
+        phy_quality = cluster_info.group{info_row};
     end
 
-    % Get waveform duration
-    if isfield(session_data, 'spikes') && isfield(session_data.spikes, 'fs')
-        wf_metrics = calculate_waveform_metrics(session_data.spikes.wfMeans(:, i_neuron), session_data.spikes.fs);
-        wf_duration = sprintf('%.2f ms', wf_metrics.peak_trough_ms);
-    else
-        wf_duration = 'N/A';
-    end
+    % Waveform duration calculation is disabled because the sampling rate (fs)
+    % is not available in the standardized session_data structure.
+    wf_duration = 'N/A (fs not found)';
+    % if isfield(session_data.spikes, 'fs')
+    %     wf_metrics = calculate_waveform_metrics(session_data.spikes.wfMeans{i_cluster}, session_data.spikes.fs);
+    %     wf_duration = sprintf('%.2f ms', wf_metrics.peak_trough_ms);
+    % end
 
     % Create summary text
     summary_text = {
-        sprintf('Cluster ID: %d', i_neuron), ...
+        sprintf('Cluster ID: %d', cluster_id), ...
         sprintf('Phy Quality: %s', phy_quality), ...
         sprintf('Screening Status: %s', screening_status), ...
-        sprintf('Baseline FR: %.2f Hz', baseline_frs(i_neuron)), ...
+        sprintf('Baseline FR: %.2f Hz', baseline_frs(i_cluster)), ...
         sprintf('Waveform Duration: %s', wf_duration)
     };
 
@@ -144,7 +140,7 @@ for i_neuron = 1:nNeurons
     title(ax4, 'Summary Information');
 
     % Append the current figure state to the PDF
-    if i_neuron == 1
+    if i_cluster == 1
         print(fig, output_filename, '-dpdf', '-fillpage');
     else
         print(fig, output_filename, '-dpdf', '-fillpage', '-append');
