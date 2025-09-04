@@ -95,10 +95,12 @@ for i_cluster = 1:nClusters
             ylabel(ax3, 'Firing Rate (Hz)');
             xline(ax3, 0, 'r--');
         else
-            text(0.5, 0.5, 'No valid trials for PSTH', 'Parent', ax3, 'HorizontalAlignment', 'center');
+            text(0.5, 0.5, 'No valid trials for PSTH', 'Parent', ...
+                ax3, 'HorizontalAlignment', 'center');
         end
     else
-        text(0.5, 0.5, 'Event times (pdsOutcomeOn) not found', 'Parent', ax3, 'HorizontalAlignment', 'center');
+        text(0.5, 0.5, 'Event times (pdsOutcomeOn) not found', ...
+            'Parent', ax3, 'HorizontalAlignment', 'center');
     end
 
     % --- Panel 4: Summary Information ---
@@ -131,7 +133,8 @@ for i_cluster = 1:nClusters
         sprintf('Waveform Duration: %s', wf_duration)
     };
 
-    text(0.1, 0.5, summary_text, 'Parent', ax4, 'VerticalAlignment', 'middle', 'FontSize', 12);
+    text(0.1, 0.5, summary_text, 'Parent', ax4, ...
+        'VerticalAlignment', 'middle', 'FontSize', 12);
     title(ax4, 'Summary Information');
 
     % Append the current figure state to the PDF
