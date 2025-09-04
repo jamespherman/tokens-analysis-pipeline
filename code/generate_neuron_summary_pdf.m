@@ -120,13 +120,9 @@ for i_cluster = 1:nClusters
         phy_quality = cluster_info.group(info_row);
     end
 
-    % Waveform duration calculation is disabled because the sampling rate (fs)
-    % is not available in the standardized session_data structure.
-    wf_duration = 'N/A (fs not found)';
-    % if isfield(session_data.spikes, 'fs')
-    %     wf_metrics = calculate_waveform_metrics(session_data.spikes.wfMeans{i_cluster}, session_data.spikes.fs);
-    %     wf_duration = sprintf('%.2f ms', wf_metrics.peak_trough_ms);
-    % end
+    % Waveform duration calculation
+    wf_metrics = calculate_waveform_metrics(session_data.spikes.wfMeans{i_cluster}, 30000);
+    wf_duration = sprintf('%.2f ms', wf_metrics.peak_trough_ms);
 
     % Create summary text
     summary_text = {
