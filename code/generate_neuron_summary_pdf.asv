@@ -31,7 +31,7 @@ end
 cluster_info = session_data.spikes.cluster_info;
 cluster_ids = cluster_info.cluster_id;
 nClusters = height(cluster_info.cluster_id);
-all_spike_times = session_data.spikes.times;
+all_spike_times = session_data.spikes.times/30000;
 all_spike_clusters = session_data.spikes.clusters;
 
 % Create a new figure for the PDF
@@ -45,7 +45,8 @@ for i_cluster = 1:nClusters
     
     % define output file name:
     output_filename = fullfile(output_dir, ...
-        [unique_id '_' sprintf('%03d',1) '_neuron_diagnostics.pdf']);
+        [unique_id '_' sprintf('%03d',i_cluster) ...
+        '_neuron_diagnostics.pdf']);
 
     % Clear the figure for the new page
     clf(fig);
@@ -81,7 +82,8 @@ for i_cluster = 1:nClusters
 
     % --- Panel 3: Basic PSTH ---
     ax3 = mySubPlot([2, 2, 3]);
-    if isfield(session_data, 'eventTimes') && isfield(session_data.eventTimes, 'pdsOutcomeOn')
+    if isfield(session_data, 'eventTimes') && ...
+            isfield(session_data.eventTimes, 'pdsOutcomeOn')
         event_times = session_data.eventTimes.pdsOutcomeOn;
         win = [-0.5, 1.0]; % Time window around event
         bin_size = 0.05; % 50 ms bins
@@ -151,7 +153,7 @@ for i_cluster = 1:nClusters
     pdfSave(output_filename, fig.Position(3:4)/72, fig);
 
     % give feedback:
-    giveFeed(['Wrote PDF for unit ' num2str(i_cluster)])
+    giveFeed(['Wrote PDF for unit ' sprintf('%03d',i_cluster)])
 end
 
 % Close the figure
