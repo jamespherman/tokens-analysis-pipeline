@@ -32,18 +32,12 @@ end
 baseline_frs = session_data.metrics.baseline_frs;
 
 % Retrieve waveform metrics from session_data
-nNeurons = height(session_data.spikes.cluster_info);
-waveform_durations_ms = zeros(nNeurons, 1);
-for i = 1:nNeurons
-    waveform_durations_ms(i) = ...
-        session_data.metrics.wf_metrics(i).peak_trough_ms;
-end
-
+waveform_durations_ms = [session_data.metrics.wf_metrics.peak_trough_ms];
 
 % --- 2. Apply Selection Criteria ---
 
 % Select neurons with a baseline firing rate < 20 sp/s
-selected_neurons = baseline_frs < 20;
+selected_neurons = baseline_frs < 20 & baseline_frs > 0;
 
 fprintf('... found %d putative DA neurons (FR < 20 sp/s).\n', ...
     nnz(selected_neurons));

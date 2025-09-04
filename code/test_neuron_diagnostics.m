@@ -46,11 +46,18 @@ giveFeed('Step 2: Calculating and storing diagnostic metrics...');
 session_data.metrics.baseline_frs = calculate_baseline_fr(session_data);
 
 % Calculate waveform metrics and add to session_data
-nClusters = height(session_data.spikes.cluster_info);
+nClusters = height(session_data.spikes.cluster_info.cluster_id);
 for i_cluster = 1:nClusters
-    % Note: Assuming a sampling rate of 30000 Hz, which is typical for this data
-    session_data.metrics.wf_metrics(i_cluster) = ...
-        calculate_waveform_metrics(session_data.spikes.wfMeans{i_cluster}, 30000);
+
+    % get current unit's multi-channel waveform:
+    mean_waveform = session_data.spikes.wfMeans{i_cluster};
+
+    % find channel with max variance:
+    [~,max_var_chan] = max(var(mean_waveform,[],2));
+
+    % Note: Assuming a sampling rate of 30000 Hz
+    session_data.metrics.wf_metrics(i_cluster, 1) = ...
+        calculate_waveform_metrics(mean_waveform(max_var_chan,:), 30000);
 end
 giveFeed('Diagnostic metrics calculated and stored.');
 

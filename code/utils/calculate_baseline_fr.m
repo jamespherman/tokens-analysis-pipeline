@@ -24,9 +24,9 @@ function baseline_frs = calculate_baseline_fr(session_data)
 codes = initCodes();
 cluster_info = session_data.spikes.cluster_info;
 cluster_ids = cluster_info.cluster_id;
-nNeurons = height(cluster_info);
+nNeurons = height(cluster_info.cluster_id);
 
-all_spike_times = session_data.spikes.times;
+all_spike_times = session_data.spikes.times/30000;
 all_spike_clusters = session_data.spikes.clusters;
 
 % --- Task-Specific Trial Selection ---
@@ -84,7 +84,7 @@ for i_neuron = 1:nNeurons
         end_time_abs = trial_start_time + baseline_duration;
 
         % Count spikes within this trial's baseline window.
-        spike_count = sum(neuron_spike_times >= start_time_abs & neuron_spike_times < end_time_abs);
+        spike_count = nnz(neuron_spike_times >= start_time_abs & neuron_spike_times < end_time_abs);
 
         total_spike_count_per_neuron(i_neuron) = total_spike_count_per_neuron(i_neuron) + spike_count;
         total_baseline_duration_per_neuron(i_neuron) = total_baseline_duration_per_neuron(i_neuron) + baseline_duration;

@@ -47,7 +47,7 @@ for i_cluster = 1:nClusters
     % --- Panel 1: Mean Waveform ---
     ax1 = mySubPlot([2, 2, 1]);
     if isfield(session_data.spikes, 'wfMeans') && numel(session_data.spikes.wfMeans) >= i_cluster
-        plot(ax1, session_data.spikes.wfMeans{i_cluster});
+        plot(ax1, session_data.spikes.wfMeans{i_cluster}');
         title(ax1, 'Mean Waveform');
         xlabel(ax1, 'Samples');
         ylabel(ax1, 'Amplitude (uV)');
