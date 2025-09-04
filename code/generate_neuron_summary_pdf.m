@@ -116,8 +116,8 @@ for i_cluster = 1:nClusters
     phy_quality = 'N/A';
     % Find the row corresponding to the current cluster_id
     info_row = cluster_info.cluster_id == cluster_id;
-    if any(info_row) && ismember('group', cluster_info.Properties.VariableNames)
-        phy_quality = cluster_info.group{info_row};
+    if any(info_row) && isfield(cluster_info, 'group')
+        phy_quality = cluster_info.group(info_row);
     end
 
     % Waveform duration calculation is disabled because the sampling rate (fs)
