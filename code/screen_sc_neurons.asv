@@ -221,6 +221,20 @@ else
     end
 end
 
+for i = 1:nClusters
+figure;
+for q = 1:4
+[~, psth, bin_centers] = alignAndBinSpikes( ...
+    session_data.spikes.times(session_data.spikes.clusters == ...
+    session_data.spikes.cluster_info.cluster_id(i)), ...
+    eventTimes.targetOn(memSacTrials_logical & trialInfo.targetLocIdx ...
+    == q), -0.1, 0.5, 0.025);
+mySubPlot([2,2,q]);
+barStairsFill(bin_centers, mean(psth), mean(psth))
+title(num2str(q));
+end
+end
+
 
 % --- 5. Final Statistical Selection ---
 for i_cluster = 1:nClusters
