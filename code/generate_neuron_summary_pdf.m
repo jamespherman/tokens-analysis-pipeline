@@ -141,6 +141,8 @@ for i_cluster = 1:nClusters
         win = [-0.5, 1.0];
         bin_size = 0.05;
 
+        saccade_axes = [];
+
         for i_theta = 1:numel(unique_thetas)
             current_theta = unique_thetas(i_theta);
             theta_trial_idx = gSac_trial_idx & ( ...
@@ -200,6 +202,13 @@ for i_cluster = 1:nClusters
             else
                 xlabel(ax_saccade, 'Time from Saccade Onset (s)');
             end
+            saccade_axes = [saccade_axes, ax_saccade];
+        end
+
+        % Standardize Y-axis limits for saccade plots
+        [~, ylims] = outerLims(saccade_axes);
+        for i_ax = 1:numel(saccade_axes)
+            set(saccade_axes(i_ax), 'YLim', ylims);
         end
 
         % --- Bottom Row: Summary Information ---
