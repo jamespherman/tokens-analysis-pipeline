@@ -92,6 +92,11 @@ tokens_trial_indices = session_data.trialInfo.taskCode == codes.uniqueTaskCode_t
 valid_cue_on_times = session_data.eventTimes.CUE_ON(tokens_trial_indices);
 ```
 
+### **Interpreting Specific Task Data**
+The `gSac_jph` task has special properties that can be leveraged during analysis. Memory-guided saccade trials within this task are intentionally placed at the neuron's estimated receptive/movement field center. This experimental design allows for two major simplifications:
+1. The recorded side of the SC (`scSide`) can be inferred directly from the target location (e.g., targets in the left visual field imply a right SC recording).
+2. All of these trials can be considered "contralateral" for the purposes of analysis, as they are designed to elicit a strong response from the recorded neurons.
+
 ---
 
 ## Project Root Directory
