@@ -111,3 +111,34 @@ figures_dir = fullfile(project_root, 'figures');
 ```
 
 This is especially important for scripts located in the `code/` directory, which are executed from `/code` in the runtime environment.
+
+---
+
+## Screening SC Neurons
+
+When screening neurons from Superior Colliculus (SC) recordings, use the `screen_sc_neurons.m` function. This function has been designed to automate several key steps of the analysis for 'SC type' sessions.
+
+### Function Usage
+The function is called as follows:
+```matlab
+[selected_neurons, sig_epoch_comp, scSide] = screen_sc_neurons(session_data);
+```
+
+### Automatic `scSide` Determination
+The function automatically determines the recorded side of the SC ('left' or 'right'). It does this by comparing the average visual-evoked firing rates for targets presented in the left versus the right visual field. The side with the stronger contralateral response is identified as the recorded hemisphere. The determined side is returned as the `scSide` output variable.
+
+### Trial Selection
+The function specifically uses memory-guided saccade trials from the `gSac_jph` task to perform neuron selection. It identifies these trials using the `taskCode` and the `isVisSac` field from `trialInfo`. If no such trials are found, it has a fallback mechanism to use any rewarded memory-guided saccade trials present in the session.
+
+### `sig_epoch_comparison` Output
+A key output of this function is `sig_epoch_comp`. This is a boolean matrix of size `[nClusters x 3]` that indicates whether a neuron showed a statistically significant change in firing rate for three critical comparisons:
+1.  Visual epoch vs. Baseline
+2.  Delay epoch vs. Baseline
+3.  Saccade epoch vs. Baseline
+
+This variable is crucial for the functional classification of SC neurons and should be stored for later analysis. The recommended practice is to store it in the `session_data` structure, for example:
+```matlab
+session_data.metadata.scSide = scSide;
+session_data.metadata.sig_epoch_comparison = sig_epoch_comp;
+```
+This ensures that the results of the screening are saved with the session's data.

@@ -1,81 +1,138 @@
-function selected_neurons = screen_sc_neurons(session_data, scSide)
+function [selected_neurons, sig_epoch_comparison, scSide] = screen_sc_neurons(session_data)
 % screen_sc_neurons - Identifies task-modulated neurons in the SC.
 %
 % This function selects neurons that show significant changes in firing rate
 % across different task epochs (Baseline, Visual, Delay, Saccade). It uses
-% the standardized `session_data` structure.
+% the standardized `session_data` structure. It automatically determines
+% the recorded side of the SC based on neural activity.
 %
 % INPUTS:
 %   session_data - A struct containing session-specific data, conforming to the
 %                  `session_data_dictionary.md`.
-%   scSide       - A string ('right' or 'left') indicating the recorded SC side.
-%                  This info typically comes from `config/session_manifest.csv`.
 %
 % OUTPUT:
 %   selected_neurons - A logical vector (nClusters x 1) where true indicates
 %                      a neuron that passed the selection criteria.
+%   sig_epoch_comparison - A logical matrix (nClusters x 3) indicating
+%                          significant firing rate changes between epochs.
+%   scSide           - A string ('right' or 'left') indicating the determined
+%                      recorded SC side.
 %
 
 fprintf('screen_sc_neurons: Identifying task-modulated neurons...\n');
 
 % --- Setup and Data Extraction ---
-% Get cluster information
 cluster_info = session_data.spikes.cluster_info;
 cluster_ids = cluster_info.cluster_id;
 nClusters = height(cluster_info);
 
-% Get spike times and cluster assignments
 all_spike_times = session_data.spikes.times;
 all_spike_clusters = session_data.spikes.clusters;
 
-% Get trial information and event times
 trialInfo = session_data.trialInfo;
 eventTimes = session_data.eventTimes;
 
-% --- Trial Selection ---
-% Select high-saliency trials for contralateral targets.
-% Assumption: salience == 1 means high saliency.
-% Assumption: targTheta > 0 is Left Visual Field, targTheta < 0 is Right.
-is_high_saliency = trialInfo.salience == 1;
+% Initialize outputs for early return
+selected_neurons = false(nClusters, 1);
+sig_epoch_comparison = false(nClusters, 3);
+scSide = 'unknown';
 
-if strcmpi(scSide, 'right')      % Right SC -> Contralateral is Left VF (targTheta > 0)
-    is_contralateral = trialInfo.targTheta > 0;
-    fprintf('screen_sc_neurons: Right SC. Contralateral = Left Visual Field (targTheta > 0).\n');
-elseif strcmpi(scSide, 'left') % Left SC -> Contralateral is Right VF (targTheta < 0)
-    is_contralateral = trialInfo.targTheta < 0;
-    fprintf('screen_sc_neurons: Left SC. Contralateral = Right Visual Field (targTheta < 0).\n');
-else
-    error('Invalid scSide: "%s". Must be "left" or "right".', scSide);
-end
-
-trialInd = find(is_high_saliency & is_contralateral);
-
-% Handle edge cases
-if isempty(trialInd)
-    fprintf('WARNING in screen_sc_neurons: No trials match selection criteria. Skipping.\n');
-    selected_neurons = false(nClusters, 1);
-    return;
-end
 if nClusters == 0
     fprintf('WARNING in screen_sc_neurons: No clusters found.\n');
-    selected_neurons = false(0, 1);
     return;
 end
 
-nTrials = numel(trialInd);
-epoch_frs = zeros(nClusters, 4, nTrials); % [nClusters x nEpochs x nTrials]
+% --- Trial Selection ---
+% Reformat isVisSac from cell to logical
+tempIsVisSac = false(height(trialInfo), 1);
+for i = 1:length(trialInfo.isVisSac)
+    if ~isempty(trialInfo.isVisSac{i})
+        tempIsVisSac(i) = logical(trialInfo.isVisSac{i});
+    end
+end
+trialInfo.isVisSac = tempIsVisSac;
+
+% Identify memory guided saccade trials from gSac_jph task
+codes = initCodes();
+gSac_jph_trials = trialInfo.taskCode == codes.uniqueTaskCode_gSac_jph;
+memSacTrials = gSac_jph_trials & ~trialInfo.isVisSac;
+
+% Fallback if no memory guided trials in gSac_jph
+if nnz(memSacTrials) == 0
+    fprintf('No memory guided gSac_jph trials found. Using all rewarded memory guided trials.\n');
+    memSacTrials = ~trialInfo.isVisSac & eventTimes.reward > 0 & eventTimes.targetReillum > 0;
+end
+
+if nnz(memSacTrials) == 0
+    fprintf('WARNING in screen_sc_neurons: No memory guided trials found. Skipping.\n');
+    return;
+end
+
+% --- Determine SC Side from Neural Activity ---
+left_trials = find(memSacTrials & trialInfo.targTheta_x10 > 0);
+right_trials = find(memSacTrials & trialInfo.targTheta_x10 < 0);
+
+if isempty(left_trials) || isempty(right_trials)
+    fprintf('WARNING in screen_sc_neurons: Not enough left/right trials to determine SC side.\n');
+    return;
+end
 
 % --- Epoch Definition ---
-% Define analysis epochs relative to key trial events from `session_data.eventTimes`
-% {event_field, start_offset, end_offset, duration}
 epochs = {
-    'targOn',  -0.075, 0.025,  0.1;   % 1. Baseline (rel. to Target On)
-    'targOn',  0.05,   0.2,    0.15;  % 2. Visual (rel. to Target On)
-    'pdsFixOff', -0.15,  0.05,   0.2;   % 3. Delay (rel. to Fixation Off)
-    'sacOn', -0.025, 0.05,   0.075  % 4. Saccade (rel. to Saccade On)
+    'targetOn', -0.075, 0.025, 0.1;   % 1. Baseline
+    'targetOn', 0.05,   0.2,   0.15;  % 2. Visual
+    'fixOff',   -0.15,  0.05,  0.2;   % 3. Delay
+    'saccadeOnset', -0.025, 0.05,  0.075  % 4. Saccade
 };
 
-% --- Firing Rate Calculation ---
+% --- Firing Rate Calculation for SC Side Determination ---
+% Use a simplified visual epoch for side determination
+vis_epoch_fr = zeros(nClusters, nnz(memSacTrials));
+all_mem_trials = find(memSacTrials);
+
+for i_trial = 1:length(all_mem_trials)
+    t_idx = all_mem_trials(i_trial);
+    event_time = eventTimes.targetOn(t_idx);
+    if isnan(event_time)
+        vis_epoch_fr(:, i_trial) = NaN;
+        continue;
+    end
+    start_time = event_time + 0.05; % Visual epoch start
+    end_time = event_time + 0.2;   % Visual epoch end
+    win_dur = 0.15;
+
+    for i_cluster = 1:nClusters
+        cluster_id = cluster_ids(i_cluster);
+        spike_times = all_spike_times(all_spike_clusters == cluster_id);
+        spike_count = sum(spike_times >= start_time & spike_times < end_time);
+        vis_epoch_fr(i_cluster, i_trial) = spike_count / win_dur;
+    end
+end
+
+left_fr = mean(vis_epoch_fr(:, ismember(all_mem_trials, left_trials)), 2, 'omitnan');
+right_fr = mean(vis_epoch_fr(:, ismember(all_mem_trials, right_trials)), 2, 'omitnan');
+
+if mean(left_fr) > mean(right_fr)
+    scSide = 'right'; % Right SC prefers left visual field
+    is_contralateral = trialInfo.targTheta_x10 > 0;
+    fprintf('screen_sc_neurons: Determined SC Side: right (L-VF > R-VF)\n');
+else
+    scSide = 'left'; % Left SC prefers right visual field
+    is_contralateral = trialInfo.targTheta_x10 < 0;
+    fprintf('screen_sc_neurons: Determined SC Side: left (R-VF > L-VF)\n');
+end
+
+trialInd = find(memSacTrials & is_contralateral);
+nTrials = numel(trialInd);
+
+if nTrials < 2
+    fprintf('Warning: Too few contralateral trials (%d) for statistical selection.\n', nTrials);
+    return;
+end
+
+epoch_frs = zeros(nClusters, 4, nTrials); % [nClusters x nEpochs x nTrials]
+
+% --- Firing Rate Calculation for Selected Trials ---
 for i_trial = 1:nTrials
     t_idx = trialInd(i_trial);
     for i_epoch = 1:size(epochs, 1)
@@ -104,14 +161,6 @@ for i_trial = 1:nTrials
 end
 
 % --- Statistical Selection ---
-sig_epoch_comparison = false(nClusters, 3); % [Vis vs Base, Delay vs Base, Sac vs Base]
-selected_neurons = false(nClusters, 1);
-
-if nTrials < 2
-    fprintf('Warning: Too few trials (%d) for statistical selection.\n', nTrials);
-    return;
-end
-
 for i_cluster = 1:nClusters
     neuron_frs = squeeze(epoch_frs(i_cluster, :, :))';
     neuron_frs = neuron_frs(~any(isnan(neuron_frs), 2), :);
