@@ -35,7 +35,8 @@ all_spike_times = session_data.spikes.times;
 all_spike_clusters = session_data.spikes.clusters;
 
 % Create a new figure for the PDF
-fig = figure('Color', 'w', 'Visible', 'off', 'PaperOrientation', 'landscape');
+fig = figure('Color', 'w', 'Visible', 'off', 'PaperOrientation', ...
+    'landscape');
 
 % --- Setup and Data Extraction ---
 codes = initCodes;
@@ -70,86 +71,105 @@ for i_cluster = 1:nClusters
 
         % --- Top Row: Original Diagnostics ---
         % Panel 1: Mean Waveform
-        ax1 = mySubPlot(6, 6, [1, 2]);
-        if isfield(session_data.spikes, 'wfMeans') && numel(session_data.spikes.wfMeans) >= i_cluster
+        ax1 = subplot(6, 6, [1, 2]);
+        if isfield(session_data.spikes, 'wfMeans') && ...
+            numel(session_data.spikes.wfMeans) >= i_cluster
             plot(ax1, session_data.spikes.wfMeans{i_cluster}');
             title(ax1, 'Mean Waveform');
             xlabel(ax1, 'Samples');
             ylabel(ax1, 'Amplitude (uV)');
             axis(ax1, 'tight');
         else
-            text(0.5, 0.5, 'Waveform data not found', 'Parent', ax1, 'HorizontalAlignment', 'center');
+            text(0.5, 0.5, 'Waveform data not found', 'Parent', ...
+                ax1, 'HorizontalAlignment', 'center');
         end
 
         % Panel 2: ISI Histogram
-        ax2 = mySubPlot(6, 6, [3, 4]);
+        ax2 = subplot(6, 6, [3, 4]);
         if numel(spike_times) > 1
             isi = diff(spike_times) * 1000; % in ms
-            histogram(ax2, isi, 'EdgeColor', 'k', 'FaceColor', [0.5 0.5 0.5]);
+            histogram(ax2, isi, 'EdgeColor', 'k', 'FaceColor', ...
+                [0.5 0.5 0.5]);
             set(ax2, 'XScale', 'log');
             title(ax2, 'ISI Histogram');
             xlabel(ax2, 'Inter-Spike Interval (ms, log scale)');
             ylabel(ax2, 'Count');
         else
-            text(0.5, 0.5, 'Not enough spikes for ISI', 'Parent', ax2, 'HorizontalAlignment', 'center');
+            text(0.5, 0.5, 'Not enough spikes for ISI', 'Parent', ...
+                ax2, 'HorizontalAlignment', 'center');
         end
 
         % Panel 3: PSTH for Tokens Task
-        ax3 = mySubPlot(6, 6, [5, 6]);
-        if isfield(session_data, 'eventTimes') && isfield(session_data.eventTimes, 'pdsOutcomeOn')
+        ax3 = subplot(6, 6, [5, 6]);
+        if isfield(session_data, 'eventTimes') && isfield( ...
+                session_data.eventTimes, 'pdsOutcomeOn')
             event_times = session_data.eventTimes.pdsOutcomeOn;
             win = [-0.5, 1.0];
             bin_size = 0.05;
 
             goodEvent = ~isnan(event_times) & event_times > 0;
-            event_times_psth = session_data.eventTimes.trialBegin(goodEvent) + event_times(goodEvent);
+            event_times_psth = session_data.eventTimes.trialBegin( ...
+                goodEvent) + event_times(goodEvent);
 
-            [~, psth, bin_centers] = alignAndBinSpikes(spike_times, event_times_psth, win(1), win(2), bin_size);
+            [~, psth, bin_centers] = alignAndBinSpikes(spike_times, ...
+                event_times_psth, win(1), win(2), bin_size);
             n_trials = size(psth, 1);
             psth_rate = sum(psth, 1) / (n_trials * bin_size);
 
             if ~isempty(psth_rate)
-                barStairsFill(bin_centers, psth_rate, zeros(size(psth_rate)));
+                barStairsFill(bin_centers, psth_rate, zeros(size( ...
+                    psth_rate)));
                 title(ax3, 'PSTH around Outcome (Tokens)');
                 xlabel(ax3, 'Time from Outcome (s)');
                 ylabel(ax3, 'Firing Rate (Hz)');
                 xline(ax3, 0, 'r--');
             else
-                text(0.5, 0.5, 'No valid trials for PSTH', 'Parent', ax3, 'HorizontalAlignment', 'center');
+                text(0.5, 0.5, 'No valid trials for PSTH', 'Parent', ...
+                    ax3, 'HorizontalAlignment', 'center');
             end
         else
-            text(0.5, 0.5, 'pdsOutcomeOn not found', 'Parent', ax3, 'HorizontalAlignment', 'center');
+            text(0.5, 0.5, 'pdsOutcomeOn not found', 'Parent', ax3, ...
+                'HorizontalAlignment', 'center');
         end
 
         % --- Middle Grid: Spatial Tuning ---
-        gSac_trial_idx = session_data.trialInfo.taskCode == gSac_task_code;
-        unique_thetas = unique(session_data.trialInfo.targetTheta(gSac_trial_idx));
+        gSac_trial_idx = session_data.trialInfo.taskCode == ...
+            gSac_task_code;
+        unique_thetas = unique(session_data.trialInfo.targetTheta( ...
+            gSac_trial_idx));
 
         win = [-0.5, 1.0];
         bin_size = 0.05;
 
         for i_theta = 1:numel(unique_thetas)
             current_theta = unique_thetas(i_theta);
-            theta_trial_idx = gSac_trial_idx & (session_data.trialInfo.targetTheta == current_theta);
+            theta_trial_idx = gSac_trial_idx & ( ...
+                session_data.trialInfo.targetTheta == current_theta);
 
             row_offset = (i_theta) * 6;
 
             % Left Column: Aligned to targetOn
-            ax_target = mySubPlot(6, 6, row_offset + [1:3]);
-            event_times_target = session_data.eventTimes.targetOn(theta_trial_idx);
-            [~, psth, bin_centers] = alignAndBinSpikes(spike_times, event_times_target, win(1), win(2), bin_size);
+            ax_target = subplot(6, 6, row_offset + [1:3]);
+            event_times_target = session_data.eventTimes.targetOn( ...
+                theta_trial_idx);
+            [~, psth, bin_centers] = alignAndBinSpikes(spike_times, ...
+                event_times_target, win(1), win(2), bin_size);
             psth_rate = sum(psth, 1) / (size(psth, 1) * bin_size);
             if ~isempty(psth_rate)
-                barStairsFill(bin_centers, psth_rate, zeros(size(psth_rate)));
+                barStairsFill(bin_centers, psth_rate, zeros(size( ...
+                    psth_rate)));
                 ylabel(ax_target, 'Firing Rate (Hz)');
                 xline(ax_target, 0, 'r--');
             else
-                text(0.5, 0.5, 'No data', 'Parent', ax_target, 'HorizontalAlignment', 'center');
+                text(0.5, 0.5, 'No data', 'Parent', ax_target, ...
+                    'HorizontalAlignment', 'center');
             end
              if i_theta == 1
-                title(ax_target, sprintf('Aligned to Target On\nTheta: %d deg', current_theta));
+                title(ax_target, sprintf(['Aligned to Target ' ...
+                    'On\nTheta: %d deg'], current_theta));
              else
-                title(ax_target, sprintf('Theta: %d deg', current_theta));
+                title(ax_target, sprintf('Theta: %d deg', ...
+                    current_theta));
              end
              if i_theta < numel(unique_thetas)
                 set(ax_target,'xticklabel',{[]})
@@ -158,15 +178,19 @@ for i_cluster = 1:nClusters
              end
 
             % Right Column: Aligned to saccadeOnset
-            ax_saccade = mySubPlot(6, 6, row_offset + [4:6]);
-            event_times_saccade = session_data.eventTimes.saccadeOnset(theta_trial_idx);
-            [~, psth, bin_centers] = alignAndBinSpikes(spike_times, event_times_saccade, win(1), win(2), bin_size);
+            ax_saccade = subplot(6, 6, row_offset + [4:6]);
+            event_times_saccade = session_data.eventTimes.saccadeOnset( ...
+                theta_trial_idx);
+            [~, psth, bin_centers] = alignAndBinSpikes(spike_times, ...
+                event_times_saccade, win(1), win(2), bin_size);
             psth_rate = sum(psth, 1) / (size(psth, 1) * bin_size);
             if ~isempty(psth_rate)
-                barStairsFill(bin_centers, psth_rate, zeros(size(psth_rate)));
+                barStairsFill(bin_centers, psth_rate, zeros(size( ...
+                    psth_rate)));
                 xline(ax_saccade, 0, 'r--');
             else
-                text(0.5, 0.5, 'No data', 'Parent', ax_saccade, 'HorizontalAlignment', 'center');
+                text(0.5, 0.5, 'No data', 'Parent', ax_saccade, ...
+                    'HorizontalAlignment', 'center');
             end
             if i_theta == 1
                 title(ax_saccade, 'Aligned to Saccade Onset');
@@ -179,11 +203,12 @@ for i_cluster = 1:nClusters
         end
 
         % --- Bottom Row: Summary Information ---
-        ax_summary = mySubPlot(6, 6, [31:36]);
+        ax_summary = subplot(6, 6, [31:36]);
         axis(ax_summary, 'off');
 
         screening_status = 'Not Selected';
-        if numel(selected_neurons) >= i_cluster && selected_neurons(i_cluster)
+        if numel(selected_neurons) >= i_cluster && selected_neurons( ...
+                i_cluster)
             screening_status = 'Selected';
         end
 
@@ -210,32 +235,36 @@ for i_cluster = 1:nClusters
         title(ax_summary, 'Summary Information');
     else
         % --- Panel 1: Mean Waveform ---
-        ax1 = mySubPlot(2, 2, 1);
-        if isfield(session_data.spikes, 'wfMeans') && numel(session_data.spikes.wfMeans) >= i_cluster
+        ax1 = subplot(2, 2, 1);
+        if isfield(session_data.spikes, 'wfMeans') && numel( ...
+                session_data.spikes.wfMeans) >= i_cluster
             plot(ax1, session_data.spikes.wfMeans{i_cluster}');
             title(ax1, 'Mean Waveform');
             xlabel(ax1, 'Samples');
             ylabel(ax1, 'Amplitude (uV)');
             axis(ax1, 'tight');
         else
-            text(0.5, 0.5, 'Waveform data not found', 'Parent', ax1, 'HorizontalAlignment', 'center');
+            text(0.5, 0.5, 'Waveform data not found', 'Parent', ax1, ...
+                'HorizontalAlignment', 'center');
         end
 
         % --- Panel 2: ISI Histogram ---
-        ax2 = mySubPlot(2, 2, 2);
+        ax2 = subplot(2, 2, 2);
         if numel(spike_times) > 1
             isi = diff(spike_times) * 1000; % in ms
-            histogram(ax2, isi, 'EdgeColor', 'k', 'FaceColor', [0.5 0.5 0.5]);
+            histogram(ax2, isi, 'EdgeColor', 'k', 'FaceColor', ...
+                [0.5 0.5 0.5]);
             set(ax2, 'XScale', 'log');
             title(ax2, 'ISI Histogram');
             xlabel(ax2, 'Inter-Spike Interval (ms, log scale)');
             ylabel(ax2, 'Count');
         else
-            text(0.5, 0.5, 'Not enough spikes for ISI', 'Parent', ax2, 'HorizontalAlignment', 'center');
+            text(0.5, 0.5, 'Not enough spikes for ISI', 'Parent', ...
+                ax2, 'HorizontalAlignment', 'center');
         end
 
         % --- Panel 3: Basic PSTH ---
-        ax3 = mySubPlot(2, 2, 3);
+        ax3 = subplot(2, 2, 3);
         if isfield(session_data, 'eventTimes') && ...
                 isfield(session_data.eventTimes, 'pdsOutcomeOn')
             event_times = session_data.eventTimes.pdsOutcomeOn;
@@ -255,7 +284,8 @@ for i_cluster = 1:nClusters
             psth_rate = sum(psth, 1) / (n_trials * bin_size);
 
             if ~isempty(psth_rate)
-                barStairsFill(bin_centers, psth_rate, zeros(size(psth_rate)));
+                barStairsFill(bin_centers, psth_rate, zeros(size( ...
+                    psth_rate)));
                 title(ax3, 'PSTH around Outcome');
                 xlabel(ax3, 'Time from Outcome (s)');
                 ylabel(ax3, 'Firing Rate (Hz)');
@@ -270,11 +300,12 @@ for i_cluster = 1:nClusters
         end
 
         % --- Panel 4: Summary Information ---
-        ax4 = mySubPlot(2, 2, 4);
+        ax4 = subplot(2, 2, 4);
         axis(ax4, 'off'); % Turn off axis for text
 
         screening_status = 'Not Selected';
-        if numel(selected_neurons) >= i_cluster && selected_neurons(i_cluster)
+        if numel(selected_neurons) >= i_cluster && ...
+            selected_neurons(i_cluster)
             screening_status = 'Selected';
         end
 
