@@ -98,32 +98,56 @@ epochs = {
 nEpochs = size(epochs, 1);
 epoch_frs = nan(nClusters, nEpochs, nMemSacTrials);
 
-% Bin edges for histcounts, adding an extra edge for the last cluster
-cluster_id_edges = [cluster_ids; cluster_ids(end)+1];
+% This new neuron-centric approach iterates through each neuron and calculates
+% its firing rate for all trials and all epochs in a vectorized manner,
+% which is more efficient than iterating through each trial.
+for i_cluster = 1:nClusters
+    % Get all spike times for the current cluster
+    spike_times = all_spike_times(all_spike_clusters == cluster_ids(i_cluster));
 
-for i_trial = 1:nMemSacTrials
-    t_idx = memSacTrials_indices(i_trial);
+    if isempty(spike_times)
+        % If no spikes, FR is 0 for all epochs and trials for this cluster
+        epoch_frs(i_cluster, :, :) = 0;
+        continue;
+    end
+
     for i_epoch = 1:nEpochs
         event_name = epochs{i_epoch, 1};
-        event_time = eventTimes.(event_name)(t_idx);
-
-        if isnan(event_time)
-            continue; % epoch_frs remains NaN
-        end
-
-        start_time = event_time + epochs{i_epoch, 2};
-        end_time   = event_time + epochs{i_epoch, 3};
         win_dur    = epochs{i_epoch, 4};
 
-        % Find spikes within the epoch window
-        spikes_in_epoch = all_spike_times >= start_time & all_spike_times < end_time;
-        clusters_in_epoch = all_spike_clusters(spikes_in_epoch);
+        % Get event times for all relevant trials for the current epoch
+        epoch_event_times = eventTimes.(event_name)(memSacTrials_indices);
 
-        % Count spikes per cluster in a vectorized way
-        spike_counts = histcounts(clusters_in_epoch, cluster_id_edges);
+        % Create a [nMemSacTrials x 2] matrix of time windows
+        time_windows = [epoch_event_times + epochs{i_epoch, 2}, epoch_event_times + epochs{i_epoch, 3}];
 
-        % Calculate and store firing rate
-        epoch_frs(:, i_epoch, i_trial) = spike_counts / win_dur;
+        % Find trials where the event time is NaN and keep track of them
+        valid_trials_mask = ~isnan(epoch_event_times);
+
+        % Filter out trials with NaN event times
+        valid_time_windows = time_windows(valid_trials_mask, :);
+
+        if isempty(valid_time_windows)
+            continue; % No valid trials for this epoch, NaNs will remain
+        end
+
+        % Reshape the time_windows matrix into a single row vector of edges
+        % for histcounts: [start1, end1, start2, end2, ...]
+        edges = reshape(valid_time_windows', 1, []);
+
+        % Get the counts for all bins (both inside and outside the windows)
+        all_counts = histcounts(spike_times, edges);
+
+        % The counts within our desired windows are the odd-indexed elements
+        % (1st, 3rd, 5th, etc.) of the histcounts output.
+        spike_counts_in_windows = all_counts(1:2:end);
+
+        % Create a temporary array to store results for the current epoch
+        temp_frs = nan(1, nMemSacTrials);
+        temp_frs(valid_trials_mask) = spike_counts_in_windows / win_dur;
+
+        % Place the calculated firing rates into the master matrix
+        epoch_frs(i_cluster, i_epoch, :) = temp_frs;
     end
 end
 
@@ -132,12 +156,15 @@ if use_gSac_jph
     % --- Logic for gSac_jph trials ---
     fprintf('Using gSac_jph logic to determine scSide and select trials.\n');
 
-    % Determine scSide directly from target locations
-    avg_target_theta = mean(trialInfo.targTheta_x10(memSacTrials_indices), 'omitnan');
-    if avg_target_theta > 0 % Left visual field
-        scSide = 'right';
-    else % Right visual field
-        scSide = 'left';
+    % Determine scSide based on the hemifield with the most target presentations
+    thetas = trialInfo.targetTheta(memSacTrials_indices)/10;
+    left_vf_trials = sum(thetas > 90 & thetas < 270);
+    right_vf_trials = sum(thetas < 90 | thetas > 270);
+
+    if left_vf_trials > right_vf_trials
+        scSide = 'right'; % Right SC records from the left visual field
+    else
+        scSide = 'left';  % Left SC records from the right visual field
     end
     fprintf('Determined SC Side: %s based on contralateral target placement.\n', scSide);
 
@@ -149,8 +176,8 @@ else
     fprintf('Using gSac_4factors logic to determine scSide and select trials.\n');
 
     % Determine scSide from visual epoch firing rates
-    left_trials_mask = trialInfo.targTheta_x10(memSacTrials_indices) > 0;
-    right_trials_mask = trialInfo.targTheta_x10(memSacTrials_indices) < 0;
+    left_trials_mask = (trialInfo.targetTheta(memSacTrials_indices)/10 > 90 & trialInfo.targetTheta(memSacTrials_indices)/10 < 270);
+    right_trials_mask = (trialInfo.targetTheta(memSacTrials_indices)/10 < 90 | trialInfo.targetTheta(memSacTrials_indices)/10 > 270);
 
     % Calculate average visual FR for left vs. right trials, for all neurons
     mean_vis_fr_left = mean(epoch_frs(:, 2, left_trials_mask), 3, 'omitnan');
@@ -166,12 +193,12 @@ else
 
     % Identify neuron-specific RFs and select trials for stats
     trials_for_stats = false(nClusters, nMemSacTrials);
-    unique_locations = unique(trialInfo.targTheta_x10(memSacTrials_indices));
+    unique_locations = unique(trialInfo.targetTheta(memSacTrials_indices));
 
     for i_cluster = 1:nClusters
         loc_fr_sum = zeros(size(unique_locations));
         for i_loc = 1:length(unique_locations)
-            loc_mask = trialInfo.targTheta_x10(memSacTrials_indices) == unique_locations(i_loc);
+            loc_mask = trialInfo.targetTheta(memSacTrials_indices) == unique_locations(i_loc);
             % Sum of avg Visual FR and avg Saccade FR for this location
             vis_fr = mean(epoch_frs(i_cluster, 2, loc_mask), 3, 'omitnan');
             sac_fr = mean(epoch_frs(i_cluster, 4, loc_mask), 3, 'omitnan');
@@ -181,7 +208,7 @@ else
         [~, rf_idx] = max(loc_fr_sum);
         rf_location = unique_locations(rf_idx);
         % Mark trials at this RF location for this neuron's stats
-        trials_for_stats(i_cluster, :) = (trialInfo.targTheta_x10(memSacTrials_indices) == rf_location);
+        trials_for_stats(i_cluster, :) = (trialInfo.targetTheta(memSacTrials_indices) == rf_location);
     end
 end
 
