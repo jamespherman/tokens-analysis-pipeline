@@ -26,7 +26,7 @@ cluster_info = session_data.spikes.cluster_info;
 cluster_ids = cluster_info.cluster_id;
 nNeurons = height(cluster_info.cluster_id);
 
-all_spike_times = session_data.spikes.times/30000;
+all_spike_times = session_data.spikes.times;
 all_spike_clusters = session_data.spikes.clusters;
 
 % --- Task-Specific Trial Selection ---

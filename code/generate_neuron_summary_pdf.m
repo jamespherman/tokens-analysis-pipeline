@@ -31,7 +31,7 @@ end
 cluster_info = session_data.spikes.cluster_info;
 cluster_ids = cluster_info.cluster_id;
 nClusters = height(cluster_info.cluster_id);
-all_spike_times = session_data.spikes.times/30000;
+all_spike_times = session_data.spikes.times;
 all_spike_clusters = session_data.spikes.clusters;
 
 % Create a new figure for the PDF
@@ -88,8 +88,13 @@ for i_cluster = 1:nClusters
         win = [-0.5, 1.0]; % Time window around event
         bin_size = 0.05; % 50 ms bins
 
+        % get rid of NaN and -1 in 'pdsOutcomeOn'
+        goodEvent = ~isnan(event_times) & event_times > 0;
+        event_times_psth = session_data.eventTimes.trialBegin(...
+            goodEvent) + event_times(goodEvent);
+
         [~, psth, bin_centers] = alignAndBinSpikes(spike_times, ...
-            event_times, win(1), win(2), bin_size);
+            event_times_psth, win(1), win(2), bin_size);
 
         % Convert to firing rate
         n_trials = size(psth, 1);
