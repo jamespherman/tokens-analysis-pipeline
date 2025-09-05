@@ -72,21 +72,19 @@ if contains(unique_id, 'SNc')
     selected_neurons = screen_da_neurons(session_data, unique_id);
     giveFeed('DA neuron screening complete.');
 elseif contains(unique_id, 'SC')
-    giveFeed('Session is SC type. Loading gsac_data and running screen_sc_neurons...');
-    % This part requires gsac_data, which is not available in this test.
-    % We will simulate a placeholder for gsac_data.
-    gsac_data_path = fullfile(one_drive_path, 'Neuronal Data Analysis', unique_id, [unique_id '_gsac_data.mat']);
-    try
-        gsac_data = load(gsac_data_path);
-        giveFeed('gSac_jph task data loaded successfully.');
-    catch ME_gsac
-        warning('Could not load gsac_data. Using dummy data instead.');
-        gsac_data = struct(); % Dummy gsac_data
-    end
+    giveFeed('Session is SC type. Running screen_sc_neurons...');
 
-    % Assumes screen_sc_neurons is in the path
-    selected_neurons = screen_sc_neurons(session_data, gsac_data);
-    giveFeed('SC neuron screening complete.');
+    % screen_sc_neurons will now determine scSide and calculate significance
+    [selected_neurons, sig_epoch_comp, scSide] = screen_sc_neurons(session_data);
+
+    % Store the results in the session_data structure
+    if ~isfield(session_data, 'metadata')
+        session_data.metadata = struct();
+    end
+    session_data.metadata.scSide = scSide;
+    session_data.metadata.sig_epoch_comparison = sig_epoch_comp;
+
+    giveFeed(sprintf('SC neuron screening complete. Determined scSide: %s.', scSide));
 else
     error('Unknown session type in unique_id. Cannot determine which screening function to run.');
 end
