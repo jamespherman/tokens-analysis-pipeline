@@ -124,8 +124,7 @@ for i_cluster = 1:nClusters
         ax2 = subplot(6, 6, 2);
         if numel(spike_times) > 1
             isi = diff(spike_times) * 1000; % in ms
-            histogram(ax2, isi, 'EdgeColor', 'k', 'FaceColor', ...
-                [0.5 0.5 0.5]);
+            histogram(ax2, isi, 'EdgeColor', 'k', 'FaceColor', [0.5 0.5 0.5]);
             set(ax2, 'XScale', 'log');
             title(ax2, 'ISI Histogram');
             xlabel(ax2, 'Inter-Spike Interval (ms, log scale)');
@@ -198,8 +197,7 @@ for i_cluster = 1:nClusters
                 ylabel(ax_target, 'Firing Rate (Hz)');
                 xline(ax_target, 0, 'r--');
             else
-                text(0.5, 0.5, 'No data', 'Parent', ax_target, ...
-                    'HorizontalAlignment', 'center');
+                text(0.5, 0.5, 'No data', 'Parent', ax_target, 'HorizontalAlignment', 'center');
             end
 
             % the rastergram associated with ax_target goes one row
@@ -232,12 +230,10 @@ for i_cluster = 1:nClusters
                 event_times_saccade, win(1), win(2), bin_size);
             psth_rate = sum(psth, 1) / (size(psth, 1) * bin_size);
             if ~isempty(psth_rate)
-                barStairsFill(bin_centers, psth_rate, zeros(size( ...
-                    psth_rate)));
+                barStairsFill(bin_centers, psth_rate, zeros(size(psth_rate)));
                 xline(ax_saccade, 0, 'r--');
             else
-                text(0.5, 0.5, 'No data', 'Parent', ax_saccade, ...
-                    'HorizontalAlignment', 'center');
+                text(0.5, 0.5, 'No data', 'Parent', ax_saccade, 'HorizontalAlignment', 'center');
             end
             
 
@@ -372,8 +368,7 @@ for i_cluster = 1:nClusters
             sprintf('Waveform Duration: %s', wf_duration)
         };
 
-        text(0.1, 0.5, summary_text, 'Parent', ax_summary, ...
-            'VerticalAlignment', 'middle', 'FontSize', 12);
+        text(0.1, 0.5, summary_text, 'Parent', ax_summary, 'VerticalAlignment', 'middle', 'FontSize', 12);
         title(ax_summary, 'Summary Information');
     else
         % --- Panel 1: Mean Waveform ---
