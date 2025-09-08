@@ -50,7 +50,7 @@ end
 gSac_jph_memSac_trials = find(trialInfo.taskCode == ...
     codes.uniqueTaskCode_gSac_jph & ...
                               ~isnan(eventTimes.targetReillum) & ...
-                              ~isnan(eventTimes.reward));
+                              eventTimes.pdsReward > 0);
 
 % Determine which set of trials to use
 if length(gSac_jph_memSac_trials) > 5 % Threshold for sufficient trials
@@ -64,7 +64,7 @@ else
     memSacTrials_logical = trialInfo.taskCode == ...
         codes.uniqueTaskCode_gSac_4factors & ...
                                 ~isnan(eventTimes.targetReillum) & ...
-                                ~isnan(eventTimes.reward);
+                                eventTimes.pdsReward > 0;
     memSacTrials_indices = find(memSacTrials_logical);
     fprintf(['Insufficient gSac_jph trials. Falling back to %d ' ...
         'gSac_4factors trials.\n'], length(memSacTrials_indices));
@@ -128,8 +128,12 @@ for i_cluster = 1:nClusters
         % for histcounts: [start1, end1, start2, end2, ...]
         edges = reshape(valid_time_windows', 1, []);
 
+        try
         % Get the counts for all bins (both inside and outside the windows)
         all_counts = histcounts(spike_times, edges);
+        catch me
+            keyboard
+        end
 
         % The counts within our desired windows are the odd-indexed elements
         % (1st, 3rd, 5th, etc.) of the histcounts output.
