@@ -161,17 +161,46 @@ This ensures that the results of the screening are saved with the session's data
 
 When creating complex, multi-panel figures for data verification or analysis, please adhere to the following conventions to ensure clarity, consistency, and scientific accuracy.
 
-### 1. Use `barStairsFill` for PSTHs
-For plotting Peristimulus Time Histograms (PSTHs), use the `barStairsFill.m` utility function instead of a standard `plot`. This function creates a filled, staircase-style plot that accurately represents the binned nature of the data without implying a false sense of continuity between bins.
+### 1. Never Smooth PSTHs
+It is a sacred and holy and vitally important point that you **NEVER SMOOTH PSTHs**. Smoothing obscures event-locked timing information and defeats the purpose of using `barStairsFill`, which is designed to accurately represent the underlying binned spike counts.
+
+- **Bad:** `movmean(psth, 5)`
+- **Good:** `psth`
+
+### 2. Use `barStairsFill` for PSTHs
+For plotting Peristimulus Time Histograms (PSTHs), use the `barStairsFill.m` utility function. This function creates a staircase-style plot that accurately represents the binned nature of the data.
+
+#### Plotting a Single PSTH
+When plotting a single PSTH, the area under the curve should be filled to the zero line. This is the standard use case.
 
 Example:
 ```matlab
-% Good: Using barStairsFill for a PSTH
-mean_psth = mean(rates, 1);
-barStairsFill(time_vector, mean_psth, 'FaceColor', 'b', 'EdgeColor', 'none');
+% Plot a single PSTH with a fill to zero
+barStairsFill(time_vector, psth, zeros(size(psth)));
 ```
 
-### 2. De-clutter Axes in Multi-Panel Figures
+#### Plotting Multiple PSTHs on the Same Axes
+When plotting more than one PSTH on the same axes, **only the 'stairs' part should be visible, not the 'fill'**. This avoids obscuring the data. To achieve this, you must get the handles returned by the function and delete the fill and baseline objects.
+
+Example:
+```matlab
+% Plotting two PSTHs (psth1 and psth2) on the same axes
+hold on;
+
+% Plot first PSTH as a line
+h1 = barStairsFill(time_vector, zeros(size(psth1)), psth1);
+delete(h1(1:2)); % Delete fill and baseline stairs
+set(h1(3), 'Color', 'blue', 'LineWidth', 1.5); % Set color
+
+% Plot second PSTH as a line
+h2 = barStairsFill(time_vector, zeros(size(psth2)), psth2);
+delete(h2(1:2)); % Delete fill and baseline stairs
+set(h2(3), 'Color', 'red', 'LineWidth', 1.5); % Set color
+
+legend({'Condition 1', 'Condition 2'});
+```
+
+### 3. De-clutter Axes in Multi-Panel Figures
 To improve readability and reduce visual clutter in figures with multiple subplots arranged in a grid, remove redundant axis labels.
 - For any given column of plots, only the bottom-most plot should have X-axis tick labels.
 - For any given row of plots, only the left-most plot should have Y-axis tick labels.
@@ -185,7 +214,7 @@ set(h(1:3), 'XTickLabel', []);
 set(h([2,3,5,6]), 'YTickLabel', []);
 ```
 
-### 3. Proportional Subplot Widths for Time-Series Data
+### 4. Proportional Subplot Widths for Time-Series Data
 When comparing different time epochs in adjacent subplots, the width of each subplot column should be proportional to the duration of the time window it represents. This provides an intuitive visual comparison of the temporal dynamics.
 
 Do not use automated subplot tools like `subplot` or `mySubPlot` for this. Instead, manually calculate the `Position` vector `[left, bottom, width, height]` for each axis.
@@ -206,10 +235,10 @@ pos1 = [left_margin, bottom, col_widths(1), height];
 h1 = axes('Position', pos1);
 ```
 
-### 4. Use a Single, Informative `sgtitle`
+### 5. Use a Single, Informative `sgtitle`
 Avoid using individual `title()` calls for each subplot. Instead, use a single, comprehensive main title for the entire figure using `sgtitle()`. This title should provide the key takeaway or context for the figure. Column and row labels can be added with `ylabel` on the leftmost plots and `xlabel` on the bottom plots.
 
-### 5. Set Interpreter to 'none' for Titles with File Paths
+### 6. Set Interpreter to 'none' for Titles with File Paths
 When including filenames, unique IDs, or other text with special characters (like underscores `_`) in a title, always set the `'Interpreter'` property to `'none'`. This prevents MATLAB from treating the underscores as subscript indicators and ensures the text is displayed literally.
 
 Example:
