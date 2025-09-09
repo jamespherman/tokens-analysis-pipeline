@@ -1,28 +1,28 @@
 %% prepare_neuronal_data.m
 %
 %   Generates binned, event-aligned firing rate matrices for selected
-%   neurons.
+%   neurons across multiple specified behavioral events.
 %
 % INPUTS:
 %   session_data         - The main data structure.
 %   selected_neurons     - A logical vector for neuron selection.
 %   tokens_trial_indices - Indices for trials of the 'tokens' task.
+%   alignment_events     - Cell array of event names to align to.
 %
 % OUTPUT:
-%   aligned_spikes       - A struct with aligned spike data.
+%   aligned_spikes       - A struct with aligned spike data, with fields
+%                          for each alignment event.
 %
 % Author: Jules
 % Date: 2025-09-08
 
 function aligned_spikes = prepare_neuronal_data(session_data, ...
-    selected_neurons, tokens_trial_indices)
+    selected_neurons, tokens_trial_indices, alignment_events)
 
 %% Define Alignment Parameters
-alignment_events = {'cueOn', 'outcomeOn'};
-time_window = [-0.5, 1.5]; % in seconds
-bin_width = 0.025; % 25ms in seconds
+bin_width = 0.025; % 25ms bin size, as per analysis plan
 
-% Get the list of neuron cluster IDs to analyze
+% Get basic info
 neuron_cluster_ids = find(selected_neurons);
 n_selected_neurons = numel(neuron_cluster_ids);
 n_tokens_trials = numel(tokens_trial_indices);
@@ -31,36 +31,72 @@ n_tokens_trials = numel(tokens_trial_indices);
 for i_event = 1:numel(alignment_events)
     event_name = alignment_events{i_event};
 
-    % Get the event times for the current alignment event, for tokens trials
-    % only
-    event_times = session_data.behavior.eventTimes.(event_name)...
-        (tokens_trial_indices);
+    % Define time window based on the event type
+    if strcmp(event_name, 'reward')
+        time_window = [-0.5, 5.0]; % Extended window for reward epoch
+    else
+        time_window = [-0.5, 1.5]; % Standard window for other events
+    end
 
-    % Initialize storage for the binned spike rates for this event
+    % Get alignment times for the current event
+    % Note: For 'reward', this aligns to the *first* reward pulse
+    event_times = session_data.eventTimes.(event_name)(tokens_trial_indices);
+
+    % Get a template time vector and initialize storage
     [~, ~, time_vector] = alignAndBinSpikes([], [], time_window(1), ...
         time_window(2), bin_width);
     n_time_bins = numel(time_vector);
-
     binned_rates = nan(n_selected_neurons, n_tokens_trials, n_time_bins);
 
-    % Loop through each selected neuron
+    % Loop through each selected neuron to bin their spike times
     for i_neuron = 1:n_selected_neurons
         cluster_id = neuron_cluster_ids(i_neuron);
-
-        % Get spike times for the current neuron
         spike_times = session_data.spikes.times(session_data.spikes.clusters == cluster_id);
 
-        % Align and bin spikes for the current neuron and event
         [~, binned_counts, ~] = alignAndBinSpikes(spike_times, ...
             event_times, time_window(1), time_window(2), bin_width);
 
-        % Convert counts to firing rate (spikes/sec)
+        % Convert spike counts to firing rate (spikes/sec)
         binned_rates(i_neuron, :, :) = binned_counts / bin_width;
     end
 
-    % Store the results for this event
+    % --- Special Handling for Variable-Length 'reward' Epoch ---
+    if strcmp(event_name, 'reward')
+        % Get the time of the last reward pulse for each trial
+        % 'UniformOutput' is false to handle trials with no rewards
+        last_reward_times_abs = cellfun(@(c) c(end), ...
+            session_data.eventTimes.rewardCell(tokens_trial_indices), ...
+            'UniformOutput', false);
+
+        % Replace empty values with NaN and convert to a numeric array
+        empty_trials = cellfun('isempty', last_reward_times_abs);
+        last_reward_times_abs(empty_trials) = {NaN};
+        last_reward_times_abs = cell2mat(last_reward_times_abs);
+
+        % Loop through each trial to apply NaN padding post-alignment
+        for i_trial = 1:n_tokens_trials
+            if isnan(event_times(i_trial)) || isnan(last_reward_times_abs(i_trial))
+                continue;
+            end
+
+            % Calculate last reward time relative to the alignment point
+            last_reward_rel_time = last_reward_times_abs(i_trial) - event_times(i_trial);
+
+            % Define the cutoff point for valid data (1s after last reward)
+            nan_cutoff_time = last_reward_rel_time + 1.0;
+
+            % Find all time bins that occur after this cutoff
+            bins_to_nan = time_vector > nan_cutoff_time;
+
+            % Set the data in these bins to NaN for the current trial
+            binned_rates(:, i_trial, bins_to_nan) = nan;
+        end
+    end
+
+    % Store the final processed data for this event
     aligned_spikes.(event_name).rates = binned_rates;
     aligned_spikes.(event_name).time_vector = time_vector;
+    aligned_spikes.(event_name).window = time_window;
 end
 
 end
