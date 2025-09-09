@@ -65,7 +65,8 @@ end
 fprintf('Loading session data from: %s\n', data_file);
 load(data_file, 'session_data');
 
-%% Step 2: Calculate and Store Diagnostic Metrics
+%% Step 2: Calculate and Store Diagnostic Metrics (if needed)
+if ~isfield(session_data, 'metrics')
 giveFeed('Step 2: Calculating and storing diagnostic metrics...');
 
 % Calculate baseline firing rates and add to session_data
@@ -86,6 +87,7 @@ for i_cluster = 1:nClusters
         calculate_waveform_metrics(mean_waveform(max_var_chan,:), 30000);
 end
 giveFeed('Diagnostic metrics calculated and stored.');
+end
 
 %% Run neuron screening
 giveFeed('Step 3: Running neuron screening...');
@@ -102,7 +104,7 @@ if strcmp(manifest.screening_status{session_idx}, 'complete')
 else
     giveFeed('Screening status is ''pending''. Running screening functions...');
     selected_neurons = []; % Initialize empty
-
+    session_data.metadata.unique_id = unique_id;
     if contains(unique_id, 'SNc')
         giveFeed('Session is SNc type. Running screen_da_neurons...');
         selected_neurons = screen_da_neurons(session_data, unique_id);
