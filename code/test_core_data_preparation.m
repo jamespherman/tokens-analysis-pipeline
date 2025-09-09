@@ -163,9 +163,8 @@ end
 %% Define Task Conditions
 % Create logical masks for different trial conditions
 giveFeed('Step 5: Defining task conditions...');
-codes = initCodes();
-conditions = define_task_conditions(session_data.trialInfo, ...
-    session_data.eventTimes, codes);
+[conditions, is_av_session] = define_task_conditions(session_data.trialInfo, ...
+    session_data.eventTimes, session_data.metadata.unique_id);
 
 %% Generate Verification Plots
 giveFeed('Step 6: Generating verification plots...');
@@ -358,7 +357,7 @@ sgtitle(sprintf('Core Data Verification: %s', unique_id), 'Interpreter', 'none')
 giveFeed('Done.');
 
 %% Generate SPE-Focused Diagnostic Figure (if applicable)
-if nnz(conditions.is_flicker_surprising) > 0
+if is_av_session
     giveFeed('Step 6b: Generating SPE-focused diagnostic plots...');
     fig2 = figure('Position', [100, 100, 1200, 700]);
     fig2.PaperPositionMode = 'auto';
