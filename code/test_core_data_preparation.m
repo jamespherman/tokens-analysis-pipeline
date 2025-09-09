@@ -26,7 +26,7 @@ giveFeed = @(x)disp([num2str(toc) 's - ' x]);
 addpath(fullfile(script_dir, 'utils'));
 
 %% Setup
-unique_id = 'Feynman_08_15_2025_SC'; % Hardcoded session
+unique_id = 'Feynman_08_05_2025_SNc'; % Hardcoded session
 giveFeed(sprintf('Testing diagnostic workflow for session: %s', ...
     unique_id));
 

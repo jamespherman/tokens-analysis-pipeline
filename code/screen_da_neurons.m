@@ -37,7 +37,8 @@ waveform_durations_ms = [session_data.metrics.wf_metrics.peak_trough_ms];
 % --- 2. Apply Selection Criteria ---
 
 % Select neurons with a baseline firing rate < 20 sp/s
-selected_neurons = baseline_frs < 20 & baseline_frs > 0;
+selected_neurons = baseline_frs < 20 & baseline_frs > 0 & ...
+    waveform_durations_ms' > 0.6;
 
 fprintf('... found %d putative DA neurons (FR < 20 sp/s).\n', ...
     nnz(selected_neurons));

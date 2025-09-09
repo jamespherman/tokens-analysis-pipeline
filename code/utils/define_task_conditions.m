@@ -1,4 +1,4 @@
-function conditions = define_task_conditions(trialInfo, eventTimes, unique_id, codes)
+function conditions = define_task_conditions(trialInfo, eventTimes, unique_id)
 % DEFINE_TASK_CONDITIONS - Creates a struct of logical masks for trial conditions.
 %
 % This function first identifies valid 'tokens' task trials and then
@@ -14,6 +14,8 @@ function conditions = define_task_conditions(trialInfo, eventTimes, unique_id, c
 % OUTPUTS:
 %   conditions - Struct with logical masks for different trial conditions,
 %                filtered for tokens task trials.
+
+codes = initCodes;
 
 % Identify valid tokens trials (task code match and reward delivered)
 is_tokens_trial = (trialInfo.taskCode == codes.uniqueTaskCode_tokens) & ...
