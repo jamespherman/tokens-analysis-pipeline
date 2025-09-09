@@ -181,87 +181,77 @@ colors.norm_rare_high = [0.9, 0.6, 0];   % Orange
 % Plotting parameters
 psth_smoothing_width = 5; % bins
 
-% --- Manually define subplot positions for proportional widths ---
-time_windows = [2, 2, 5.5]; % Durations for Cue, Outcome, Reward
-total_time = sum(time_windows);
-proportions = time_windows / total_time;
+% --- Pre-calculate PSTHs and determine global color scale for heatmaps ---
+if any(selected_neurons)
+    all_psth_matrices = [];
 
-% Layout settings
-left_margin = 0.07;
-right_margin = 0.03;
-top_margin = 0.1;
-bottom_margin = 0.1;
-h_gap = 0.04; % Horizontal gap
-v_gap = 0.08; % Vertical gap
+    % --- Column 1: Aligned to CUE_ON ---
+    rates = core_data.spikes.CUE_ON.rates;
+    [grand_mean_norm, psth_norm] = calculate_mean_psth(rates, conditions.is_normal_dist);
+    [grand_mean_unif, psth_unif] = calculate_mean_psth(rates, conditions.is_uniform_dist);
+    all_psth_matrices = [all_psth_matrices; psth_norm; psth_unif];
 
-plot_area_width = 1 - left_margin - right_margin - 2 * h_gap;
-plot_area_height = 1 - top_margin - bottom_margin - v_gap;
+    % --- Column 2: Aligned to outcomeOn ---
+    rates = core_data.spikes.outcomeOn.rates;
+    [grand_mean_common, psth_common] = calculate_mean_psth(rates, conditions.is_norm_common);
+    [grand_mean_rare, psth_rare] = calculate_mean_psth(rates, conditions.is_norm_rare_high);
+    all_psth_matrices = [all_psth_matrices; psth_common; psth_rare];
 
-col_widths = plot_area_width * proportions;
-row_height = plot_area_height / 2;
+    % --- Column 3: Aligned to reward ---
+    rates = core_data.spikes.reward.rates;
+    [grand_mean_common_rew, psth_common_rew] = calculate_mean_psth(rates, conditions.is_norm_common);
+    [grand_mean_rare_rew, psth_rare_rew] = calculate_mean_psth(rates, conditions.is_norm_rare_high);
+    all_psth_matrices = [all_psth_matrices; psth_common_rew; psth_rare_rew];
 
-% Calculate positions [left, bottom, width, height]
-pos{1,1} = [left_margin, bottom_margin + row_height + v_gap, col_widths(1), row_height];
-pos{2,1} = [left_margin, bottom_margin, col_widths(1), row_height];
-
-pos{1,2} = [left_margin + col_widths(1) + h_gap, bottom_margin + row_height + v_gap, col_widths(2), row_height];
-pos{2,2} = [left_margin + col_widths(1) + h_gap, bottom_margin, col_widths(2), row_height];
-
-pos{1,3} = [left_margin + col_widths(1) + col_widths(2) + 2*h_gap, bottom_margin + row_height + v_gap, col_widths(3), row_height];
-pos{2,3} = [left_margin + col_widths(1) + col_widths(2) + 2*h_gap, bottom_margin, col_widths(3), row_height];
-
+    % Determine the common color scale
+    max_rate = max(all_psth_matrices, [], 'all');
+    c_lims = [0, max_rate];
+end
 
 % --- Column 1: Aligned to CUE_ON ---
 event_name = 'CUE_ON';
 time_vec = core_data.spikes.(event_name).time_vector;
 xlim_win = core_data.spikes.(event_name).window;
 
-% Top Row: Neuronal PSTH
-h(1) = axes('Position', pos{1,1});
+% Top Row: Per-neuron heatmaps
+if any(selected_neurons)
+    h(1,1) = mySubPlot([6,3,1]);
+    imagesc(time_vec, 1:size(psth_norm, 1), psth_norm);
+    clim(c_lims);
+    ylabel('Neurons');
+
+    h(2,1) = mySubPlot([6,3,4]);
+    imagesc(time_vec, 1:size(psth_unif, 1), psth_unif);
+    clim(c_lims);
+    ylabel('Neurons');
+end
+
+% Middle Row: Grand-average PSTH
+h(3,1) = mySubPlot([3,3,4]);
 hold on;
 if any(selected_neurons)
-    rates = core_data.spikes.(event_name).rates;
-
-    % Normal distribution
-    mean_psth_norm = mean(squeeze(mean(rates(:, ...
-        conditions.is_normal_dist, :), 1, 'omitnan')), 1, 'omitnan');
-    hOut = barStairsFill(time_vec, zeros(size(mean_psth_norm)), ...
-        mean_psth_norm);
-    delete(hOut(1:2));
-    set(hOut(3), 'Color', colors.normal_dist)
-    mean_psth_unif = mean(squeeze(mean(rates(:, ...
-        conditions.is_uniform_dist, :), 1, 'omitnan')), 1, 'omitnan');
-    hOut = barStairsFill(time_vec, zeros(size(mean_psth_unif)), ...
-        mean_psth_unif);
-    delete(hOut(1:2));
-    set(hOut(3), 'Color', colors.uniform_dist)
+    barStairsFill(time_vec, grand_mean_norm, 'FaceColor', colors.normal_dist, 'EdgeColor', 'none');
+    barStairsFill(time_vec, grand_mean_unif, 'FaceColor', colors.uniform_dist, 'EdgeColor', 'none');
     ylabel('Firing Rate (spikes/s)');
     xlim(xlim_win);
     grid on;
-    legend({'Normal Dist', 'Uniform Dist'}, 'Location', 'northeast');
 end
 xline(0, 'k--');
 
 % Bottom Row: Pupil Trace
-h(4) = axes('Position', pos{2,1});
+h(4,1) = mySubPlot([3,3,7]);
 hold on;
 traces = core_data.pupil.(event_name).traces;
-time_vec = core_data.pupil.(event_name).time_vector;
-xlim_win = core_data.pupil.(event_name).window;
-
-% Normal distribution
+time_vec_pupil = core_data.pupil.(event_name).time_vector;
+xlim_win_pupil = core_data.pupil.(event_name).window;
 mean_trace_norm = mean(traces(conditions.is_normal_dist, :), 1, 'omitnan');
-plot(time_vec, mean_trace_norm, 'Color', colors.normal_dist, 'LineWidth', 1.5);
-
-% Uniform distribution
+plot(time_vec_pupil, mean_trace_norm, 'Color', colors.normal_dist, 'LineWidth', 1.5);
 mean_trace_unif = mean(traces(conditions.is_uniform_dist, :), 1, 'omitnan');
-plot(time_vec, mean_trace_unif, 'Color', colors.uniform_dist, 'LineWidth', 1.5);
-
-ylabel('Normalized Pupil Size');
-xlabel('Time from Cue On (s)');
-xlim(xlim_win);
+plot(time_vec_pupil, mean_trace_unif, 'Color', colors.uniform_dist, 'LineWidth', 1.5);
+ylabel('Pupil Size (norm.)');
+xlabel(['Time from ' strrep(event_name, '_', ' ') ' (s)']);
+xlim(xlim_win_pupil);
 grid on;
-legend({'Normal Dist', 'Uniform Dist'}, 'Location', 'northeast');
 xline(0, 'k--');
 
 % --- Column 2: Aligned to outcomeOn ---
@@ -269,48 +259,40 @@ event_name = 'outcomeOn';
 time_vec = core_data.spikes.(event_name).time_vector;
 xlim_win = core_data.spikes.(event_name).window;
 
-% Top Row: Neuronal PSTH
-h(2) = axes('Position', pos{1,2});
+% Top Row: Per-neuron heatmaps
+if any(selected_neurons)
+    h(1,2) = mySubPlot([6,3,2]);
+    imagesc(time_vec, 1:size(psth_common, 1), psth_common);
+    clim(c_lims);
+
+    h(2,2) = mySubPlot([6,3,5]);
+    imagesc(time_vec, 1:size(psth_rare, 1), psth_rare);
+    clim(c_lims);
+end
+
+% Middle Row: Grand-average PSTH
+h(3,2) = mySubPlot([3,3,5]);
 hold on;
 if any(selected_neurons)
-    rates = core_data.spikes.(event_name).rates;
-
-    % Common reward
-    mean_psth_common = mean(squeeze(mean(rates(:, ...
-        conditions.is_norm_common, :), 1, 'omitnan')), 1, 'omitnan');
-    hOut = barStairsFill(time_vec, zeros(size(mean_psth_common)), ...
-        mean_psth_common);
-    delete(hOut(1:2));
-    set(hOut(3), 'Color', colors.norm_common)
-    % Rare high reward
-    mean_psth_rare = mean(squeeze(mean(rates(:, ...
-        conditions.is_norm_rare_high, :), 1, 'omitnan')), 1, 'omitnan');
-    hOut = barStairsFill(time_vec, zeros(size(mean_psth_rare)), ...
-        mean_psth_rare);
-    delete(hOut(1:2));
-    set(hOut(3), 'Color', colors.norm_rare_high)
+    barStairsFill(time_vec, grand_mean_common, 'FaceColor', colors.norm_common, 'EdgeColor', 'none');
+    barStairsFill(time_vec, grand_mean_rare, 'FaceColor', colors.norm_rare_high, 'EdgeColor', 'none');
     xlim(xlim_win);
     grid on;
 end
 xline(0, 'k--');
 
 % Bottom Row: Pupil Trace
-h(5) = axes('Position', pos{2,2});
+h(4,2) = mySubPlot([3,3,8]);
 hold on;
 traces = core_data.pupil.(event_name).traces;
-time_vec = core_data.pupil.(event_name).time_vector;
-xlim_win = core_data.pupil.(event_name).window;
-
-% Common reward
+time_vec_pupil = core_data.pupil.(event_name).time_vector;
+xlim_win_pupil = core_data.pupil.(event_name).window;
 mean_trace_common = mean(traces(conditions.is_norm_common, :), 1, 'omitnan');
-plot(time_vec, mean_trace_common, 'Color', colors.norm_common, 'LineWidth', 1.5);
-
-% Rare high reward
+plot(time_vec_pupil, mean_trace_common, 'Color', colors.norm_common, 'LineWidth', 1.5);
 mean_trace_rare = mean(traces(conditions.is_norm_rare_high, :), 1, 'omitnan');
-plot(time_vec, mean_trace_rare, 'Color', colors.norm_rare_high, 'LineWidth', 1.5);
-
-xlabel('Time from Outcome On (s)');
-xlim(xlim_win);
+plot(time_vec_pupil, mean_trace_rare, 'Color', colors.norm_rare_high, 'LineWidth', 1.5);
+xlabel(['Time from ' strrep(event_name, '_', ' ') ' (s)']);
+xlim(xlim_win_pupil);
 grid on;
 xline(0, 'k--');
 
@@ -319,58 +301,54 @@ event_name = 'reward';
 time_vec = core_data.spikes.(event_name).time_vector;
 xlim_win = core_data.spikes.(event_name).window;
 
-% Top Row: Neuronal PSTH
-h(3) = axes('Position', pos{1,3});
+% Top Row: Per-neuron heatmaps
+if any(selected_neurons)
+    h(1,3) = mySubPlot([6,3,3]);
+    imagesc(time_vec, 1:size(psth_common_rew, 1), psth_common_rew);
+    clim(c_lims);
+
+    h(2,3) = mySubPlot([6,3,6]);
+    imagesc(time_vec, 1:size(psth_rare_rew, 1), psth_rare_rew);
+    clim(c_lims);
+    colorbar;
+end
+
+% Middle Row: Grand-average PSTH
+h(3,3) = mySubPlot([3,3,6]);
 hold on;
 if any(selected_neurons)
-    rates = core_data.spikes.(event_name).rates;
-
-    % Common reward
-    mean_psth_common = mean(squeeze(mean(rates(:, ...
-        conditions.is_norm_common, :), 1, 'omitnan')), 1, 'omitnan');
-    hOut = barStairsFill(time_vec, zeros(size(mean_psth_common)), ...
-        mean_psth_common);
-    delete(hOut(1:2));
-    set(hOut(3), 'Color', colors.norm_common)
-
-    % Rare high reward
-    mean_psth_rare = mean(squeeze(mean(rates(:, ...
-        conditions.is_norm_rare_high, :), 1, 'omitnan')), 1, 'omitnan');
-    hOut = barStairsFill(time_vec, zeros(size(mean_psth_rare)), ...
-        mean_psth_rare);
-    delete(hOut(1:2));
-    set(hOut(3), 'Color', colors.norm_rare_high)
-
+    barStairsFill(time_vec, grand_mean_common_rew, 'FaceColor', colors.norm_common, 'EdgeColor', 'none');
+    barStairsFill(time_vec, grand_mean_rare_rew, 'FaceColor', colors.norm_rare_high, 'EdgeColor', 'none');
     xlim(xlim_win);
     grid on;
-    legend({'Common Reward', 'Rare High Reward'}, 'Location', 'northeast');
 end
 xline(0, 'k--');
 
 % Bottom Row: Pupil Trace
-h(6) = axes('Position', pos{2,3});
+h(4,3) = mySubPlot([3,3,9]);
 hold on;
 traces = core_data.pupil.(event_name).traces;
-time_vec = core_data.pupil.(event_name).time_vector;
-xlim_win = core_data.pupil.(event_name).window;
-
-% Common reward
+time_vec_pupil = core_data.pupil.(event_name).time_vector;
+xlim_win_pupil = core_data.pupil.(event_name).window;
 mean_trace_common = mean(traces(conditions.is_norm_common, :), 1, 'omitnan');
-plot(time_vec, mean_trace_common, 'Color', colors.norm_common, 'LineWidth', 1.5);
-
-% Rare high reward
+plot(time_vec_pupil, mean_trace_common, 'Color', colors.norm_common, 'LineWidth', 1.5);
 mean_trace_rare = mean(traces(conditions.is_norm_rare_high, :), 1, 'omitnan');
-plot(time_vec, mean_trace_rare, 'Color', colors.norm_rare_high, 'LineWidth', 1.5);
-
-xlabel('Time from Reward (s)');
-xlim(xlim_win);
+plot(time_vec_pupil, mean_trace_rare, 'Color', colors.norm_rare_high, 'LineWidth', 1.5);
+xlabel(['Time from ' strrep(event_name, '_', ' ') ' (s)']);
+xlim(xlim_win_pupil);
 grid on;
-legend({'Common Reward', 'Rare High Reward'}, 'Location', 'northeast');
 xline(0, 'k--');
 
-% --- De-clutter axes ---
-set(h(1:3), 'XTickLabel', []);
-set(h([2,3,5,6]), 'YTickLabel', []);
+% --- De-clutter axes for clarity ---
+if any(selected_neurons)
+    % Remove X-tick labels from all but the bottom row (pupil)
+    all_axes = findobj(fig, 'Type', 'axes');
+    psth_and_heatmap_axes = all_axes(~ismember(all_axes, h(4,:)));
+    set(psth_and_heatmap_axes, 'XTickLabel', []);
+
+    % Remove Y-tick labels from all but the left-most column
+    set(h(:, 2:3), 'YTickLabel', []);
+end
 
 sgtitle(sprintf('Core Data Verification: %s', unique_id), 'Interpreter', 'none');
 giveFeed('Done.');
@@ -550,3 +528,44 @@ end
 giveFeed('Step 7: Saving updated manifest...');
 writetable(manifest, manifest_path);
 giveFeed('Manifest saved. Script finished.');
+
+%% Helper function
+function [grand_mean_psth, per_neuron_psth] = calculate_mean_psth(rates, condition_mask)
+%calculate_mean_psth Calculates the mean PSTH, excluding silent trials.
+%   This function calculates the grand-average PSTH across all neurons and
+%   the average PSTH for each individual neuron. It filters out trials
+%   where a neuron had a total spike count of zero across the analysis
+%   window on a per-neuron basis.
+%
+%   Args:
+%       rates: An [nNeurons x nTrials x nTimeBins] matrix of spike rates.
+%       condition_mask: A logical vector indicating which trials to include.
+%
+%   Returns:
+%       grand_mean_psth: A [1 x nTimeBins] vector of the grand-average PSTH.
+%       per_neuron_psth: An [nNeurons x nTimeBins] matrix of per-neuron PSTHs.
+
+    n_neurons = size(rates, 1);
+    n_time_bins = size(rates, 3);
+
+    per_neuron_psth = zeros(n_neurons, n_time_bins);
+
+    for i_neuron = 1:n_neurons
+        % Get the rates for the current neuron and the specified condition
+        neuron_rates = squeeze(rates(i_neuron, condition_mask, :));
+
+        % Find trials where the neuron was not silent
+        active_trials = sum(neuron_rates, 2) > 0;
+
+        % Calculate the mean PSTH for the active trials
+        if any(active_trials)
+            per_neuron_psth(i_neuron, :) = mean(neuron_rates(active_trials, :), 1);
+        else
+            % If the neuron is silent in all trials, its mean PSTH is zero
+            per_neuron_psth(i_neuron, :) = zeros(1, n_time_bins);
+        end
+    end
+
+    % Calculate the grand-average PSTH from the per-neuron averages
+    grand_mean_psth = mean(per_neuron_psth, 1);
+end
