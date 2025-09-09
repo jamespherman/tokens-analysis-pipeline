@@ -14,7 +14,7 @@
 % Author: Jules
 % Date: 2025-09-09
 
-function analysis_results = analyze_baseline_comparison(core_data, conditions)
+function analysis_results = analyze_baseline_comparison(core_data, conditions, is_av_session)
 
 %% Setup Paths
 [script_dir, ~, ~] = fileparts(mfilename('fullpath'));
@@ -34,6 +34,15 @@ conds_to_analyze = {
     'is_common_reward_no_spe', ...
     'is_rare_high_reward_no_spe'
     };
+
+% If it's an AV session, add the SPE-related conditions to the list
+if is_av_session
+    conds_to_analyze = [conds_to_analyze, ...
+        {
+        'is_common_reward_with_spe', ...
+        'is_rare_high_reward_with_spe'
+        }];
+end
 
 n_neurons = size(core_data.spikes.CUE_ON.rates, 1);
 

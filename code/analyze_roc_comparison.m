@@ -14,7 +14,7 @@
 % Author: Jules
 % Date: 2025-09-09
 
-function analysis_results = analyze_roc_comparison(core_data, conditions)
+function analysis_results = analyze_roc_comparison(core_data, conditions, is_av_session)
 
 %% Setup Paths
 [script_dir, ~, ~] = fileparts(mfilename('fullpath'));
@@ -33,6 +33,17 @@ comparisons = {
     ... % Comparison 3: Common vs. Rare High at Reward
     {'reward', 'is_common_reward_no_spe', 'is_rare_high_reward_no_spe', 'reward_common_vs_rare'}
     };
+
+% If it's an AV session, add the SPE-related comparisons
+if is_av_session
+    spe_comparisons = {
+        ... % Comparison 4: No SPE vs. SPE (Common Reward)
+        {'outcomeOn', 'is_common_reward_no_spe', 'is_common_reward_with_spe', 'outcome_common_reward_no_spe_vs_with_spe'}, ...
+        ... % Comparison 5: No SPE vs. SPE (Rare High Reward)
+        {'outcomeOn', 'is_rare_high_reward_no_spe', 'is_rare_high_reward_with_spe', 'outcome_rare_high_reward_no_spe_vs_with_spe'}
+        };
+    comparisons = [comparisons; spe_comparisons];
+end
 
 %% Main Analysis Loop
 % Iterate through each of the three comparisons
