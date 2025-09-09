@@ -94,8 +94,9 @@ core_data = prepare_core_data(session_data, selected_neurons);
 %% Define Task Conditions
 % Create logical masks for different trial conditions
 fprintf('Defining task conditions...\n');
+codes = initCodes();
 conditions = define_task_conditions(session_data.trialInfo, ...
-    session_data.eventTimes);
+    session_data.eventTimes, codes);
 
 %% Generate Verification Plots
 fprintf('Generating verification plots...\n');
