@@ -154,3 +154,66 @@ session_data.metadata.scSide = scSide;
 session_data.metadata.sig_epoch_comparison = sig_epoch_comp;
 ```
 This ensures that the results of the screening are saved with the session's data.
+
+---
+
+## Plotting Conventions
+
+When creating complex, multi-panel figures for data verification or analysis, please adhere to the following conventions to ensure clarity, consistency, and scientific accuracy.
+
+### 1. Use `barStairsFill` for PSTHs
+For plotting Peristimulus Time Histograms (PSTHs), use the `barStairsFill.m` utility function instead of a standard `plot`. This function creates a filled, staircase-style plot that accurately represents the binned nature of the data without implying a false sense of continuity between bins.
+
+Example:
+```matlab
+% Good: Using barStairsFill for a PSTH
+mean_psth = mean(rates, 1);
+barStairsFill(time_vector, mean_psth, 'FaceColor', 'b', 'EdgeColor', 'none');
+```
+
+### 2. De-clutter Axes in Multi-Panel Figures
+To improve readability and reduce visual clutter in figures with multiple subplots arranged in a grid, remove redundant axis labels.
+- For any given column of plots, only the bottom-most plot should have X-axis tick labels.
+- For any given row of plots, only the left-most plot should have Y-axis tick labels.
+
+Example:
+```matlab
+% h is an array of handles to the axes in a 2x3 grid
+% Remove x-labels from the top row
+set(h(1:3), 'XTickLabel', []);
+% Remove y-labels from the middle and right columns
+set(h([2,3,5,6]), 'YTickLabel', []);
+```
+
+### 3. Proportional Subplot Widths for Time-Series Data
+When comparing different time epochs in adjacent subplots, the width of each subplot column should be proportional to the duration of the time window it represents. This provides an intuitive visual comparison of the temporal dynamics.
+
+Do not use automated subplot tools like `subplot` or `mySubPlot` for this. Instead, manually calculate the `Position` vector `[left, bottom, width, height]` for each axis.
+
+Example Logic:
+```matlab
+time_windows = [2, 2, 5.5]; % e.g., Cue (2s), Outcome (2s), Reward (5.5s)
+proportions = time_windows / sum(time_windows);
+
+% Calculate total available plotting width, accounting for margins/gaps
+plot_area_width = 1 - left_margin - right_margin - (n_cols-1)*h_gap;
+
+% Calculate individual column widths
+col_widths = plot_area_width * proportions;
+
+% Construct Position vectors using these widths
+pos1 = [left_margin, bottom, col_widths(1), height];
+h1 = axes('Position', pos1);
+```
+
+### 4. Use a Single, Informative `sgtitle`
+Avoid using individual `title()` calls for each subplot. Instead, use a single, comprehensive main title for the entire figure using `sgtitle()`. This title should provide the key takeaway or context for the figure. Column and row labels can be added with `ylabel` on the leftmost plots and `xlabel` on the bottom plots.
+
+### 5. Set Interpreter to 'none' for Titles with File Paths
+When including filenames, unique IDs, or other text with special characters (like underscores `_`) in a title, always set the `'Interpreter'` property to `'none'`. This prevents MATLAB from treating the underscores as subscript indicators and ensures the text is displayed literally.
+
+Example:
+```matlab
+unique_id = 'My_Session_2025_09_09';
+sgtitle(sprintf('Data Verification for: %s', unique_id), 'Interpreter', 'none');
+```
