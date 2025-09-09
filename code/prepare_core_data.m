@@ -23,7 +23,10 @@ function core_data = prepare_core_data(session_data, selected_neurons)
 [script_dir, ~, ~] = fileparts(mfilename('fullpath'));
 addpath(fullfile(script_dir, 'utils'));
 
-%% Identify Tokens Task Trials
+%% Define Alignment Events and Trial Indices
+% Define the list of events to align the data to
+alignment_events = {'CUE_ON', 'outcomeOn', 'reward'};
+
 % Load the structure containing all task codes
 codes = initCodes();
 
@@ -32,13 +35,13 @@ tokens_trial_indices = find(session_data.trialInfo.taskCode == ...
     codes.uniqueTaskCode_tokens);
 
 %% Prepare Neuronal Data
-% Call the sub-function to get aligned spike rate matrices
+% Pass the alignment events to the neuronal data preparation function
 core_data.spikes = prepare_neuronal_data(session_data, ...
-    selected_neurons, tokens_trial_indices);
+    selected_neurons, tokens_trial_indices, alignment_events);
 
 %% Prepare Pupil Data
-% Call the sub-function to get preprocessed and aligned pupil traces
+% Pass the alignment events to the pupil data preparation function
 core_data.pupil = prepare_pupil_data(session_data, ...
-    tokens_trial_indices);
+    tokens_trial_indices, alignment_events);
 
 end

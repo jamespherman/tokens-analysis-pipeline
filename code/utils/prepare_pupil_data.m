@@ -1,50 +1,54 @@
 %% prepare_pupil_data.m
 %
-%   Generates preprocessed, event-aligned pupil data traces.
+%   Generates preprocessed, event-aligned pupil data traces for multiple
+%   specified behavioral events.
 %
 % INPUTS:
 %   session_data         - The main data structure.
 %   tokens_trial_indices - Indices for trials of the 'tokens' task.
+%   alignment_events     - Cell array of event names to align to.
 %
 % OUTPUT:
-%   aligned_pupil        - A struct with aligned pupil data.
+%   aligned_pupil        - A struct with aligned pupil data, with fields
+%                          for each alignment event.
 %
 % Author: Jules
 % Date: 2025-09-08
 
 function aligned_pupil = prepare_pupil_data(session_data, ...
-    tokens_trial_indices)
+    tokens_trial_indices, alignment_events)
 
-%% Define Alignment and Preprocessing Parameters
-alignment_events = {'cueOn', 'outcomeOn'};
-time_window = [-0.5, 1.5]; % in seconds
+%% Define Preprocessing Parameters
 sample_rate = session_data.display.fr; % Hz, from display refresh rate
-n_samples = round((time_window(2) - time_window(1)) * sample_rate);
-time_vector = linspace(time_window(1), time_window(2), n_samples);
-
-baseline_window = [-0.5, -0.1]; % in seconds, relative to event
-deblink_threshold = 0.1; % Pupil size values below this are artifacts
+baseline_window = [-0.5, -0.1]; % s, relative to alignment event
+deblink_threshold = 0.1; % Pupil values below this are artifacts
 smoothing_window_ms = 50; % ms
 smoothing_window_samples = round(smoothing_window_ms / 1000 * sample_rate);
-
 n_tokens_trials = numel(tokens_trial_indices);
 
 %% Process Each Alignment Event
 for i_event = 1:numel(alignment_events)
     event_name = alignment_events{i_event};
 
-    % Initialize storage for this event
+    % Define time window based on the event type
+    if strcmp(event_name, 'reward')
+        time_window = [-0.5, 5.0]; % Extended window for reward epoch
+    else
+        time_window = [-0.5, 1.5]; % Standard window for other events
+    end
+
+    % Create time vector and initialize storage based on window size
+    n_samples = round((time_window(2) - time_window(1)) * sample_rate);
+    time_vector = linspace(time_window(1), time_window(2), n_samples);
     aligned_traces = nan(n_tokens_trials, n_samples);
 
-    % Get the event times for the current alignment event
-    event_times = session_data.behavior.eventTimes.(event_name)...
-        (tokens_trial_indices);
+    % Get alignment times for the current event
+    event_times = session_data.eventTimes.(event_name)(tokens_trial_indices);
 
-    % Loop through each trial
+    % Loop through each trial to preprocess and align pupil data
     for i_trial = 1:n_tokens_trials
         trial_idx = tokens_trial_indices(i_trial);
 
-        % a. Check for Data
         if isempty(session_data.pupil.raw{trial_idx}) || ...
            isempty(session_data.pupil.t{trial_idx})
             continue;
@@ -53,34 +57,49 @@ for i_event = 1:numel(alignment_events)
         pupil_trace = session_data.pupil.raw{trial_idx};
         pupil_time = session_data.pupil.t{trial_idx} - event_times(i_trial);
 
-        % b. De-blink
         pupil_trace(pupil_trace < deblink_threshold) = nan;
+        smoothed_trace = movmean(pupil_trace, smoothing_window_samples, 'omitnan');
 
-        % c. Smooth
-        smoothed_trace = movmean(pupil_trace, smoothing_window_samples, ...
-            'omitnan');
-
-        % d. Baseline Correction
-        baseline_indices = pupil_time >= baseline_window(1) & ...
-                           pupil_time <= baseline_window(2);
+        baseline_indices = pupil_time >= baseline_window(1) & pupil_time <= baseline_window(2);
         baseline_mean = mean(smoothed_trace(baseline_indices), 'omitnan');
 
         if isnan(baseline_mean) || baseline_mean == 0
-            continue; % Cannot normalize if baseline is invalid
+            continue;
         end
 
-        % e. Normalization
         normalized_trace = (smoothed_trace - baseline_mean) / baseline_mean;
 
-        % f. Align & Store
-        % Interpolate to a common time base
+        % Interpolate to the common time base for this event
         aligned_traces(i_trial, :) = interp1(pupil_time, ...
             normalized_trace, time_vector, 'linear', nan);
+    end
+
+    % --- Special Handling for Variable-Length 'reward' Epoch ---
+    if strcmp(event_name, 'reward')
+        last_reward_times_abs = cellfun(@(c) c(end), ...
+            session_data.eventTimes.rewardCell(tokens_trial_indices), ...
+            'UniformOutput', false);
+
+        empty_trials = cellfun('isempty', last_reward_times_abs);
+        last_reward_times_abs(empty_trials) = {NaN};
+        last_reward_times_abs = cell2mat(last_reward_times_abs);
+
+        for i_trial = 1:n_tokens_trials
+            if isnan(event_times(i_trial)) || isnan(last_reward_times_abs(i_trial))
+                continue;
+            end
+
+            last_reward_rel_time = last_reward_times_abs(i_trial) - event_times(i_trial);
+            nan_cutoff_time = last_reward_rel_time + 1.0;
+            bins_to_nan = time_vector > nan_cutoff_time;
+            aligned_traces(i_trial, bins_to_nan) = nan;
+        end
     end
 
     % Store the final matrix and its time vector
     aligned_pupil.(event_name).traces = aligned_traces;
     aligned_pupil.(event_name).time_vector = time_vector;
+    aligned_pupil.(event_name).window = time_window;
 end
 
 end
