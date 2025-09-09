@@ -380,43 +380,41 @@ end
 sgtitle(sprintf('Core Data Verification: %s', unique_id), 'Interpreter', 'none');
 giveFeed('Done.');
 
+% --- Save the RPE figure ---
+giveFeed('Saving RPE verification figure...');
+rpe_fig_filename = fullfile(project_root, 'figures', ...
+    [unique_id '_RPE_verification.pdf']);
+pdfSave(fig, rpe_fig_filename);
+giveFeed(['RPE figure saved to: ' rpe_fig_filename]);
+
 %% Generate SPE-Focused Diagnostic Figure (if applicable)
 if is_av_session
     giveFeed('Step 6b: Generating SPE-focused diagnostic plots...');
     fig2 = figure('Position', [100, 100, 1200, 700]);
     fig2.PaperPositionMode = 'auto';
 
-    % --- Define proportional subplot positions based on time windows ---
-    time_windows = [diff(core_data.spikes.CUE_ON.window), ...
-                    diff(core_data.spikes.outcomeOn.window), ...
-                    diff(core_data.spikes.reward.window)];
-    proportions = time_windows / sum(time_windows);
+    % --- Pre-calculate PSTHs for SPE conditions ---
+    if any(selected_neurons)
+        % Aligned to CUE_ON
+        rates = core_data.spikes.CUE_ON.rates;
+        [grand_mean_surprising_cue, psth_surprising_cue] = ...
+            calculate_mean_psth(rates, conditions.is_flicker_surprising);
+        [grand_mean_certain_cue, psth_certain_cue] = ...
+            calculate_mean_psth(rates, conditions.is_flicker_certain);
 
-    n_rows_fig2 = 2;
-    n_cols_fig2 = 3;
-    left_margin = 0.08;
-    right_margin = 0.05;
-    top_margin = 0.1;
-    bottom_margin = 0.1;
-    h_gap = 0.06;
-    v_gap = 0.08;
+        % Aligned to outcomeOn
+        rates = core_data.spikes.outcomeOn.rates;
+        [grand_mean_surprising_outcome, psth_surprising_outcome] = ...
+            calculate_mean_psth(rates, conditions.is_flicker_surprising);
+        [grand_mean_certain_outcome, psth_certain_outcome] = ...
+            calculate_mean_psth(rates, conditions.is_flicker_certain);
 
-    plot_area_width = 1 - left_margin - right_margin - (n_cols_fig2-1)*h_gap;
-    plot_area_height = 1 - top_margin - bottom_margin - (n_rows_fig2-1)*v_gap;
-
-    col_widths = plot_area_width * proportions;
-    row_height = plot_area_height / n_rows_fig2;
-
-    pos = cell(n_rows_fig2, n_cols_fig2);
-    current_left = left_margin;
-    for c = 1:n_cols_fig2
-        current_top = 1 - top_margin;
-        for r = 1:n_rows_fig2
-            current_bottom = current_top - row_height;
-            pos{r,c} = [current_left, current_bottom, col_widths(c), row_height];
-            current_top = current_bottom - v_gap;
-        end
-        current_left = current_left + col_widths(c) + h_gap;
+        % Aligned to reward
+        rates = core_data.spikes.reward.rates;
+        [grand_mean_surprising_reward, psth_surprising_reward] = ...
+            calculate_mean_psth(rates, conditions.is_flicker_surprising);
+        [grand_mean_certain_reward, psth_certain_reward] = ...
+            calculate_mean_psth(rates, conditions.is_flicker_certain);
     end
 
     % Define colors for SPE conditions
@@ -428,48 +426,53 @@ if is_av_session
     time_vec = core_data.spikes.(event_name).time_vector;
     xlim_win = core_data.spikes.(event_name).window;
 
-    % Top Row: Neuronal PSTH
-    h2(1) = axes('Position', pos{1,1});
+    % Top Row: Per-neuron heatmaps
+    if any(selected_neurons)
+        h2(1,1) = mySubPlot(6,3,1);
+        imagesc(time_vec, 1:size(psth_surprising_cue, 1), psth_surprising_cue);
+        clim(c_lims);
+        colormap(flipud(bone(256)))
+        ylabel('Neurons');
+
+        h2(2,1) = mySubPlot(6,3,4);
+        imagesc(time_vec, 1:size(psth_certain_cue, 1), psth_certain_cue);
+        clim(c_lims);
+        colormap(flipud(bone(256)))
+        ylabel('Neurons');
+    end
+
+    % Middle Row: Grand-average PSTH
+    h2(3,1) = mySubPlot(3,3,4);
     hold on;
     if any(selected_neurons)
-        rates = core_data.spikes.(event_name).rates;
-        mean_psth_surprising = mean(squeeze(mean(rates(:, ...
-            conditions.is_flicker_surprising, :), 1, 'omitnan')), 1, ...
-            'omitnan');
-        hOut = barStairsFill(time_vec, zeros(size(mean_psth_surprising)), ...
-            mean_psth_surprising);
-        delete(hOut(1:2));
-        set(hOut(3), 'Color', colors.flicker_surprising)
-        mean_psth_certain = mean(squeeze(mean(rates(:, ...
-            conditions.is_flicker_certain, :), 1, 'omitnan')), 1, ...
-            'omitnan');
-        hOut = barStairsFill(time_vec, ...
-            zeros(size(mean_psth_certain)), mean_psth_certain);
-        delete(hOut(1:2));
-        set(hOut(3), 'Color', colors.flicker_certain)
+        hb = barStairsFill(time_vec, zeros(size(grand_mean_surprising_cue)), ...
+            grand_mean_surprising_cue);
+        delete(hb(1:2))
+        set(hb(3), 'Color', colors.flicker_surprising);
+        hb = barStairsFill(time_vec, zeros(size(grand_mean_certain_cue)), ...
+            grand_mean_certain_cue);
+        delete(hb(1:2))
+        set(hb(3), 'Color', colors.flicker_certain);
         ylabel('Firing Rate (spikes/s)');
         xlim(xlim_win);
         grid on;
-        legend({'Flicker Surprising', 'Flicker Certain'}, ...
-            'Location', 'best');
     end
     xline(0, 'k--');
 
     % Bottom Row: Pupil Trace
-    h2(4) = axes('Position', pos{2,1});
+    h2(4,1) = mySubPlot(3,3,7);
     hold on;
     traces = core_data.pupil.(event_name).traces;
-    time_vec = core_data.pupil.(event_name).time_vector;
-    xlim_win = core_data.pupil.(event_name).window;
+    time_vec_pupil = core_data.pupil.(event_name).time_vector;
+    xlim_win_pupil = core_data.pupil.(event_name).window;
     mean_trace_surprising = mean(traces(conditions.is_flicker_surprising, :), 1, 'omitnan');
-    plot(time_vec, mean_trace_surprising, 'Color', colors.flicker_surprising, 'LineWidth', 1.5);
+    plot(time_vec_pupil, mean_trace_surprising, 'Color', colors.flicker_surprising, 'LineWidth', 1.5);
     mean_trace_certain = mean(traces(conditions.is_flicker_certain, :), 1, 'omitnan');
-    plot(time_vec, mean_trace_certain, 'Color', colors.flicker_certain, 'LineWidth', 1.5);
-    ylabel('Normalized Pupil Size');
-    xlabel('Time from Cue On (s)');
-    xlim(xlim_win);
+    plot(time_vec_pupil, mean_trace_certain, 'Color', colors.flicker_certain, 'LineWidth', 1.5);
+    ylabel('Pupil Size (norm.)');
+    xlabel(['Time from ' strrep(event_name, '_', ' ') ' (s)']);
+    xlim(xlim_win_pupil);
     grid on;
-    legend({'Flicker Surprising', 'Flicker Certain'}, 'Location', 'best');
     xline(0, 'k--');
 
     % --- Column 2: Aligned to outcomeOn ---
@@ -477,42 +480,48 @@ if is_av_session
     time_vec = core_data.spikes.(event_name).time_vector;
     xlim_win = core_data.spikes.(event_name).window;
 
-    % Top Row: Neuronal PSTH
-    h2(2) = axes('Position', pos{1,2});
+    % Top Row: Per-neuron heatmaps
+    if any(selected_neurons)
+        h2(1,2) = mySubPlot(6,3,2);
+        imagesc(time_vec, 1:size(psth_surprising_outcome, 1), psth_surprising_outcome);
+        clim(c_lims);
+        colormap(flipud(bone(256)))
+
+        h2(2,2) = mySubPlot(6,3,5);
+        imagesc(time_vec, 1:size(psth_certain_outcome, 1), psth_certain_outcome);
+        clim(c_lims);
+        colormap(flipud(bone(256)))
+    end
+
+    % Middle Row: Grand-average PSTH
+    h2(3,2) = mySubPlot(3,3,5);
     hold on;
     if any(selected_neurons)
-        rates = core_data.spikes.(event_name).rates;
-        mean_psth_surprising = mean(squeeze(mean(rates(:, ...
-            conditions.is_flicker_surprising, :), 1, 'omitnan')), 1, ...
-            'omitnan');
-        hOut = barStairsFill(time_vec, zeros(size(mean_psth_surprising)), ...
-            mean_psth_surprising);
-        delete(hOut(1:2));
-        set(hOut(3), 'Color', colors.flicker_surprising)
-        mean_psth_certain = mean(squeeze(mean(rates(:, ...
-            conditions.is_flicker_certain, :), 1, 'omitnan')), 1, ...
-            'omitnan');
-        hOut = barStairsFill(time_vec, zeros(size(mean_psth_certain)), ...
-            mean_psth_certain);
-        delete(hOut(1:2));
-        set(hOut(3), 'Color', colors.flicker_certain)
+        hb = barStairsFill(time_vec, zeros(size(grand_mean_surprising_outcome)), ...
+            grand_mean_surprising_outcome);
+        delete(hb(1:2))
+        set(hb(3), 'Color', colors.flicker_surprising);
+        hb = barStairsFill(time_vec, zeros(size(grand_mean_certain_outcome)), ...
+            grand_mean_certain_outcome);
+        delete(hb(1:2))
+        set(hb(3), 'Color', colors.flicker_certain);
         xlim(xlim_win);
         grid on;
     end
     xline(0, 'k--');
 
     % Bottom Row: Pupil Trace
-    h2(5) = axes('Position', pos{2,2});
+    h2(4,2) = mySubPlot(3,3,8);
     hold on;
     traces = core_data.pupil.(event_name).traces;
-    time_vec = core_data.pupil.(event_name).time_vector;
-    xlim_win = core_data.pupil.(event_name).window;
+    time_vec_pupil = core_data.pupil.(event_name).time_vector;
+    xlim_win_pupil = core_data.pupil.(event_name).window;
     mean_trace_surprising = mean(traces(conditions.is_flicker_surprising, :), 1, 'omitnan');
-    plot(time_vec, mean_trace_surprising, 'Color', colors.flicker_surprising, 'LineWidth', 1.5);
+    plot(time_vec_pupil, mean_trace_surprising, 'Color', colors.flicker_surprising, 'LineWidth', 1.5);
     mean_trace_certain = mean(traces(conditions.is_flicker_certain, :), 1, 'omitnan');
-    plot(time_vec, mean_trace_certain, 'Color', colors.flicker_certain, 'LineWidth', 1.5);
-    xlabel('Time from Outcome On (s)');
-    xlim(xlim_win);
+    plot(time_vec_pupil, mean_trace_certain, 'Color', colors.flicker_certain, 'LineWidth', 1.5);
+    xlabel(['Time from ' strrep(event_name, '_', ' ') ' (s)']);
+    xlim(xlim_win_pupil);
     grid on;
     xline(0, 'k--');
 
@@ -521,51 +530,61 @@ if is_av_session
     time_vec = core_data.spikes.(event_name).time_vector;
     xlim_win = core_data.spikes.(event_name).window;
 
-    % Top Row: Neuronal PSTH
-    h2(3) = axes('Position', pos{1,3});
+    % Top Row: Per-neuron heatmaps
+    if any(selected_neurons)
+        h2(1,3) = mySubPlot(6,3,3);
+        imagesc(time_vec, 1:size(psth_surprising_reward, 1), psth_surprising_reward);
+        clim(c_lims);
+        colormap(flipud(bone(256)))
+
+        h2(2,3) = mySubPlot(6,3,6);
+        imagesc(time_vec, 1:size(psth_certain_reward, 1), psth_certain_reward);
+        clim(c_lims);
+        colormap(flipud(bone(256)))
+    end
+
+    % Middle Row: Grand-average PSTH
+    h2(3,3) = mySubPlot(3,3,6);
     hold on;
     if any(selected_neurons)
-        rates = core_data.spikes.(event_name).rates;
-        mean_psth_surprising = mean(squeeze(mean(rates(:, ...
-            conditions.is_flicker_surprising, :), 1, 'omitnan')), 1, ...
-            'omitnan');
-        hOut = barStairsFill(time_vec, zeros(size(mean_psth_surprising)), ...
-            mean_psth_surprising);
-        delete(hOut(1:2));
-        set(hOut(3), 'Color', colors.flicker_surprising)
-        mean_psth_certain = mean(squeeze(mean(rates(:, ...
-            conditions.is_flicker_certain, :), 1, 'omitnan')), 1, ...
-            'omitnan');
-        hOut = barStairsFill(time_vec, zeros(size(mean_psth_certain)), ...
-            mean_psth_certain);
-        delete(hOut(1:2));
-        set(hOut(3), 'Color', colors.flicker_certain)
+        hb = barStairsFill(time_vec, zeros(size(grand_mean_surprising_reward)), ...
+            grand_mean_surprising_reward);
+        delete(hb(1:2))
+        set(hb(3), 'Color', colors.flicker_surprising);
+        hb = barStairsFill(time_vec, zeros(size(grand_mean_certain_reward)), ...
+            grand_mean_certain_reward);
+        delete(hb(1:2))
+        set(hb(3), 'Color', colors.flicker_certain);
         xlim(xlim_win);
         grid on;
-        legend({'Flicker Surprising', 'Flicker Certain'}, ...
-            'Location', 'best');
     end
     xline(0, 'k--');
 
     % Bottom Row: Pupil Trace
-    h2(6) = axes('Position', pos{2,3});
+    h2(4,3) = mySubPlot(3,3,9);
     hold on;
     traces = core_data.pupil.(event_name).traces;
-    time_vec = core_data.pupil.(event_name).time_vector;
-    xlim_win = core_data.pupil.(event_name).window;
+    time_vec_pupil = core_data.pupil.(event_name).time_vector;
+    xlim_win_pupil = core_data.pupil.(event_name).window;
     mean_trace_surprising = mean(traces(conditions.is_flicker_surprising, :), 1, 'omitnan');
-    plot(time_vec, mean_trace_surprising, 'Color', colors.flicker_surprising, 'LineWidth', 1.5);
+    plot(time_vec_pupil, mean_trace_surprising, 'Color', colors.flicker_surprising, 'LineWidth', 1.5);
     mean_trace_certain = mean(traces(conditions.is_flicker_certain, :), 1, 'omitnan');
-    plot(time_vec, mean_trace_certain, 'Color', colors.flicker_certain, 'LineWidth', 1.5);
-    xlabel('Time from Reward (s)');
-    xlim(xlim_win);
+    plot(time_vec_pupil, mean_trace_certain, 'Color', colors.flicker_certain, 'LineWidth', 1.5);
+    xlabel(['Time from ' strrep(event_name, '_', ' ') ' (s)']);
+    xlim(xlim_win_pupil);
     grid on;
-    legend({'Flicker Surprising', 'Flicker Certain'}, 'Location', 'best');
     xline(0, 'k--');
 
-    % --- De-clutter axes ---
-    set(h2(1:3), 'XTickLabel', []);
-    set(h2([2,3,5,6]), 'YTickLabel', []);
+    % --- De-clutter axes for clarity ---
+    if any(selected_neurons)
+        % Remove X-tick labels from all but the bottom row (pupil)
+        all_axes = findobj(fig2, 'Type', 'axes');
+        psth_and_heatmap_axes = all_axes(~ismember(all_axes, h2(4,:)));
+        set(psth_and_heatmap_axes, 'XTickLabel', []);
+
+        % Remove Y-tick labels from all but the left-most column
+        set(h2(:, 2:3), 'YTickLabel', []);
+    end
 
     sgtitle(sprintf('SPE-Focused Data Verification: %s', unique_id), 'Interpreter', 'none');
     giveFeed('Done with SPE-focused plots.');
@@ -585,6 +604,13 @@ if is_av_session
 
     set(findall(0, 'Type', 'axes'), 'TickDir', 'Out', ...
         'Box', 'Off', 'LineWidth', 1)
+
+    % --- Save the SPE figure ---
+    giveFeed('Saving SPE verification figure...');
+    spe_fig_filename = fullfile(project_root, 'figures', ...
+        [unique_id '_SPE_verification.pdf']);
+    pdfSave(fig2, spe_fig_filename);
+    giveFeed(['SPE figure saved to: ' spe_fig_filename]);
 end
 
 %% Finalize and Save Manifest
