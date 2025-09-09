@@ -40,8 +40,13 @@ for i_event = 1:numel(alignment_events)
 
     % Get alignment times for the current event
     % Note: For 'reward', this aligns to the *first* reward pulse
+    if strcmp(event_name, 'reward')
+        event_times = cellfun(@(c) c(1), ...
+            session_data.eventTimes.rewardCell(tokens_trial_indices));
+    else
     event_times = session_data.eventTimes.(event_name)( ...
         tokens_trial_indices);
+    end
 
     % Get a template time vector and initialize storage
     [~, ~, time_vector] = alignAndBinSpikes([], [], time_window(1), ...

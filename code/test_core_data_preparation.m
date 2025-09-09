@@ -26,7 +26,7 @@ giveFeed = @(x)disp([num2str(toc) 's - ' x]);
 addpath(fullfile(script_dir, 'utils'));
 
 %% Setup
-unique_id = 'Feynman_08_05_2025_SNc'; % Hardcoded session
+unique_id = 'Feynman_08_15_2025_SNc'; % Hardcoded session
 giveFeed(sprintf('Testing diagnostic workflow for session: %s', ...
     unique_id));
 
@@ -163,8 +163,14 @@ end
 %% Define Task Conditions
 % Create logical masks for different trial conditions
 giveFeed('Step 5: Defining task conditions...');
+<<<<<<< Updated upstream
 [conditions, is_av_session] = define_task_conditions(session_data.trialInfo, ...
     session_data.eventTimes, session_data.metadata.unique_id);
+=======
+codes = initCodes();
+conditions = define_task_conditions(session_data.trialInfo, ...
+    session_data.eventTimes, codes, session_data.metadata.unique_id);
+>>>>>>> Stashed changes
 
 %% Generate Verification Plots
 giveFeed('Step 6: Generating verification plots...');
@@ -223,13 +229,18 @@ if any(selected_neurons)
     rates = core_data.spikes.(event_name).rates;
 
     % Normal distribution
-    mean_psth_norm = mean(squeeze(mean(rates(:, conditions.is_normal_dist, :), 1, 'omitnan')), 1, 'omitnan');
-    barStairsFill(time_vec, movmean(mean_psth_norm, psth_smoothing_width), 'FaceColor', colors.normal_dist, 'EdgeColor', 'none', 'FaceAlpha', 0.7);
-
-    % Uniform distribution
-    mean_psth_unif = mean(squeeze(mean(rates(:, conditions.is_uniform_dist, :), 1, 'omitnan')), 1, 'omitnan');
-    barStairsFill(time_vec, movmean(mean_psth_unif, psth_smoothing_width), 'FaceColor', colors.uniform_dist, 'EdgeColor', 'none', 'FaceAlpha', 0.7);
-
+    mean_psth_norm = mean(squeeze(mean(rates(:, ...
+        conditions.is_normal_dist, :), 1, 'omitnan')), 1, 'omitnan');
+    hOut = barStairsFill(time_vec, zeros(size(mean_psth_norm)), ...
+        mean_psth_norm);
+    delete(hOut(1:2));
+    set(hOut(3), 'Color', colors.normal_dist)
+    mean_psth_unif = mean(squeeze(mean(rates(:, ...
+        conditions.is_uniform_dist, :), 1, 'omitnan')), 1, 'omitnan');
+    hOut = barStairsFill(time_vec, zeros(size(mean_psth_unif)), ...
+        mean_psth_unif);
+    delete(hOut(1:2));
+    set(hOut(3), 'Color', colors.uniform_dist)
     ylabel('Firing Rate (spikes/s)');
     xlim(xlim_win);
     grid on;
@@ -271,13 +282,19 @@ if any(selected_neurons)
     rates = core_data.spikes.(event_name).rates;
 
     % Common reward
-    mean_psth_common = mean(squeeze(mean(rates(:, conditions.is_norm_common, :), 1, 'omitnan')), 1, 'omitnan');
-    barStairsFill(time_vec, movmean(mean_psth_common, psth_smoothing_width), 'FaceColor', colors.norm_common, 'EdgeColor', 'none', 'FaceAlpha', 0.7);
-
+    mean_psth_common = mean(squeeze(mean(rates(:, ...
+        conditions.is_norm_common, :), 1, 'omitnan')), 1, 'omitnan');
+    hOut = barStairsFill(time_vec, zeros(size(mean_psth_common)), ...
+        mean_psth_common);
+    delete(hOut(1:2));
+    set(hOut(3), 'Color', colors.norm_common)
     % Rare high reward
-    mean_psth_rare = mean(squeeze(mean(rates(:, conditions.is_norm_rare_high, :), 1, 'omitnan')), 1, 'omitnan');
-    barStairsFill(time_vec, movmean(mean_psth_rare, psth_smoothing_width), 'FaceColor', colors.norm_rare_high, 'EdgeColor', 'none', 'FaceAlpha', 0.7);
-
+    mean_psth_rare = mean(squeeze(mean(rates(:, ...
+        conditions.is_norm_rare_high, :), 1, 'omitnan')), 1, 'omitnan');
+    hOut = barStairsFill(time_vec, zeros(size(mean_psth_rare)), ...
+        mean_psth_rare);
+    delete(hOut(1:2));
+    set(hOut(3), 'Color', colors.norm_rare_high)
     xlim(xlim_win);
     grid on;
 end
@@ -315,12 +332,20 @@ if any(selected_neurons)
     rates = core_data.spikes.(event_name).rates;
 
     % Common reward
-    mean_psth_common = mean(squeeze(mean(rates(:, conditions.is_norm_common, :), 1, 'omitnan')), 1, 'omitnan');
-    barStairsFill(time_vec, movmean(mean_psth_common, psth_smoothing_width), 'FaceColor', colors.norm_common, 'EdgeColor', 'none', 'FaceAlpha', 0.7);
+    mean_psth_common = mean(squeeze(mean(rates(:, ...
+        conditions.is_norm_common, :), 1, 'omitnan')), 1, 'omitnan');
+    hOut = barStairsFill(time_vec, zeros(size(mean_psth_common)), ...
+        mean_psth_common);
+    delete(hOut(1:2));
+    set(hOut(3), 'Color', colors.norm_common)
 
     % Rare high reward
-    mean_psth_rare = mean(squeeze(mean(rates(:, conditions.is_norm_rare_high, :), 1, 'omitnan')), 1, 'omitnan');
-    barStairsFill(time_vec, movmean(mean_psth_rare, psth_smoothing_width), 'FaceColor', colors.norm_rare_high, 'EdgeColor', 'none', 'FaceAlpha', 0.7);
+    mean_psth_rare = mean(squeeze(mean(rates(:, ...
+        conditions.is_norm_rare_high, :), 1, 'omitnan')), 1, 'omitnan');
+    hOut = barStairsFill(time_vec, zeros(size(mean_psth_rare)), ...
+        mean_psth_rare);
+    delete(hOut(1:2));
+    set(hOut(3), 'Color', colors.norm_rare_high)
 
     xlim(xlim_win);
     grid on;
@@ -376,14 +401,25 @@ if is_av_session
     hold on;
     if any(selected_neurons)
         rates = core_data.spikes.(event_name).rates;
-        mean_psth_surprising = mean(squeeze(mean(rates(:, conditions.is_flicker_surprising, :), 1, 'omitnan')), 1, 'omitnan');
-        barStairsFill(time_vec, movmean(mean_psth_surprising, psth_smoothing_width), 'FaceColor', colors.flicker_surprising, 'EdgeColor', 'none', 'FaceAlpha', 0.7);
-        mean_psth_certain = mean(squeeze(mean(rates(:, conditions.is_flicker_certain, :), 1, 'omitnan')), 1, 'omitnan');
-        barStairsFill(time_vec, movmean(mean_psth_certain, psth_smoothing_width), 'FaceColor', colors.flicker_certain, 'EdgeColor', 'none', 'FaceAlpha', 0.7);
+        mean_psth_surprising = mean(squeeze(mean(rates(:, ...
+            conditions.is_flicker_surprising, :), 1, 'omitnan')), 1, ...
+            'omitnan');
+        hOut = barStairsFill(time_vec, zeros(size(mean_psth_surprising)), ...
+            mean_psth_surprising);
+        delete(hOut(1:2));
+        set(hOut(3), 'Color', colors.flicker_surprising)
+        mean_psth_certain = mean(squeeze(mean(rates(:, ...
+            conditions.is_flicker_certain, :), 1, 'omitnan')), 1, ...
+            'omitnan');
+        hOut = barStairsFill(time_vec, ...
+            zeros(size(mean_psth_certain)), mean_psth_certain);
+        delete(hOut(1:2));
+        set(hOut(3), 'Color', colors.flicker_certain)
         ylabel('Firing Rate (spikes/s)');
         xlim(xlim_win);
         grid on;
-        legend({'Flicker Surprising', 'Flicker Certain'}, 'Location', 'northeast');
+        legend({'Flicker Surprising', 'Flicker Certain'}, ...
+            'Location', 'northeast');
     end
     xline(0, 'k--');
 
@@ -414,10 +450,20 @@ if is_av_session
     hold on;
     if any(selected_neurons)
         rates = core_data.spikes.(event_name).rates;
-        mean_psth_surprising = mean(squeeze(mean(rates(:, conditions.is_flicker_surprising, :), 1, 'omitnan')), 1, 'omitnan');
-        barStairsFill(time_vec, movmean(mean_psth_surprising, psth_smoothing_width), 'FaceColor', colors.flicker_surprising, 'EdgeColor', 'none', 'FaceAlpha', 0.7);
-        mean_psth_certain = mean(squeeze(mean(rates(:, conditions.is_flicker_certain, :), 1, 'omitnan')), 1, 'omitnan');
-        barStairsFill(time_vec, movmean(mean_psth_certain, psth_smoothing_width), 'FaceColor', colors.flicker_certain, 'EdgeColor', 'none', 'FaceAlpha', 0.7);
+        mean_psth_surprising = mean(squeeze(mean(rates(:, ...
+            conditions.is_flicker_surprising, :), 1, 'omitnan')), 1, ...
+            'omitnan');
+        hOut = barStairsFill(time_vec, zeros(size(mean_psth_surprising)), ...
+            mean_psth_surprising);
+        delete(hOut(1:2));
+        set(hOut(3), 'Color', colors.flicker_surprising)
+        mean_psth_certain = mean(squeeze(mean(rates(:, ...
+            conditions.is_flicker_certain, :), 1, 'omitnan')), 1, ...
+            'omitnan');
+        hOut = barStairsFill(time_vec, zeros(size(mean_psth_certain)), ...
+            mean_psth_certain);
+        delete(hOut(1:2));
+        set(hOut(3), 'Color', colors.flicker_certain)
         xlim(xlim_win);
         grid on;
     end
@@ -448,13 +494,24 @@ if is_av_session
     hold on;
     if any(selected_neurons)
         rates = core_data.spikes.(event_name).rates;
-        mean_psth_surprising = mean(squeeze(mean(rates(:, conditions.is_flicker_surprising, :), 1, 'omitnan')), 1, 'omitnan');
-        barStairsFill(time_vec, movmean(mean_psth_surprising, psth_smoothing_width), 'FaceColor', colors.flicker_surprising, 'EdgeColor', 'none', 'FaceAlpha', 0.7);
-        mean_psth_certain = mean(squeeze(mean(rates(:, conditions.is_flicker_certain, :), 1, 'omitnan')), 1, 'omitnan');
-        barStairsFill(time_vec, movmean(mean_psth_certain, psth_smoothing_width), 'FaceColor', colors.flicker_certain, 'EdgeColor', 'none', 'FaceAlpha', 0.7);
+        mean_psth_surprising = mean(squeeze(mean(rates(:, ...
+            conditions.is_flicker_surprising, :), 1, 'omitnan')), 1, ...
+            'omitnan');
+        hOut = barStairsFill(time_vec, zeros(size(mean_psth_surprising)), ...
+            mean_psth_surprising);
+        delete(hOut(1:2));
+        set(hOut(3), 'Color', colors.flicker_surprising)
+        mean_psth_certain = mean(squeeze(mean(rates(:, ...
+            conditions.is_flicker_certain, :), 1, 'omitnan')), 1, ...
+            'omitnan');
+        hOut = barStairsFill(time_vec, zeros(size(mean_psth_certain)), ...
+            mean_psth_certain);
+        delete(hOut(1:2));
+        set(hOut(3), 'Color', colors.flicker_certain)
         xlim(xlim_win);
         grid on;
-        legend({'Flicker Surprising', 'Flicker Certain'}, 'Location', 'northeast');
+        legend({'Flicker Surprising', 'Flicker Certain'}, ...
+            'Location', 'northeast');
     end
     xline(0, 'k--');
 
@@ -486,12 +543,12 @@ if is_av_session
 
     % Link PSTH plots (h from fig 1, h2 from fig 2)
     psth_axes = [h(1:3), h2(1:3)];
-    y_lims_psth = outerLims(psth_axes, 'y');
+    [~, y_lims_psth] = outerLims(psth_axes);
     set(psth_axes, 'YLim', y_lims_psth);
 
     % Link Pupil plots (h from fig 1, h2 from fig 2)
     pupil_axes = [h(4:6), h2(4:6)];
-    y_lims_pupil = outerLims(pupil_axes, 'y');
+    [~, y_lims_pupil] = outerLims(pupil_axes);
     set(pupil_axes, 'YLim', y_lims_pupil);
 end
 

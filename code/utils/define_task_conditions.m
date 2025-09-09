@@ -1,4 +1,8 @@
+<<<<<<< Updated upstream
 function [conditions, is_av_session] = define_task_conditions(trialInfo, eventTimes, unique_id)
+=======
+function conditions = define_task_conditions(trialInfo, eventTimes, codes, unique_id)
+>>>>>>> Stashed changes
 % DEFINE_TASK_CONDITIONS - Creates a struct of logical masks for trial conditions.
 %
 % This function first identifies valid 'tokens' task trials and then
@@ -15,11 +19,14 @@ function [conditions, is_av_session] = define_task_conditions(trialInfo, eventTi
 %                filtered for tokens task trials.
 %   is_av_session - Logical flag indicating if the session includes AV trials.
 
+<<<<<<< Updated upstream
 codes = initCodes;
 
 % Determine if this is an AV session by checking for the 'isAVTrial' field.
 is_av_session = isfield(trialInfo, 'isAVTrial');
 
+=======
+>>>>>>> Stashed changes
 % Identify valid tokens trials (task code match and reward delivered)
 is_tokens_trial = (trialInfo.taskCode == codes.uniqueTaskCode_tokens) & ...
     ~cellfun(@isempty, eventTimes.rewardCell);
