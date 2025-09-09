@@ -26,7 +26,7 @@ giveFeed = @(x)disp([num2str(toc) 's - ' x]);
 addpath(fullfile(script_dir, 'utils'));
 
 %% Setup
-unique_id = 'Feynman_08_15_2025_SNc'; % Hardcoded session
+unique_id = 'Feynman_08_07_2025_SNc'; % Hardcoded session
 giveFeed(sprintf('Testing diagnostic workflow for session: %s', ...
     unique_id));
 
@@ -163,17 +163,8 @@ end
 %% Define Task Conditions
 % Create logical masks for different trial conditions
 giveFeed('Step 5: Defining task conditions...');
-<<<<<<< Updated upstream
 [conditions, is_av_session] = define_task_conditions(session_data.trialInfo, ...
     session_data.eventTimes, session_data.metadata.unique_id);
-=======
-codes = initCodes();
-conditions = define_task_conditions(session_data.trialInfo, ...
-    session_data.eventTimes, codes, session_data.metadata.unique_id);
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 
 %% Generate Verification Plots
 giveFeed('Step 6: Generating verification plots...');

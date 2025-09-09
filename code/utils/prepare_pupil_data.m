@@ -22,7 +22,7 @@ function aligned_pupil = prepare_pupil_data(session_data, ...
 sample_rate = 100; % Hz, from display refresh rate
 baseline_window = [-0.5, -0.1]; % s, relative to alignment event
 deblink_threshold = -9.5; % Pupil values below this are artifacts
-smoothing_window_ms = 50; % ms
+smoothing_window_ms = 0; % ms
 smoothing_window_samples = round(smoothing_window_ms / 1000 * sample_rate);
 n_tokens_trials = numel(tokens_trial_indices);
 
@@ -65,8 +65,14 @@ for i_event = 1:numel(alignment_events)
             event_times(i_trial);
 
         pupil_trace(pupil_trace < deblink_threshold) = nan;
-        smoothed_trace = movmean(pupil_trace, ...
-            smoothing_window_samples, 'omitnan');
+
+        % No smoothing if window is 0 or 1
+        if smoothing_window_samples > 1
+            smoothed_trace = movmean(pupil_trace, ...
+                smoothing_window_samples, 'omitnan');
+        else
+            smoothed_trace = pupil_trace; 
+        end
 
         baseline_indices = pupil_time >= baseline_window(1) & ...
             pupil_time <= baseline_window(2);
