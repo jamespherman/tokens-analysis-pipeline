@@ -170,6 +170,9 @@ giveFeed('Step 5: Defining task conditions...');
 codes = initCodes();
 conditions = define_task_conditions(session_data.trialInfo, ...
     session_data.eventTimes, codes, session_data.metadata.unique_id);
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 
 %% Generate Verification Plots
