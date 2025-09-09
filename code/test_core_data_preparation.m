@@ -50,75 +50,179 @@ end
 % This is the main function being tested
 fprintf('Running core data preparation...\n');
 core_data = prepare_core_data(session_data, selected_neurons);
-alignment_events = fieldnames(core_data.spikes); % {'CUE_ON', 'outcomeOn', 'reward'}
+
+%% Define Task Conditions
+% Create logical masks for different trial conditions
+fprintf('Defining task conditions...\n');
+conditions = define_task_conditions(session_data.trialInfo, ...
+    session_data.eventTimes);
 
 %% Generate Verification Plots
 fprintf('Generating verification plots...\n');
-fig = figure('Position', [100, 100, 1500, 800]);
+fig = figure('Position', [100, 100, 1200, 700]);
 fig.PaperPositionMode = 'auto';
+
+% Define colors for conditions
+colors = struct();
+colors.normal_dist = [0.2, 0.2, 0.8]; % Blue
+colors.uniform_dist = [0.8, 0.2, 0.2]; % Red
+colors.norm_common = [0.5, 0.5, 0.5]; % Gray
+colors.norm_rare_high = [0.9, 0.6, 0];   % Orange
 
 % Plotting parameters
 psth_smoothing_width = 5; % bins
 
-for i_event = 1:numel(alignment_events)
-    event_name = alignment_events{i_event};
+% --- Create all subplots first ---
+h(1) = mySubPlot([2, 3, 1]);
+h(4) = mySubPlot([2, 3, 4]);
+h(2) = mySubPlot([2, 3, 2]);
+h(5) = mySubPlot([2, 3, 5]);
+h(3) = mySubPlot([2, 3, 3]);
+h(6) = mySubPlot([2, 3, 6]);
 
-    % --- Top Row: Neuronal PSTHs ---
-    mySubPlot(2, 3, i_event, 'shape', 'wide');
+% --- Column 1: Aligned to CUE_ON ---
+event_name = 'CUE_ON';
+time_vec = core_data.spikes.(event_name).time_vector;
+xlim_win = core_data.spikes.(event_name).window;
 
-    if any(selected_neurons)
-        % Extract data for the current event
-        rates = core_data.spikes.(event_name).rates; % (neurons x trials x time)
-        time_vec = core_data.spikes.(event_name).time_vector;
+% Top Row: Neuronal PSTH
+axes(h(1));
+hold on;
+if any(selected_neurons)
+    rates = core_data.spikes.(event_name).rates;
 
-        % Calculate the grand average PSTH across all neurons and trials
-        % Note: Taking the mean twice (first over neurons, then over trials)
-        % is equivalent to a grand average but handles NaNs better.
-        mean_psth = mean(squeeze(mean(rates, 1, 'omitnan')), 1, 'omitnan');
+    % Normal distribution
+    mean_psth_norm = mean(squeeze(mean(rates(:, conditions.is_normal_dist, :), 1, 'omitnan')), 1, 'omitnan');
+    plot(time_vec, movmean(mean_psth_norm, psth_smoothing_width), 'Color', colors.normal_dist, 'LineWidth', 1.5);
 
-        % Smooth the PSTH for visualization
-        smoothed_psth = movmean(mean_psth, psth_smoothing_width);
+    % Uniform distribution
+    mean_psth_unif = mean(squeeze(mean(rates(:, conditions.is_uniform_dist, :), 1, 'omitnan')), 1, 'omitnan');
+    plot(time_vec, movmean(mean_psth_unif, psth_smoothing_width), 'Color', colors.uniform_dist, 'LineWidth', 1.5);
 
-        % Plotting
-        plot(time_vec, smoothed_psth, 'k', 'LineWidth', 2);
-        hold on;
-        xline(0, 'r--', 'LineWidth', 1); % Mark alignment time
+    ylabel('Firing Rate (spikes/s)');
+    xlim(xlim_win);
+    grid on;
+    legend({'Normal Dist', 'Uniform Dist'}, 'Location', 'northeast');
+end
+title('PSTH: Cue On');
+xline(0, 'k--');
 
-        % Formatting
-        title(['PSTH: ' strrep(event_name, '_', ' ')]);
-        xlabel('Time from event (s)');
-        ylabel('Firing Rate (spikes/s)');
-        xlim(core_data.spikes.(event_name).window);
-        grid on;
-    else
-        title(['PSTH: ' strrep(event_name, '_', ' ') ' (No Neurons)']);
-        axis off;
-    end
+% Bottom Row: Pupil Trace
+axes(h(4));
+hold on;
+traces = core_data.pupil.(event_name).traces;
+time_vec = core_data.pupil.(event_name).time_vector;
+xlim_win = core_data.pupil.(event_name).window;
 
-    % --- Bottom Row: Pupil Traces ---
-    mySubPlot(2, 3, i_event + 3, 'shape', 'wide');
+% Normal distribution
+mean_trace_norm = mean(traces(conditions.is_normal_dist, :), 1, 'omitnan');
+plot(time_vec, mean_trace_norm, 'Color', colors.normal_dist, 'LineWidth', 1.5);
 
-    % Extract data for the current event
-    traces = core_data.pupil.(event_name).traces; % (trials x time)
-    time_vec = core_data.pupil.(event_name).time_vector;
+% Uniform distribution
+mean_trace_unif = mean(traces(conditions.is_uniform_dist, :), 1, 'omitnan');
+plot(time_vec, mean_trace_unif, 'Color', colors.uniform_dist, 'LineWidth', 1.5);
 
-    % Calculate the grand average pupil trace across all trials
-    mean_trace = mean(traces, 1, 'omitnan');
+ylabel('Normalized Pupil Size');
+xlabel('Time from Cue On (s)');
+xlim(xlim_win);
+grid on;
+legend({'Normal Dist', 'Uniform Dist'}, 'Location', 'northeast');
+title('Pupil: Cue On');
+xline(0, 'k--');
 
-    % Plotting
-    plot(time_vec, mean_trace, 'b', 'LineWidth', 2);
-    hold on;
-    xline(0, 'r--', 'LineWidth', 1); % Mark alignment time
+% --- Column 2: Aligned to outcomeOn ---
+event_name = 'outcomeOn';
+time_vec = core_data.spikes.(event_name).time_vector;
+xlim_win = core_data.spikes.(event_name).window;
 
-    % Formatting
-    title(['Pupil Trace: ' strrep(event_name, '_', ' ')]);
-    xlabel('Time from event (s)');
-    ylabel('Normalized Pupil Size');
-    xlim(core_data.pupil.(event_name).window);
+% Top Row: Neuronal PSTH
+axes(h(2));
+hold on;
+if any(selected_neurons)
+    rates = core_data.spikes.(event_name).rates;
+
+    % Common reward
+    mean_psth_common = mean(squeeze(mean(rates(:, conditions.is_norm_common, :), 1, 'omitnan')), 1, 'omitnan');
+    plot(time_vec, movmean(mean_psth_common, psth_smoothing_width), 'Color', colors.norm_common, 'LineWidth', 1.5);
+
+    % Rare high reward
+    mean_psth_rare = mean(squeeze(mean(rates(:, conditions.is_norm_rare_high, :), 1, 'omitnan')), 1, 'omitnan');
+    plot(time_vec, movmean(mean_psth_rare, psth_smoothing_width), 'Color', colors.norm_rare_high, 'LineWidth', 1.5);
+
+    xlim(xlim_win);
     grid on;
 end
+title('PSTH: Outcome On');
+xline(0, 'k--');
 
-sgtitle('Core Data Preparation Verification');
-fprintf('Done.\n');
+% Bottom Row: Pupil Trace
+axes(h(5));
+hold on;
+traces = core_data.pupil.(event_name).traces;
+time_vec = core_data.pupil.(event_name).time_vector;
+xlim_win = core_data.pupil.(event_name).window;
 
+% Common reward
+mean_trace_common = mean(traces(conditions.is_norm_common, :), 1, 'omitnan');
+plot(time_vec, mean_trace_common, 'Color', colors.norm_common, 'LineWidth', 1.5);
+
+% Rare high reward
+mean_trace_rare = mean(traces(conditions.is_norm_rare_high, :), 1, 'omitnan');
+plot(time_vec, mean_trace_rare, 'Color', colors.norm_rare_high, 'LineWidth', 1.5);
+
+xlabel('Time from Outcome On (s)');
+xlim(xlim_win);
+grid on;
+title('Pupil: Outcome On');
+xline(0, 'k--');
+
+% --- Column 3: Aligned to reward ---
+event_name = 'reward';
+time_vec = core_data.spikes.(event_name).time_vector;
+xlim_win = core_data.spikes.(event_name).window;
+
+% Top Row: Neuronal PSTH
+axes(h(3));
+hold on;
+if any(selected_neurons)
+    rates = core_data.spikes.(event_name).rates;
+
+    % Common reward
+    mean_psth_common = mean(squeeze(mean(rates(:, conditions.is_norm_common, :), 1, 'omitnan')), 1, 'omitnan');
+    plot(time_vec, movmean(mean_psth_common, psth_smoothing_width), 'Color', colors.norm_common, 'LineWidth', 1.5);
+
+    % Rare high reward
+    mean_psth_rare = mean(squeeze(mean(rates(:, conditions.is_norm_rare_high, :), 1, 'omitnan')), 1, 'omitnan');
+    plot(time_vec, movmean(mean_psth_rare, psth_smoothing_width), 'Color', colors.norm_rare_high, 'LineWidth', 1.5);
+
+    xlim(xlim_win);
+    grid on;
+    legend({'Common Reward', 'Rare High Reward'}, 'Location', 'northeast');
 end
+title('PSTH: Reward');
+xline(0, 'k--');
+
+% Bottom Row: Pupil Trace
+axes(h(6));
+hold on;
+traces = core_data.pupil.(event_name).traces;
+time_vec = core_data.pupil.(event_name).time_vector;
+xlim_win = core_data.pupil.(event_name).window;
+
+% Common reward
+mean_trace_common = mean(traces(conditions.is_norm_common, :), 1, 'omitnan');
+plot(time_vec, mean_trace_common, 'Color', colors.norm_common, 'LineWidth', 1.5);
+
+% Rare high reward
+mean_trace_rare = mean(traces(conditions.is_norm_rare_high, :), 1, 'omitnan');
+plot(time_vec, mean_trace_rare, 'Color', colors.norm_rare_high, 'LineWidth', 1.5);
+
+xlabel('Time from Reward (s)');
+xlim(xlim_win);
+grid on;
+title('Pupil: Reward');
+xline(0, 'k--');
+legend({'Common Reward', 'Rare High Reward'}, 'Location', 'northeast');
+
+sgtitle('Core Data Preparation Verification: Condition Comparisons');
+fprintf('Done.\n');
