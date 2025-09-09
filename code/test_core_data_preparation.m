@@ -183,28 +183,32 @@ psth_smoothing_width = 5; % bins
 
 % --- Pre-calculate PSTHs and determine global color scale for heatmaps ---
 if any(selected_neurons)
-    all_psth_matrices = [];
-
     % --- Column 1: Aligned to CUE_ON ---
     rates = core_data.spikes.CUE_ON.rates;
-    [grand_mean_norm, psth_norm] = calculate_mean_psth(rates, conditions.is_normal_dist);
-    [grand_mean_unif, psth_unif] = calculate_mean_psth(rates, conditions.is_uniform_dist);
-    all_psth_matrices = [all_psth_matrices; psth_norm; psth_unif];
+    [grand_mean_norm, psth_norm] = calculate_mean_psth(rates, ...
+        conditions.is_normal_dist);
+    [grand_mean_unif, psth_unif] = calculate_mean_psth(rates, ...
+        conditions.is_uniform_dist);
 
     % --- Column 2: Aligned to outcomeOn ---
     rates = core_data.spikes.outcomeOn.rates;
-    [grand_mean_common, psth_common] = calculate_mean_psth(rates, conditions.is_norm_common);
-    [grand_mean_rare, psth_rare] = calculate_mean_psth(rates, conditions.is_norm_rare_high);
-    all_psth_matrices = [all_psth_matrices; psth_common; psth_rare];
+    [grand_mean_common, psth_common] = calculate_mean_psth(rates, ...
+        conditions.is_norm_common);
+    [grand_mean_rare, psth_rare] = calculate_mean_psth(rates, ...
+        conditions.is_norm_rare_high);
 
     % --- Column 3: Aligned to reward ---
     rates = core_data.spikes.reward.rates;
-    [grand_mean_common_rew, psth_common_rew] = calculate_mean_psth(rates, conditions.is_norm_common);
-    [grand_mean_rare_rew, psth_rare_rew] = calculate_mean_psth(rates, conditions.is_norm_rare_high);
-    all_psth_matrices = [all_psth_matrices; psth_common_rew; psth_rare_rew];
+    [grand_mean_common_rew, psth_common_rew] = calculate_mean_psth( ...
+        rates, conditions.is_norm_common);
+    [grand_mean_rare_rew, psth_rare_rew] = calculate_mean_psth(rates, ...
+        conditions.is_norm_rare_high);
 
-    % Determine the common color scale
-    max_rate = max(all_psth_matrices, [], 'all');
+    % Determine the common color scale by finding the max of all PSTHs
+    all_psth = {psth_norm, psth_unif, psth_common, psth_rare, ...
+                psth_common_rew, psth_rare_rew};
+    all_maxes = cellfun(@(x) max(x, [], 'all'), all_psth);
+    max_rate = max(all_maxes);
     c_lims = [0, max_rate];
 end
 
@@ -230,8 +234,12 @@ end
 h(3,1) = mySubPlot([3,3,4]);
 hold on;
 if any(selected_neurons)
-    barStairsFill(time_vec, grand_mean_norm, 'FaceColor', colors.normal_dist, 'EdgeColor', 'none');
-    barStairsFill(time_vec, grand_mean_unif, 'FaceColor', colors.uniform_dist, 'EdgeColor', 'none');
+    h = barStairsFill(time_vec, zeros(size(grand_mean_norm)), ...
+        grand_mean_norm);
+    set(h(1), 'FaceColor', colors.normal_dist);
+    h = barStairsFill(time_vec, zeros(size(grand_mean_unif)), ...
+        grand_mean_unif);
+    set(h(1), 'FaceColor', colors.uniform_dist);
     ylabel('Firing Rate (spikes/s)');
     xlim(xlim_win);
     grid on;
@@ -274,8 +282,12 @@ end
 h(3,2) = mySubPlot([3,3,5]);
 hold on;
 if any(selected_neurons)
-    barStairsFill(time_vec, grand_mean_common, 'FaceColor', colors.norm_common, 'EdgeColor', 'none');
-    barStairsFill(time_vec, grand_mean_rare, 'FaceColor', colors.norm_rare_high, 'EdgeColor', 'none');
+    h = barStairsFill(time_vec, zeros(size(grand_mean_common)), ...
+        grand_mean_common);
+    set(h(1), 'FaceColor', colors.norm_common);
+    h = barStairsFill(time_vec, zeros(size(grand_mean_rare)), ...
+        grand_mean_rare);
+    set(h(1), 'FaceColor', colors.norm_rare_high);
     xlim(xlim_win);
     grid on;
 end
@@ -317,8 +329,12 @@ end
 h(3,3) = mySubPlot([3,3,6]);
 hold on;
 if any(selected_neurons)
-    barStairsFill(time_vec, grand_mean_common_rew, 'FaceColor', colors.norm_common, 'EdgeColor', 'none');
-    barStairsFill(time_vec, grand_mean_rare_rew, 'FaceColor', colors.norm_rare_high, 'EdgeColor', 'none');
+    h = barStairsFill(time_vec, zeros(size(grand_mean_common_rew)), ...
+        grand_mean_common_rew);
+    set(h(1), 'FaceColor', colors.norm_common);
+    h = barStairsFill(time_vec, zeros(size(grand_mean_rare_rew)), ...
+        grand_mean_rare_rew);
+    set(h(1), 'FaceColor', colors.norm_rare_high);
     xlim(xlim_win);
     grid on;
 end
@@ -358,6 +374,39 @@ if is_av_session
     giveFeed('Step 6b: Generating SPE-focused diagnostic plots...');
     fig2 = figure('Position', [100, 100, 1200, 700]);
     fig2.PaperPositionMode = 'auto';
+
+    % --- Define proportional subplot positions based on time windows ---
+    time_windows = [diff(core_data.spikes.CUE_ON.window), ...
+                    diff(core_data.spikes.outcomeOn.window), ...
+                    diff(core_data.spikes.reward.window)];
+    proportions = time_windows / sum(time_windows);
+
+    n_rows_fig2 = 2;
+    n_cols_fig2 = 3;
+    left_margin = 0.08;
+    right_margin = 0.05;
+    top_margin = 0.1;
+    bottom_margin = 0.1;
+    h_gap = 0.06;
+    v_gap = 0.08;
+
+    plot_area_width = 1 - left_margin - right_margin - (n_cols_fig2-1)*h_gap;
+    plot_area_height = 1 - top_margin - bottom_margin - (n_rows_fig2-1)*v_gap;
+
+    col_widths = plot_area_width * proportions;
+    row_height = plot_area_height / n_rows_fig2;
+
+    pos = cell(n_rows_fig2, n_cols_fig2);
+    current_left = left_margin;
+    for c = 1:n_cols_fig2
+        current_top = 1 - top_margin;
+        for r = 1:n_rows_fig2
+            current_bottom = current_top - row_height;
+            pos{r,c} = [current_left, current_bottom, col_widths(c), row_height];
+            current_top = current_bottom - v_gap;
+        end
+        current_left = current_left + col_widths(c) + h_gap;
+    end
 
     % Define colors for SPE conditions
     colors.flicker_surprising = [0.8, 0.2, 0.8]; % Magenta
