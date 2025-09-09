@@ -26,7 +26,7 @@ giveFeed = @(x)disp([num2str(toc) 's - ' x]);
 addpath(fullfile(script_dir, 'utils'));
 
 %% Setup
-unique_id = 'Feynman_08_07_2025_SNc'; % Hardcoded session
+unique_id = 'Feynman_08_15_2025_SNc'; % Hardcoded session
 giveFeed(sprintf('Testing diagnostic workflow for session: %s', ...
     unique_id));
 
@@ -222,11 +222,13 @@ if any(selected_neurons)
     h(1,1) = mySubPlot([6,3,1]);
     imagesc(time_vec, 1:size(psth_norm, 1), psth_norm);
     clim(c_lims);
+    colormap(flipud(bone(256)))
     ylabel('Neurons');
 
     h(2,1) = mySubPlot([6,3,4]);
     imagesc(time_vec, 1:size(psth_unif, 1), psth_unif);
     clim(c_lims);
+    colormap(flipud(bone(256)))
     ylabel('Neurons');
 end
 
@@ -234,12 +236,14 @@ end
 h(3,1) = mySubPlot([3,3,4]);
 hold on;
 if any(selected_neurons)
-    h = barStairsFill(time_vec, zeros(size(grand_mean_norm)), ...
+    hb = barStairsFill(time_vec, zeros(size(grand_mean_norm)), ...
         grand_mean_norm);
-    set(h(1), 'FaceColor', colors.normal_dist);
-    h = barStairsFill(time_vec, zeros(size(grand_mean_unif)), ...
+    delete(hb(1:2))
+    set(hb(3), 'Color', colors.normal_dist);
+    hb = barStairsFill(time_vec, zeros(size(grand_mean_unif)), ...
         grand_mean_unif);
-    set(h(1), 'FaceColor', colors.uniform_dist);
+    delete(hb(1:2))
+    set(hb(3), 'Color', colors.uniform_dist);
     ylabel('Firing Rate (spikes/s)');
     xlim(xlim_win);
     grid on;
@@ -272,22 +276,26 @@ if any(selected_neurons)
     h(1,2) = mySubPlot([6,3,2]);
     imagesc(time_vec, 1:size(psth_common, 1), psth_common);
     clim(c_lims);
+    colormap(flipud(bone(256)))
 
     h(2,2) = mySubPlot([6,3,5]);
     imagesc(time_vec, 1:size(psth_rare, 1), psth_rare);
     clim(c_lims);
+    colormap(flipud(bone(256)))
 end
 
 % Middle Row: Grand-average PSTH
 h(3,2) = mySubPlot([3,3,5]);
 hold on;
 if any(selected_neurons)
-    h = barStairsFill(time_vec, zeros(size(grand_mean_common)), ...
+    hb = barStairsFill(time_vec, zeros(size(grand_mean_common)), ...
         grand_mean_common);
-    set(h(1), 'FaceColor', colors.norm_common);
-    h = barStairsFill(time_vec, zeros(size(grand_mean_rare)), ...
+    delete(hb(1:2))
+    set(hb(3), 'Color', colors.norm_common);
+    hb = barStairsFill(time_vec, zeros(size(grand_mean_rare)), ...
         grand_mean_rare);
-    set(h(1), 'FaceColor', colors.norm_rare_high);
+    delete(hb(1:2))
+    set(hb(3), 'Color', colors.norm_rare_high);
     xlim(xlim_win);
     grid on;
 end
@@ -318,23 +326,26 @@ if any(selected_neurons)
     h(1,3) = mySubPlot([6,3,3]);
     imagesc(time_vec, 1:size(psth_common_rew, 1), psth_common_rew);
     clim(c_lims);
+    colormap(flipud(bone(256)))
 
     h(2,3) = mySubPlot([6,3,6]);
     imagesc(time_vec, 1:size(psth_rare_rew, 1), psth_rare_rew);
     clim(c_lims);
-    colorbar;
+    colormap(flipud(bone(256)))
 end
 
 % Middle Row: Grand-average PSTH
 h(3,3) = mySubPlot([3,3,6]);
 hold on;
 if any(selected_neurons)
-    h = barStairsFill(time_vec, zeros(size(grand_mean_common_rew)), ...
+    hb = barStairsFill(time_vec, zeros(size(grand_mean_common_rew)), ...
         grand_mean_common_rew);
-    set(h(1), 'FaceColor', colors.norm_common);
-    h = barStairsFill(time_vec, zeros(size(grand_mean_rare_rew)), ...
+    delete(hb(1:2))
+    set(hb(3), 'Color', colors.norm_common);
+    hb = barStairsFill(time_vec, zeros(size(grand_mean_rare_rew)), ...
         grand_mean_rare_rew);
-    set(h(1), 'FaceColor', colors.norm_rare_high);
+    delete(hb(1:2))
+    set(hb(3), 'Color', colors.norm_rare_high);
     xlim(xlim_win);
     grid on;
 end
@@ -440,7 +451,7 @@ if is_av_session
         xlim(xlim_win);
         grid on;
         legend({'Flicker Surprising', 'Flicker Certain'}, ...
-            'Location', 'northeast');
+            'Location', 'best');
     end
     xline(0, 'k--');
 
@@ -458,7 +469,7 @@ if is_av_session
     xlabel('Time from Cue On (s)');
     xlim(xlim_win);
     grid on;
-    legend({'Flicker Surprising', 'Flicker Certain'}, 'Location', 'northeast');
+    legend({'Flicker Surprising', 'Flicker Certain'}, 'Location', 'best');
     xline(0, 'k--');
 
     % --- Column 2: Aligned to outcomeOn ---
@@ -532,7 +543,7 @@ if is_av_session
         xlim(xlim_win);
         grid on;
         legend({'Flicker Surprising', 'Flicker Certain'}, ...
-            'Location', 'northeast');
+            'Location', 'best');
     end
     xline(0, 'k--');
 
@@ -549,7 +560,7 @@ if is_av_session
     xlabel('Time from Reward (s)');
     xlim(xlim_win);
     grid on;
-    legend({'Flicker Surprising', 'Flicker Certain'}, 'Location', 'northeast');
+    legend({'Flicker Surprising', 'Flicker Certain'}, 'Location', 'best');
     xline(0, 'k--');
 
     % --- De-clutter axes ---
@@ -563,14 +574,17 @@ if is_av_session
     giveFeed('Step 6c: Linking Y-axes across figures...');
 
     % Link PSTH plots (h from fig 1, h2 from fig 2)
-    psth_axes = [h(1:3), h2(1:3)];
+    psth_axes = [h(3, 1:3), h2(1:3)];
     [~, y_lims_psth] = outerLims(psth_axes);
     set(psth_axes, 'YLim', y_lims_psth);
 
     % Link Pupil plots (h from fig 1, h2 from fig 2)
-    pupil_axes = [h(4:6), h2(4:6)];
+    pupil_axes = [h(4, 1:3), h2(4:6)];
     [~, y_lims_pupil] = outerLims(pupil_axes);
     set(pupil_axes, 'YLim', y_lims_pupil);
+
+    set(findall(0, 'Type', 'axes'), 'TickDir', 'Out', ...
+        'Box', 'Off', 'LineWidth', 1)
 end
 
 %% Finalize and Save Manifest
@@ -579,7 +593,8 @@ writetable(manifest, manifest_path);
 giveFeed('Manifest saved. Script finished.');
 
 %% Helper function
-function [grand_mean_psth, per_neuron_psth] = calculate_mean_psth(rates, condition_mask)
+function [grand_mean_psth, per_neuron_psth] = calculate_mean_psth(rates, ...
+    condition_mask)
 %calculate_mean_psth Calculates the mean PSTH, excluding silent trials.
 %   This function calculates the grand-average PSTH across all neurons and
 %   the average PSTH for each individual neuron. It filters out trials
@@ -604,17 +619,24 @@ function [grand_mean_psth, per_neuron_psth] = calculate_mean_psth(rates, conditi
         neuron_rates = squeeze(rates(i_neuron, condition_mask, :));
 
         % Find trials where the neuron was not silent
-        active_trials = sum(neuron_rates, 2) > 0;
+        active_trials = sum(neuron_rates, 2, 'omitnan') > 0;
 
         % Calculate the mean PSTH for the active trials
         if any(active_trials)
-            per_neuron_psth(i_neuron, :) = mean(neuron_rates(active_trials, :), 1);
+            per_neuron_psth(i_neuron, :) = mean(neuron_rates( ...
+                active_trials, :), 1, 'omitnan');
         else
             % If the neuron is silent in all trials, its mean PSTH is zero
             per_neuron_psth(i_neuron, :) = zeros(1, n_time_bins);
         end
+        per_neuron_psth(i_neuron, :) = mean(neuron_rates, 1, 'omitnan');
+
     end
 
+    % get rid of 0-rows:
+    per_neuron_psth(isnan(per_neuron_psth)) = 0;
+    per_neuron_psth(all(per_neuron_psth == 0,2), :) = [];
+
     % Calculate the grand-average PSTH from the per-neuron averages
-    grand_mean_psth = mean(per_neuron_psth, 1);
+    grand_mean_psth = mean(per_neuron_psth, 1, 'omitnan');
 end

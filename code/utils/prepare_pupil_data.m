@@ -43,8 +43,14 @@ for i_event = 1:numel(alignment_events)
     aligned_traces = nan(n_tokens_trials, n_samples);
 
     % Get alignment times for the current event
-    event_times = session_data.eventTimes.(event_name)(...
-        tokens_trial_indices);
+    % Note: For 'reward', this aligns to the *first* reward pulse
+    if strcmp(event_name, 'reward')
+        event_times = cellfun(@(c) c(1), ...
+            session_data.eventTimes.rewardCell(tokens_trial_indices));
+    else
+        event_times = session_data.eventTimes.(event_name)( ...
+            tokens_trial_indices);
+    end
 
     % Loop through each trial to preprocess and align pupil data
     for i_trial = 1:n_tokens_trials
