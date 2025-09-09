@@ -15,35 +15,75 @@
 %% Setup
 clear; clc; close all;
 
+% Start timer
+tic;
+
+% In-line function to report timing
+giveFeed = @(x)disp([num2str(toc) 's - ' x]);
+
 % Add utility functions to the MATLAB path
 [script_dir, ~, ~] = fileparts(mfilename('fullpath'));
 addpath(fullfile(script_dir, 'utils'));
+
+%% Setup
+unique_id = 'Feynman_08_15_2025_SC'; % Hardcoded session
+giveFeed(sprintf('Testing diagnostic workflow for session: %s', ...
+    unique_id));
 
 %% Load Data
 % Define the project root and construct the path to a sample data file.
 % NOTE: The user should replace 'sample_session.mat' with a real session
 % file from their 'data/raw' directory.
+giveFeed('Step 1: Loading session data...');
 project_root = fullfile(findOneDrive, 'Code', 'tokens-analysis-pipeline');
-data_file = fullfile(project_root, 'data', 'raw', 'sample_session.mat');
+one_drive_path = findOneDrive;
+data_file = fullfile(one_drive_path, ...
+    'Neuronal Data Analysis', unique_id, ...
+    [unique_id '_session_data.mat']);
 
 % Check if the sample file exists
 if ~exist(data_file, 'file')
     error('test_core_data_preparation:sampleNotFound', ...
-          ['Sample data file not found. Please specify a valid path to a \n' ...
-           'session_data.mat file in the "Load Data" section of this script.']);
+          ['Sample data file not found. Please specify a valid path ' ...
+          'to a \n session_data.mat file in the "Load Data" section of ' ...
+          'this script.']);
 end
 
 fprintf('Loading session data from: %s\n', data_file);
 load(data_file, 'session_data');
 
-%% Run Neuron Screening
-% Use the standard screening function to select neurons for analysis
-fprintf('Screening SC neurons...\n');
-[selected_neurons, ~, ~] = screen_sc_neurons(session_data);
+%% Run neuron screening
+giveFeed('Step 3: Running neuron screening...');
+selected_neurons = []; % Initialize empty
 
-% Check if any neurons were selected
-if ~any(selected_neurons)
-    warning('No neurons passed the screening criteria. Plots will be empty.');
+if contains(unique_id, 'SNc')
+    giveFeed('Session is SNc type. Running screen_da_neurons...');
+    % Assumes screen_da_neurons is in the path
+    selected_neurons = screen_da_neurons(session_data, unique_id);
+    giveFeed('DA neuron screening complete.');
+elseif contains(unique_id, 'SC')
+    giveFeed('Session is SC type. Running screen_sc_neurons...');
+
+    % Store the results in the session_data structure
+    if ~isfield(session_data, 'metadata')
+        session_data.metadata = struct();
+    end
+    session_data.metadata.unique_id = unique_id;
+
+    % screen_sc_neurons will now determine scSide and calculate 
+    % significance
+    [selected_neurons, sig_epoch_comp, scSide] = screen_sc_neurons( ...
+        session_data);
+
+    
+    session_data.metadata.scSide = scSide;
+    session_data.metadata.sig_epoch_comparison = sig_epoch_comp;
+
+    giveFeed(sprintf(['SC neuron screening complete. Determined ' ...
+        '        scSide: %s.'], scSide));
+else
+    error(['Unknown session type in unique_id. Cannot determine which ' ...
+        '        screening function to run.']);
 end
 
 %% Run Core Data Preparation

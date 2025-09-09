@@ -40,7 +40,8 @@ for i_event = 1:numel(alignment_events)
 
     % Get alignment times for the current event
     % Note: For 'reward', this aligns to the *first* reward pulse
-    event_times = session_data.eventTimes.(event_name)(tokens_trial_indices);
+    event_times = session_data.eventTimes.(event_name)( ...
+        tokens_trial_indices);
 
     % Get a template time vector and initialize storage
     [~, ~, time_vector] = alignAndBinSpikes([], [], time_window(1), ...
@@ -51,7 +52,8 @@ for i_event = 1:numel(alignment_events)
     % Loop through each selected neuron to bin their spike times
     for i_neuron = 1:n_selected_neurons
         cluster_id = neuron_cluster_ids(i_neuron);
-        spike_times = session_data.spikes.times(session_data.spikes.clusters == cluster_id);
+        spike_times = session_data.spikes.times( ...
+            session_data.spikes.clusters == cluster_id);
 
         [~, binned_counts, ~] = alignAndBinSpikes(spike_times, ...
             event_times, time_window(1), time_window(2), bin_width);

@@ -23,7 +23,8 @@ giveFeed(sprintf('Testing diagnostic workflow for session: %s', ...
 %% Step 1: Load session data
 giveFeed('Step 1: Loading session data...');
 one_drive_path = findOneDrive;
-session_data_path = fullfile(one_drive_path, 'Neuronal Data Analysis', unique_id, ...
+session_data_path = fullfile(one_drive_path, ...
+    'Neuronal Data Analysis', unique_id, ...
     [unique_id '_session_data.mat']);
 
 % Note: The following line will error if the data file does not exist.
@@ -80,16 +81,20 @@ elseif contains(unique_id, 'SC')
     end
     session_data.metadata.unique_id = unique_id;
 
-    % screen_sc_neurons will now determine scSide and calculate significance
-    [selected_neurons, sig_epoch_comp, scSide] = screen_sc_neurons(session_data);
+    % screen_sc_neurons will now determine scSide and calculate 
+    % significance
+    [selected_neurons, sig_epoch_comp, scSide] = screen_sc_neurons( ...
+        session_data);
 
     
     session_data.metadata.scSide = scSide;
     session_data.metadata.sig_epoch_comparison = sig_epoch_comp;
 
-    giveFeed(sprintf('SC neuron screening complete. Determined scSide: %s.', scSide));
+    giveFeed(sprintf(['SC neuron screening complete. Determined ' ...
+        '        scSide: %s.'], scSide));
 else
-    error('Unknown session type in unique_id. Cannot determine which screening function to run.');
+    error(['Unknown session type in unique_id. Cannot determine which ' ...
+        '        screening function to run.']);
 end
 
 %% Step 4: Generate diagnostic PDF

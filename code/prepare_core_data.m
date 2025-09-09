@@ -30,7 +30,8 @@ alignment_events = {'CUE_ON', 'outcomeOn', 'reward'};
 % Load the structure containing all task codes
 codes = initCodes();
 
-% Find the indices of trials that belong to the 'tokens' task
+% Find the indices of trials that belong to the 'tokens' task. Importantly,
+% we should only keep trials that are rewarded:
 tokens_trial_indices = find(session_data.trialInfo.taskCode == ...
     codes.uniqueTaskCode_tokens);
 
