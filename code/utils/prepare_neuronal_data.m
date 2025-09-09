@@ -77,12 +77,14 @@ for i_event = 1:numel(alignment_events)
 
         % Loop through each trial to apply NaN padding post-alignment
         for i_trial = 1:n_tokens_trials
-            if isnan(event_times(i_trial)) || isnan(last_reward_times_abs(i_trial))
+            if isnan(event_times(i_trial)) || ...
+                    isnan(last_reward_times_abs(i_trial))
                 continue;
             end
 
             % Calculate last reward time relative to the alignment point
-            last_reward_rel_time = last_reward_times_abs(i_trial) - event_times(i_trial);
+            last_reward_rel_time = last_reward_times_abs(i_trial) - ...
+                event_times(i_trial);
 
             % Define the cutoff point for valid data (1s after last reward)
             nan_cutoff_time = last_reward_rel_time + 1.0;

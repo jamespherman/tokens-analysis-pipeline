@@ -133,12 +133,16 @@ if any(selected_neurons)
     rates = core_data.spikes.(event_name).rates;
 
     % Normal distribution
-    mean_psth_norm = mean(squeeze(mean(rates(:, conditions.is_normal_dist, :), 1, 'omitnan')), 1, 'omitnan');
-    plot(time_vec, movmean(mean_psth_norm, psth_smoothing_width), 'Color', colors.normal_dist, 'LineWidth', 1.5);
+    mean_psth_norm = mean(squeeze(mean(rates(:, ...
+        conditions.is_normal_dist, :), 1, 'omitnan')), 1, 'omitnan');
+    plot(time_vec, movmean(mean_psth_norm, psth_smoothing_width), ...
+        'Color', colors.normal_dist, 'LineWidth', 1.5);
 
     % Uniform distribution
-    mean_psth_unif = mean(squeeze(mean(rates(:, conditions.is_uniform_dist, :), 1, 'omitnan')), 1, 'omitnan');
-    plot(time_vec, movmean(mean_psth_unif, psth_smoothing_width), 'Color', colors.uniform_dist, 'LineWidth', 1.5);
+    mean_psth_unif = mean(squeeze(mean(rates(:, ...
+        conditions.is_uniform_dist, :), 1, 'omitnan')), 1, 'omitnan');
+    plot(time_vec, movmean(mean_psth_unif, psth_smoothing_width), ...
+        'Color', colors.uniform_dist, 'LineWidth', 1.5);
 
     ylabel('Firing Rate (spikes/s)');
     xlim(xlim_win);
@@ -156,12 +160,16 @@ time_vec = core_data.pupil.(event_name).time_vector;
 xlim_win = core_data.pupil.(event_name).window;
 
 % Normal distribution
-mean_trace_norm = mean(traces(conditions.is_normal_dist, :), 1, 'omitnan');
-plot(time_vec, mean_trace_norm, 'Color', colors.normal_dist, 'LineWidth', 1.5);
+mean_trace_norm = mean(traces(conditions.is_normal_dist, :), 1, ...
+    'omitnan');
+plot(time_vec, mean_trace_norm, 'Color', colors.normal_dist, ...
+    'LineWidth', 1.5);
 
 % Uniform distribution
-mean_trace_unif = mean(traces(conditions.is_uniform_dist, :), 1, 'omitnan');
-plot(time_vec, mean_trace_unif, 'Color', colors.uniform_dist, 'LineWidth', 1.5);
+mean_trace_unif = mean(traces(conditions.is_uniform_dist, :), 1, ...
+    'omitnan');
+plot(time_vec, mean_trace_unif, 'Color', colors.uniform_dist, ...
+    'LineWidth', 1.5);
 
 ylabel('Normalized Pupil Size');
 xlabel('Time from Cue On (s)');
@@ -183,12 +191,18 @@ if any(selected_neurons)
     rates = core_data.spikes.(event_name).rates;
 
     % Common reward
-    mean_psth_common = mean(squeeze(mean(rates(:, conditions.is_norm_common, :), 1, 'omitnan')), 1, 'omitnan');
-    plot(time_vec, movmean(mean_psth_common, psth_smoothing_width), 'Color', colors.norm_common, 'LineWidth', 1.5);
+    mean_psth_common = mean(squeeze(mean(rates(:, ...
+        conditions.is_norm_common, :), 1, 'omitnan')), 1, 'omitnan');
+    plot(time_vec, movmean(mean_psth_common, ...
+        psth_smoothing_width), 'Color', colors.norm_common, ...
+        'LineWidth', 1.5);
 
     % Rare high reward
-    mean_psth_rare = mean(squeeze(mean(rates(:, conditions.is_norm_rare_high, :), 1, 'omitnan')), 1, 'omitnan');
-    plot(time_vec, movmean(mean_psth_rare, psth_smoothing_width), 'Color', colors.norm_rare_high, 'LineWidth', 1.5);
+    mean_psth_rare = mean(squeeze(mean(rates(:, ...
+        conditions.is_norm_rare_high, :), 1, 'omitnan')), 1, 'omitnan');
+    plot(time_vec, movmean(mean_psth_rare, ...
+        psth_smoothing_width), 'Color', colors.norm_rare_high, ...
+        'LineWidth', 1.5);
 
     xlim(xlim_win);
     grid on;

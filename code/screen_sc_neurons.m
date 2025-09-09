@@ -62,16 +62,16 @@ end
 % Identify gSac_jph memory-guided saccade trials
 gSac_jph_memSac_trials = find(trialInfo.taskCode == ...
     codes.uniqueTaskCode_gSac_jph & ...
-                              eventTimes.targetReillum > 0 & ...
-                              eventTimes.pdsReward > 0);
+    eventTimes.targetReillum > 0 & ...
+    eventTimes.pdsReward > 0);
 fprintf('Found %d valid gSac_jph memory-guided trials.\n', ...
     length(gSac_jph_memSac_trials));
 
 % Identify gSac_4factors memory-guided saccade trials
 gSac_4factors_memSac_trials = find(trialInfo.taskCode == ...
     codes.uniqueTaskCode_gSac_4factors & ...
-                                   ~isnan(eventTimes.targetReillum) & ...
-                                   eventTimes.pdsReward > 0);
+    ~isnan(eventTimes.targetReillum) & ...
+    eventTimes.pdsReward > 0);
 fprintf('Found %d valid gSac_4factors memory-guided trials.\n', ...
     length(gSac_4factors_memSac_trials));
 
@@ -95,7 +95,7 @@ epochs = {
     'targetOn',     0.05,   0.2,    0.15;  % 2. Visual
     'fixOff',       -0.15,  0.05,   0.2;   % 3. Delay
     'saccadeOnset', -0.025, 0.05,   0.075  % 4. Saccade
-};
+    };
 nEpochs = size(epochs, 1);
 epoch_frs = nan(nClusters, nEpochs, nMemSacTrials);
 
@@ -139,8 +139,8 @@ for i_cluster = 1:nClusters
         edges = reshape(valid_time_windows', 1, []);
 
         try
-        % Get the counts for all bins (both inside and outside the windows)
-        all_counts = histcounts(spike_times, edges);
+            % Get the counts for all bins (both inside and outside the windows)
+            all_counts = histcounts(spike_times, edges);
         catch me
             keyboard
         end
@@ -150,9 +150,9 @@ for i_cluster = 1:nClusters
         spike_counts_in_windows = all_counts(1:2:end);
 
         try
-        % Create a temporary array to store results for the current epoch
-        temp_frs = nan(1, nMemSacTrials);
-        temp_frs(valid_trials_mask) = spike_counts_in_windows / win_dur;
+            % Create a temporary array to store results for the current epoch
+            temp_frs = nan(1, nMemSacTrials);
+            temp_frs(valid_trials_mask) = spike_counts_in_windows / win_dur;
         catch me
             keyboard
         end
@@ -232,7 +232,8 @@ if any(is_jph_trial)
 end
 
 % Get the unique target locations for the 4factors task
-unique_locations_4factors = unique(trialInfo.targetTheta(gSac_4factors_memSac_trials));
+unique_locations_4factors = unique(trialInfo.targetTheta( ...
+    gSac_4factors_memSac_trials));
 
 % Get target thetas for all combined trials
 thetas_all = trialInfo.targetTheta(all_memSac_trials);
@@ -240,7 +241,7 @@ thetas_all = trialInfo.targetTheta(all_memSac_trials);
 for i_loc = 1:length(unique_locations_4factors)
     loc = unique_locations_4factors(i_loc);
     % Create a mask for trials at this location, ONLY for 4factors trials
-    loc_mask = (thetas_all == loc)' & is_4factors_trial;
+    loc_mask = (thetas_all == loc) & is_4factors_trial;
     if any(loc_mask)
         trial_groups{end+1} = loc_mask;
     end
@@ -290,7 +291,9 @@ for i_cluster = 1:nClusters
                 for i_comp = 1:size(comparisons, 1)
                     p = ranksum(neuron_frs(:, comparisons(i_comp, 1)), ...
                         neuron_frs(:, comparisons(i_comp, 2)));
-                    if p < alpha_corr
+                    if p < alpha_corr && mean(neuron_frs(:, ...
+                            comparisons(i_comp, 2))) > mean(...
+                            neuron_frs(:, comparisons(i_comp, 1)))
                         is_significant_in_group(i_comp) = true;
                     end
                 end
@@ -311,7 +314,8 @@ for i_cluster = 1:nClusters
             % Store the significance profile from the first group that
             % passes the test as the canonical result for the neuron.
             if ~any(sig_epoch_comparison(i_cluster, :))
-                sig_epoch_comparison(i_cluster, :) = is_significant_in_group;
+                sig_epoch_comparison(i_cluster, :) = ...
+                    is_significant_in_group;
             end
         end
     end % end of group loop
@@ -338,7 +342,8 @@ if n_groups > 0
     for i_group = 1:n_groups
         % Subplot for Firing Rates
         plot_idx_fr = (i_group - 1) * 2 + 1;
-        mySubPlot([1, n_groups * 2, plot_idx_fr], 'Width', 0.92, 'LeftMargin', 0.05);
+        mySubPlot([1, n_groups * 2, plot_idx_fr], ...
+            'Width', 0.92, 'LeftMargin', 0.05);
         imagesc(group_mean_frs{i_group});
         clim([0, global_max_fr]);
         colormap(gca, flipud(hot));
@@ -358,17 +363,20 @@ if n_groups > 0
             group_mask = trial_groups{i_group};
             theta_for_group = unique(thetas_all(group_mask));
             if ~isempty(theta_for_group)
-                title_str = sprintf('gSac_4factors: Theta %d', theta_for_group(1)/10);
+                title_str = sprintf('gSac_4factors: Theta %d', ...
+                    theta_for_group(1)/10);
             end
         end
         title(title_str);
 
         % Subplot for Significance
         plot_idx_sig = (i_group - 1) * 2 + 2;
-        mySubPlot([1, n_groups * 2, plot_idx_sig], 'Width', 0.92, 'LeftMargin', 0.05);
+        mySubPlot([1, n_groups * 2, plot_idx_sig], 'Width', 0.92, ...
+            'LeftMargin', 0.05);
         imagesc(group_sig_results{i_group});
         colormap(gca, flipud(bone));
-        set(gca, 'XTick', 1:3, 'XTickLabel', sig_x_labels, 'YTickLabel', []);
+        set(gca, 'XTick', 1:3, 'XTickLabel', sig_x_labels, ...
+            'YTickLabel', []);
     end
 
     % Save the figure
@@ -377,6 +385,10 @@ if n_groups > 0
     pdfSave(figFileName, fig.Position(3:4)/72, fig);
 end
 
-fprintf('Finished screening. Found %d task-modulated SC neurons.\n', nnz(selected_neurons));
+% close the figure window
+close(fig);
+
+fprintf('Finished screening. Found %d task-modulated SC neurons.\n', ...
+    nnz(selected_neurons));
 
 end
