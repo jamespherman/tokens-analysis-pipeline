@@ -1,4 +1,4 @@
-function conditions = define_task_conditions(trialInfo, eventTimes, codes)
+function conditions = define_task_conditions(trialInfo, eventTimes, unique_id, codes)
 % DEFINE_TASK_CONDITIONS - Creates a struct of logical masks for trial conditions.
 %
 % This function first identifies valid 'tokens' task trials and then
@@ -8,6 +8,7 @@ function conditions = define_task_conditions(trialInfo, eventTimes, codes)
 % INPUTS:
 %   trialInfo  - Struct with trial-by-trial information for the whole session.
 %   eventTimes - Struct with event times for each trial for the whole session.
+%   unique_id  - String, a unique identifier for the session, used for saving figures.
 %   codes      - Struct with unique task codes.
 %
 % OUTPUTS:
@@ -34,18 +35,31 @@ conditions.is_uniform_dist = trialInfo.dist == 2;
 conditions.is_rewarded = eventTimes.reward > 0;
 
 % B. Reward Magnitude / RPE Conditions
+% For the normal distribution, calculate dynamic thresholds
+reward_norm = trialInfo.rewardAmt(conditions.is_normal_dist);
+norm_thresholds = prctile(reward_norm, [25 75]);
+norm_p25 = norm_thresholds(1);
+norm_p75 = norm_thresholds(2);
+
 conditions.is_norm_rare_low = conditions.is_normal_dist & ...
-    (trialInfo.rewardAmt <= 2);
+    (trialInfo.rewardAmt <= norm_p25);
 conditions.is_norm_common = conditions.is_normal_dist & ...
-    (trialInfo.rewardAmt >= 4 & trialInfo.rewardAmt <= 6);
+    (trialInfo.rewardAmt > norm_p25 & trialInfo.rewardAmt < norm_p75);
 conditions.is_norm_rare_high = conditions.is_normal_dist & ...
-    (trialInfo.rewardAmt >= 8);
+    (trialInfo.rewardAmt >= norm_p75);
+
+% For the uniform distribution, calculate dynamic thresholds
+reward_unif = trialInfo.rewardAmt(conditions.is_uniform_dist);
+unif_thresholds = prctile(reward_unif, [25 75]);
+unif_p25 = unif_thresholds(1);
+unif_p75 = unif_thresholds(2);
+
 conditions.is_unif_low = conditions.is_uniform_dist & ...
-    (trialInfo.rewardAmt <= 3);
+    (trialInfo.rewardAmt <= unif_p25);
 conditions.is_unif_mid = conditions.is_uniform_dist & ...
-    (trialInfo.rewardAmt >= 4 & trialInfo.rewardAmt <= 6);
+    (trialInfo.rewardAmt > unif_p25 & trialInfo.rewardAmt < unif_p75);
 conditions.is_unif_high = conditions.is_uniform_dist & ...
-    (trialInfo.rewardAmt >= 7);
+    (trialInfo.rewardAmt >= unif_p75);
 
 % C. Sensory Prediction Error (SPE) Conditions
 conditions.is_flicker_certain = contains(trialInfo.cueFile, ...
@@ -66,5 +80,46 @@ conditions.is_common_reward_with_spe = conditions.is_norm_common & ...
     conditions.is_flicker_surprising;
 conditions.is_rare_high_reward_with_spe = conditions.is_norm_rare_high & ...
     conditions.is_flicker_surprising;
+
+
+% E. Generate and Save Diagnostic Plot
+% Create a plot to visualize the reward distributions and thresholds.
+fig = figure('Visible', 'off', 'Position', [100, 100, 800, 400]);
+
+% Panel 1: Normal Distribution
+mySubPlot([1, 2, 1]);
+histogram(reward_norm);
+title('Normal Distribution Outcomes');
+xlabel('Reward Amount');
+ylabel('Count');
+hold on;
+xline(norm_p25, '--r', 'LineWidth', 2);
+xline(norm_p75, '--r', 'LineWidth', 2);
+hold off;
+
+% Panel 2: Uniform Distribution
+mySubPlot([1, 2, 2]);
+histogram(reward_unif);
+title('Uniform Distribution Outcomes');
+xlabel('Reward Amount');
+hold on;
+xline(unif_p25, '--r', 'LineWidth', 2);
+xline(unif_p75, '--r', 'LineWidth', 2);
+hold off;
+
+% Add a main title for the whole figure
+sgtitle(sprintf('Reward Distributions for Session: %s', unique_id), 'Interpreter', 'none');
+
+% Save the figure to the 'figures' directory. The script is run from the
+% 'code/' directory, so we use a relative path.
+figures_dir = '../figures';
+if ~exist(figures_dir, 'dir')
+    mkdir(figures_dir);
+end
+file_name = fullfile(figures_dir, sprintf('%s_reward_distributions.pdf', unique_id));
+pdfSave(file_name, [11 8.5], fig);
+
+% Close the figure to free up memory
+close(fig);
 
 end
