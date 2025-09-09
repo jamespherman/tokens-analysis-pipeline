@@ -213,10 +213,6 @@ else
         'comparing population visual responses in gSac_4factors.\n'], scSide);
 end
 
-% initialize a variable to store mean firing rates across trials for each
-% neuron:
-all_neuron_frs = zeros(nClusters, 4);
-
 %% 5. Inclusive, Multi-Group Neuron Selection
 % Iterate through each neuron and test for significant modulation in any of
 % several distinct trial groups. A neuron is selected if it passes the
@@ -250,6 +246,15 @@ for i_loc = 1:length(unique_locations_4factors)
     end
 end
 
+% Initialize data stores for summary figure
+n_groups = length(trial_groups);
+group_mean_frs = cell(1, n_groups);
+group_sig_results = cell(1, n_groups);
+for i_group = 1:n_groups
+    group_mean_frs{i_group} = nan(nClusters, nEpochs);
+    group_sig_results{i_group} = false(nClusters, 3);
+end
+
 % Main loop: iterate through each neuron
 for i_cluster = 1:nClusters
     % Nested loop: iterate through each trial group
@@ -274,15 +279,18 @@ for i_cluster = 1:nClusters
         end
 
         is_significant_in_group = false(1, 3);
+        mean_fr_this_group = mean(neuron_frs, 1, 'omitnan');
+
         try
             [p_friedman, ~] = friedman(neuron_frs, 1, 'off');
             if p_friedman < 0.05
-                alpha_corr = 0.05 / 3; % Bonferroni correction for 3 comparisons
-                comparisons = [1 2; 1 3; 1 4]; % Bsl vs Vis, Bsl vs Del, Bsl vs Sac
+                alpha_corr = 0.05 / 3; % Bonferroni for 3 comparisons
+                comparisons = [1 2; 1 3; 1 4]; % Bsl vs Vis, Del, Sac
 
                 for i_comp = 1:size(comparisons, 1)
-                    p_ranksum = ranksum(neuron_frs(:, comparisons(i_comp, 1)), neuron_frs(:, comparisons(i_comp, 2)));
-                    if p_ranksum < alpha_corr
+                    p = ranksum(neuron_frs(:, comparisons(i_comp, 1)), ...
+                        neuron_frs(:, comparisons(i_comp, 2)));
+                    if p < alpha_corr
                         is_significant_in_group(i_comp) = true;
                     end
                 end
@@ -292,40 +300,82 @@ for i_cluster = 1:nClusters
                 cluster_ids(i_cluster), i_group, ME.message);
         end
 
-        % Final selection criteria for this group
-        if any(is_significant_in_group) && max(mean(neuron_frs, 1, 'omitnan')) > 5
-            selected_neurons(i_cluster) = true;
-            sig_epoch_comparison(i_cluster, :) = is_significant_in_group;
+        % Store the results for this group for later plotting
+        group_mean_frs{i_group}(i_cluster, :) = mean_fr_this_group;
+        group_sig_results{i_group}(i_cluster, :) = is_significant_in_group;
 
-            % Break from the inner loop (groups) and move to the next neuron
-            break;
+        % If significant, update the master selection and sig results
+        if any(is_significant_in_group) && max(mean_fr_this_group) > 5
+            selected_neurons(i_cluster) = true;
+
+            % Store the significance profile from the first group that
+            % passes the test as the canonical result for the neuron.
+            if ~any(sig_epoch_comparison(i_cluster, :))
+                sig_epoch_comparison(i_cluster, :) = is_significant_in_group;
+            end
         end
     end % end of group loop
 end % end of cluster loop
 
-% generate summary figure showing mean firing rate per poch and sig epoch
-% comparisons:
-fig = figure('Color', 'W', 'MenuBar', 'None', 'ToolBar', 'None', ...
-    'Position', ...
-    [150 100 500 800]);
-ax(1) = subplot(1,2,1);
-imagesc(all_neuron_frs)
-colormap(flipud(bone(64)))
-title('Mean Firing Rate (FR)')
-ax(2) = subplot(1,2,2);
-imagesc(sig_epoch_comparison)
-colormap(flipud(bone(64)))
-title('Sig. FR Mod.')
-set(ax, 'Box', 'Off', 'TickDir', 'Out')
-set(ax(2), 'YTickLabel', [])
-ylabel(ax(1), 'Cluster ID', 'FOntSize', 16)
-set(ax(1), 'XTick', 1:4, 'XTickLabel', {'base', 'vis', 'del', 'sac'})
-set(ax(2), 'XTick', 1:3, 'XTickLabel', {'vis', 'del', 'sac'})
+% --- Generate new summary figure ---
+if n_groups > 0
+    % Calculate global max firing rate for consistent color scaling
+    global_max_fr = 0;
+    for i_group = 1:n_groups
+        max_in_group = max(group_mean_frs{i_group}, [], 'all', 'omitnan');
+        if max_in_group > global_max_fr
+            global_max_fr = max_in_group;
+        end
+    end
+    if global_max_fr == 0; global_max_fr = 1; end % Avoid Clim = [0 0]
 
-% define PDF filename and save
-figFileName = fullfile(output_dir, [session_data.metadata.unique_id, ...
-    '_sc_epoch_frs.pdf']);
-pdfSave(figFileName, fig.Position(3:4)/72, fig);
+    fig = figure('Color', 'w', 'Position', [100, 100, 350 * n_groups, 700]);
+
+    % Define labels for plots
+    fr_x_labels = {'Base', 'Vis', 'Delay', 'Sac'};
+    sig_x_labels = {'Vis', 'Delay', 'Sac'};
+
+    for i_group = 1:n_groups
+        % Subplot for Firing Rates
+        plot_idx_fr = (i_group - 1) * 2 + 1;
+        mySubPlot([1, n_groups * 2, plot_idx_fr], 'Width', 0.92, 'LeftMargin', 0.05);
+        imagesc(group_mean_frs{i_group});
+        clim([0, global_max_fr]);
+        colormap(gca, flipud(hot));
+        set(gca, 'XTick', 1:4, 'XTickLabel', fr_x_labels);
+        if plot_idx_fr == 1
+            ylabel('Cluster ID');
+        else
+            set(gca, 'YTickLabel', []);
+        end
+
+        % Generate title for the pair of plots
+        title_str = sprintf('Group %d', i_group);
+        if i_group == 1 && any(is_jph_trial)
+            title_str = 'gSac_jph';
+        else
+            % Find which location this is for 4factors
+            group_mask = trial_groups{i_group};
+            theta_for_group = unique(thetas_all(group_mask));
+            if ~isempty(theta_for_group)
+                title_str = sprintf('gSac_4factors: Theta %d', theta_for_group(1)/10);
+            end
+        end
+        title(title_str);
+
+        % Subplot for Significance
+        plot_idx_sig = (i_group - 1) * 2 + 2;
+        mySubPlot([1, n_groups * 2, plot_idx_sig], 'Width', 0.92, 'LeftMargin', 0.05);
+        imagesc(group_sig_results{i_group});
+        colormap(gca, flipud(bone));
+        set(gca, 'XTick', 1:3, 'XTickLabel', sig_x_labels, 'YTickLabel', []);
+    end
+
+    % Save the figure
+    figFileName = fullfile(output_dir, [session_data.metadata.unique_id, ...
+        '_sc_epoch_frs.pdf']);
+    pdfSave(figFileName, fig.Position(3:4)/72, fig);
+end
 
 fprintf('Finished screening. Found %d task-modulated SC neurons.\n', nnz(selected_neurons));
 
