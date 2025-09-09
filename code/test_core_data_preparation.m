@@ -332,6 +332,145 @@ set(h([2,3,5,6]), 'YTickLabel', []);
 sgtitle(sprintf('Core Data Verification: %s', unique_id), 'Interpreter', 'none');
 giveFeed('Done.');
 
+%% Generate SPE-Focused Diagnostic Figure (if applicable)
+if nnz(conditions.is_flicker_surprising) > 0
+    giveFeed('Step 6b: Generating SPE-focused diagnostic plots...');
+    fig2 = figure('Position', [100, 100, 1200, 700]);
+    fig2.PaperPositionMode = 'auto';
+
+    % Define colors for SPE conditions
+    colors.flicker_surprising = [0.8, 0.2, 0.8]; % Magenta
+    colors.flicker_certain = [0.2, 0.8, 0.2]; % Green
+
+    % --- Column 1: Aligned to CUE_ON ---
+    event_name = 'CUE_ON';
+    time_vec = core_data.spikes.(event_name).time_vector;
+    xlim_win = core_data.spikes.(event_name).window;
+
+    % Top Row: Neuronal PSTH
+    h2(1) = axes('Position', pos{1,1});
+    hold on;
+    if any(selected_neurons)
+        rates = core_data.spikes.(event_name).rates;
+        mean_psth_surprising = mean(squeeze(mean(rates(:, conditions.is_flicker_surprising, :), 1, 'omitnan')), 1, 'omitnan');
+        barStairsFill(time_vec, movmean(mean_psth_surprising, psth_smoothing_width), 'FaceColor', colors.flicker_surprising, 'EdgeColor', 'none', 'FaceAlpha', 0.7);
+        mean_psth_certain = mean(squeeze(mean(rates(:, conditions.is_flicker_certain, :), 1, 'omitnan')), 1, 'omitnan');
+        barStairsFill(time_vec, movmean(mean_psth_certain, psth_smoothing_width), 'FaceColor', colors.flicker_certain, 'EdgeColor', 'none', 'FaceAlpha', 0.7);
+        ylabel('Firing Rate (spikes/s)');
+        xlim(xlim_win);
+        grid on;
+        legend({'Flicker Surprising', 'Flicker Certain'}, 'Location', 'northeast');
+    end
+    xline(0, 'k--');
+
+    % Bottom Row: Pupil Trace
+    h2(4) = axes('Position', pos{2,1});
+    hold on;
+    traces = core_data.pupil.(event_name).traces;
+    time_vec = core_data.pupil.(event_name).time_vector;
+    xlim_win = core_data.pupil.(event_name).window;
+    mean_trace_surprising = mean(traces(conditions.is_flicker_surprising, :), 1, 'omitnan');
+    plot(time_vec, mean_trace_surprising, 'Color', colors.flicker_surprising, 'LineWidth', 1.5);
+    mean_trace_certain = mean(traces(conditions.is_flicker_certain, :), 1, 'omitnan');
+    plot(time_vec, mean_trace_certain, 'Color', colors.flicker_certain, 'LineWidth', 1.5);
+    ylabel('Normalized Pupil Size');
+    xlabel('Time from Cue On (s)');
+    xlim(xlim_win);
+    grid on;
+    legend({'Flicker Surprising', 'Flicker Certain'}, 'Location', 'northeast');
+    xline(0, 'k--');
+
+    % --- Column 2: Aligned to outcomeOn ---
+    event_name = 'outcomeOn';
+    time_vec = core_data.spikes.(event_name).time_vector;
+    xlim_win = core_data.spikes.(event_name).window;
+
+    % Top Row: Neuronal PSTH
+    h2(2) = axes('Position', pos{1,2});
+    hold on;
+    if any(selected_neurons)
+        rates = core_data.spikes.(event_name).rates;
+        mean_psth_surprising = mean(squeeze(mean(rates(:, conditions.is_flicker_surprising, :), 1, 'omitnan')), 1, 'omitnan');
+        barStairsFill(time_vec, movmean(mean_psth_surprising, psth_smoothing_width), 'FaceColor', colors.flicker_surprising, 'EdgeColor', 'none', 'FaceAlpha', 0.7);
+        mean_psth_certain = mean(squeeze(mean(rates(:, conditions.is_flicker_certain, :), 1, 'omitnan')), 1, 'omitnan');
+        barStairsFill(time_vec, movmean(mean_psth_certain, psth_smoothing_width), 'FaceColor', colors.flicker_certain, 'EdgeColor', 'none', 'FaceAlpha', 0.7);
+        xlim(xlim_win);
+        grid on;
+    end
+    xline(0, 'k--');
+
+    % Bottom Row: Pupil Trace
+    h2(5) = axes('Position', pos{2,2});
+    hold on;
+    traces = core_data.pupil.(event_name).traces;
+    time_vec = core_data.pupil.(event_name).time_vector;
+    xlim_win = core_data.pupil.(event_name).window;
+    mean_trace_surprising = mean(traces(conditions.is_flicker_surprising, :), 1, 'omitnan');
+    plot(time_vec, mean_trace_surprising, 'Color', colors.flicker_surprising, 'LineWidth', 1.5);
+    mean_trace_certain = mean(traces(conditions.is_flicker_certain, :), 1, 'omitnan');
+    plot(time_vec, mean_trace_certain, 'Color', colors.flicker_certain, 'LineWidth', 1.5);
+    xlabel('Time from Outcome On (s)');
+    xlim(xlim_win);
+    grid on;
+    xline(0, 'k--');
+
+    % --- Column 3: Aligned to reward ---
+    event_name = 'reward';
+    time_vec = core_data.spikes.(event_name).time_vector;
+    xlim_win = core_data.spikes.(event_name).window;
+
+    % Top Row: Neuronal PSTH
+    h2(3) = axes('Position', pos{1,3});
+    hold on;
+    if any(selected_neurons)
+        rates = core_data.spikes.(event_name).rates;
+        mean_psth_surprising = mean(squeeze(mean(rates(:, conditions.is_flicker_surprising, :), 1, 'omitnan')), 1, 'omitnan');
+        barStairsFill(time_vec, movmean(mean_psth_surprising, psth_smoothing_width), 'FaceColor', colors.flicker_surprising, 'EdgeColor', 'none', 'FaceAlpha', 0.7);
+        mean_psth_certain = mean(squeeze(mean(rates(:, conditions.is_flicker_certain, :), 1, 'omitnan')), 1, 'omitnan');
+        barStairsFill(time_vec, movmean(mean_psth_certain, psth_smoothing_width), 'FaceColor', colors.flicker_certain, 'EdgeColor', 'none', 'FaceAlpha', 0.7);
+        xlim(xlim_win);
+        grid on;
+        legend({'Flicker Surprising', 'Flicker Certain'}, 'Location', 'northeast');
+    end
+    xline(0, 'k--');
+
+    % Bottom Row: Pupil Trace
+    h2(6) = axes('Position', pos{2,3});
+    hold on;
+    traces = core_data.pupil.(event_name).traces;
+    time_vec = core_data.pupil.(event_name).time_vector;
+    xlim_win = core_data.pupil.(event_name).window;
+    mean_trace_surprising = mean(traces(conditions.is_flicker_surprising, :), 1, 'omitnan');
+    plot(time_vec, mean_trace_surprising, 'Color', colors.flicker_surprising, 'LineWidth', 1.5);
+    mean_trace_certain = mean(traces(conditions.is_flicker_certain, :), 1, 'omitnan');
+    plot(time_vec, mean_trace_certain, 'Color', colors.flicker_certain, 'LineWidth', 1.5);
+    xlabel('Time from Reward (s)');
+    xlim(xlim_win);
+    grid on;
+    legend({'Flicker Surprising', 'Flicker Certain'}, 'Location', 'northeast');
+    xline(0, 'k--');
+
+    % --- De-clutter axes ---
+    set(h2(1:3), 'XTickLabel', []);
+    set(h2([2,3,5,6]), 'YTickLabel', []);
+
+    sgtitle(sprintf('SPE-Focused Data Verification: %s', unique_id), 'Interpreter', 'none');
+    giveFeed('Done with SPE-focused plots.');
+
+    % --- Link Y-axes across both figures for direct comparison ---
+    giveFeed('Step 6c: Linking Y-axes across figures...');
+
+    % Link PSTH plots (h from fig 1, h2 from fig 2)
+    psth_axes = [h(1:3), h2(1:3)];
+    y_lims_psth = outerLims(psth_axes, 'y');
+    set(psth_axes, 'YLim', y_lims_psth);
+
+    % Link Pupil plots (h from fig 1, h2 from fig 2)
+    pupil_axes = [h(4:6), h2(4:6)];
+    y_lims_pupil = outerLims(pupil_axes, 'y');
+    set(pupil_axes, 'YLim', y_lims_pupil);
+end
+
 %% Finalize and Save Manifest
 giveFeed('Step 7: Saving updated manifest...');
 writetable(manifest, manifest_path);
