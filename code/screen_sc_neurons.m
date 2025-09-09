@@ -24,7 +24,12 @@ function [selected_neurons, sig_epoch_comparison, scSide] = screen_sc_neurons(se
 
 fprintf('screen_sc_neurons: Identifying task-modulated neurons...\n');
 
-% --- 1. Setup and Data Extraction ---
+% Define output directory and filename
+project_root = fullfile(findOneDrive, 'Code', ...
+    'tokens-analysis-pipeline');
+output_dir = fullfile(project_root, 'figures');
+
+% --- Setup and Data Extraction ---
 cluster_info = session_data.spikes.cluster_info;
 cluster_ids = cluster_info.cluster_id;
 nClusters = height(cluster_info.cluster_id);
@@ -49,7 +54,7 @@ end
 % Identify gSac_jph memory-guided saccade trials with valid reward times
 gSac_jph_memSac_trials = find(trialInfo.taskCode == ...
     codes.uniqueTaskCode_gSac_jph & ...
-                              ~isnan(eventTimes.targetReillum) & ...
+                              eventTimes.targetReillum > 0 & ...
                               eventTimes.pdsReward > 0);
 
 % Determine which set of trials to use
@@ -225,6 +230,9 @@ else
     end
 end
 
+% initialize a variable to store mean firing rates across trials for each
+% neuron:
+all_neuron_frs = zeros(nClusters, 4);
 
 % --- 5. Final Statistical Selection ---
 for i_cluster = 1:nClusters
@@ -242,6 +250,8 @@ for i_cluster = 1:nClusters
 
     if size(neuron_frs, 1) < 2
         continue; % Not enough valid trials for this neuron
+    else
+        all_neuron_frs(i_cluster, :) = mean(neuron_frs_all_trials);
     end
 
     try
@@ -271,6 +281,30 @@ for i_cluster = 1:nClusters
         selected_neurons(i_cluster) = true;
     end
 end
+
+% generate summary figure showing mean firing rate per poch and sig epoch
+% comparisons:
+fig = figure('Color', 'W', 'MenuBar', 'None', 'ToolBar', 'None', ...
+    'Position', ...
+    [150 100 500 800]);
+ax(1) = subplot(1,2,1);
+imagesc(all_neuron_frs)
+colormap(flipud(bone(64)))
+title('Mean Firing Rate (FR)')
+ax(2) = subplot(1,2,2);
+imagesc(sig_epoch_comparison)
+colormap(flipud(bone(64)))
+title('Sig. FR Mod.')
+set(ax, 'Box', 'Off', 'TickDir', 'Out')
+set(ax(2), 'YTickLabel', [])
+ylabel(ax(1), 'Cluster ID', 'FOntSize', 16)
+set(ax(1), 'XTick', 1:4, 'XTickLabel', {'base', 'vis', 'del', 'sac'})
+set(ax(2), 'XTick', 1:3, 'XTickLabel', {'vis', 'del', 'sac'})
+
+% define PDF filename and save
+figFileName = fullfile(output_dir, [session_data.metadata.unique_id, ...
+    '_sc_epoch_frs.pdf']);
+pdfSave(figFileName, fig.Position(3:4)/72, fig);
 
 fprintf('Finished screening. Found %d task-modulated SC neurons.\n', nnz(selected_neurons));
 

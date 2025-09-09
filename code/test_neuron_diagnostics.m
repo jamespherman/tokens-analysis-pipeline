@@ -16,7 +16,7 @@ giveFeed = @(x)disp([num2str(toc) 's - ' x]);
 addpath(fullfile(script_dir, 'utils'));
 
 %% Setup
-unique_id = 'Feynman_08_14_2025_SC'; % Hardcoded session
+unique_id = 'Feynman_08_15_2025_SC'; % Hardcoded session
 giveFeed(sprintf('Testing diagnostic workflow for session: %s', ...
     unique_id));
 
@@ -74,13 +74,16 @@ if contains(unique_id, 'SNc')
 elseif contains(unique_id, 'SC')
     giveFeed('Session is SC type. Running screen_sc_neurons...');
 
-    % screen_sc_neurons will now determine scSide and calculate significance
-    [selected_neurons, sig_epoch_comp, scSide] = screen_sc_neurons(session_data);
-
     % Store the results in the session_data structure
     if ~isfield(session_data, 'metadata')
         session_data.metadata = struct();
     end
+    session_data.metadata.unique_id = unique_id;
+
+    % screen_sc_neurons will now determine scSide and calculate significance
+    [selected_neurons, sig_epoch_comp, scSide] = screen_sc_neurons(session_data);
+
+    
     session_data.metadata.scSide = scSide;
     session_data.metadata.sig_epoch_comparison = sig_epoch_comp;
 

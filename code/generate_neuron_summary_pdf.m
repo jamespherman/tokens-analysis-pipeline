@@ -30,7 +30,7 @@ addpath(fullfile(script_dir, 'utils'));
 
 %% Constants
 % Define constants for plot layout and analysis parameters.
-N_ROWS = 8;
+N_ROWS = 12;
 N_COLS = 6;
 PSTH_WINDOW = [-0.5, 1.0]; % 1.5s window for PSTHs
 PSTH_BIN_SIZE = 0.025;     % 25ms bin size
@@ -85,6 +85,9 @@ end
 
 % Loop through each cluster to create a page of plots
 for i_cluster = 1:nClusters
+
+    % make a list of ALL the PSTH axes so we can set common y-limits;
+    allPsthAx = [];
 
     % Create a new figure for the PDF
     fig = figure('Color', 'w', 'MenuBar', 'None', 'ToolBar', 'None');
@@ -151,8 +154,8 @@ for i_cluster = 1:nClusters
         end
 
         % --- Column 3-4: PSTH for Tokens Task Outcome ---
-        ax_raster = mySubPlot([N_ROWS, N_COLS, 3]);
-        ax_psth = mySubPlot([N_ROWS, N_COLS, 3 + N_COLS]);
+        ax_raster = mySubPlot([N_ROWS, 4, 3]);
+        ax_psth = mySubPlot([N_ROWS, 4, 3 + 4]);
         if isfield(session_data.eventTimes, 'outcomeOn')
             event_times = session_data.eventTimes.outcomeOn;
             valid_trials = event_times > 0 & ...
@@ -166,17 +169,20 @@ for i_cluster = 1:nClusters
                 'HorizontalAlignment', 'center');
         end
 
+        % make a list of ALL the PSTH axes so we can set common y-limits;
+        allPsthAx = [allPsthAx; ax_psth];
+
         % --- Column 5-6: PSTHs for gSac Tasks ---
         % gSac_4factors task
         for i_theta = 1:n_thetas_gSac
-            row_offset = (i_theta - 1) * 2;
+            row_offset = (i_theta - 1) * 8;
             current_theta = unique_thetas(i_theta);
             theta_trials = gSac_trial_idx & ...
                 (session_data.trialInfo.targetTheta == current_theta);
 
             % Aligned to Target On
-            ax_r = mySubPlot([N_ROWS, N_COLS, 5 + row_offset]);
-            ax_p = mySubPlot([N_ROWS, N_COLS, 5 + N_COLS + row_offset]);
+            ax_r = mySubPlot([N_ROWS, 4, 11 + row_offset]);
+            ax_p = mySubPlot([N_ROWS, 4, 11 + 4 + row_offset]);
             et = session_data.eventTimes.targetOn(theta_trials);
             plot_psth_and_raster(ax_r, ax_p, spike_times, et, ...
                 PSTH_WINDOW, PSTH_BIN_SIZE, ...
@@ -184,19 +190,24 @@ for i_cluster = 1:nClusters
                 'Time from Target On (s)', i_theta == 1);
             if i_theta < n_thetas_gSac, set(ax_p, 'xticklabel', {[]}); end
 
+            % append to list of all psth axes:
+            allPsthAx = [allPsthAx; ax_p];
+
             % Aligned to Saccade Onset
-            ax_r = mySubPlot([N_ROWS, N_COLS, 6 + row_offset]);
-            ax_p = mySubPlot([N_ROWS, N_COLS, 6 + N_COLS + row_offset]);
+            ax_r = mySubPlot([N_ROWS, 4, 12 + row_offset]);
+            ax_p = mySubPlot([N_ROWS, 4, 12 + 4 + row_offset]);
             et = session_data.eventTimes.saccadeOnset(theta_trials);
             plot_psth_and_raster(ax_r, ax_p, spike_times, et, ...
                 PSTH_WINDOW, PSTH_BIN_SIZE, 'Saccade Onset (gSac)',...
                 'Time from Saccade Onset (s)', false);
             if i_theta < n_thetas_gSac, set(ax_p, 'xticklabel', {[]}); end
+
+            % append to list of all psth axes:
+            allPsthAx = [allPsthAx; ax_p];
         end
 
         % gSac_jph task
         if n_thetas_jph > 0
-            row_offset = n_thetas_gSac * 2;
             i_theta_jph = 1; % For now, only plot the first one
             current_theta = unique_thetas_jph(i_theta_jph);
             theta_trials_in_mem_sac = ...
@@ -206,22 +217,28 @@ for i_cluster = 1:nClusters
                 theta_trials_in_mem_sac);
 
             % Aligned to Target On
-            ax_r = mySubPlot([N_ROWS, N_COLS, 5 + row_offset]);
-            ax_p = mySubPlot([N_ROWS, N_COLS, 5 + N_COLS + row_offset]);
+            ax_r = mySubPlot([N_ROWS, 4, 43]);
+            ax_p = mySubPlot([N_ROWS, 4, 43 + 4]);
             et = session_data.eventTimes.targetOn(final_indices);
             plot_psth_and_raster(ax_r, ax_p, spike_times, et, ...
                 PSTH_WINDOW, PSTH_BIN_SIZE, ...
                 sprintf('Target On (jph): %d deg', current_theta), ...
                 'Time from Target On (s)', true);
 
+            % append to list of all psth axes:
+            allPsthAx = [allPsthAx; ax_p];
+
             % Aligned to Saccade Onset
-            ax_r = mySubPlot([N_ROWS, N_COLS, 6 + row_offset]);
-            ax_p = mySubPlot([N_ROWS, N_COLS, 6 + N_COLS + row_offset]);
+            ax_r = mySubPlot([N_ROWS, 4, 44]);
+            ax_p = mySubPlot([N_ROWS, 4, 44 + 4]);
             et = session_data.eventTimes.saccadeOnset(final_indices);
             plot_psth_and_raster(ax_r, ax_p, spike_times, et, ...
                 PSTH_WINDOW, PSTH_BIN_SIZE, ...
                 'Saccade Onset (jph)', ...
                 'Time from Saccade Onset (s)', false);
+
+            % append to list of all psth axes:
+            allPsthAx = [allPsthAx; ax_p];
         end
     else
         %% --- Basic Plots (No Spatial Tuning) ---
@@ -255,8 +272,8 @@ for i_cluster = 1:nClusters
         end
 
         % PSTH for Tokens Task Outcome
-        ax_raster = mySubPlot([N_ROWS, N_COLS, 3]);
-        ax_psth = mySubPlot([N_ROWS, N_COLS, 3 + N_COLS]);
+        ax_raster = mySubPlot([N_ROWS, 4, 3]);
+        ax_psth = mySubPlot([N_ROWS, 4, 3 + 4]);
         if isfield(session_data.eventTimes, 'outcomeOn')
             event_times = session_data.eventTimes.outcomeOn;
             valid_trials = event_times > 0 & ...
@@ -273,7 +290,7 @@ for i_cluster = 1:nClusters
 
     %% --- Summary Information ---
     ax_summary = mySubPlot([N_ROWS, N_COLS, N_COLS * (N_ROWS - 1) + 1]);
-    axis(ax_summary, 'off');
+    axis(ax_summary, 'off')
 
     screening_status = 'Not Selected';
     if numel(selected_neurons) >= i_cluster && selected_neurons(i_cluster)
@@ -302,12 +319,16 @@ for i_cluster = 1:nClusters
         'VerticalAlignment', 'middle', 'FontSize', 10);
     title(ax_summary, 'Summary Information');
 
+    % get 'outer limits' for all PSTH axes:
+     [~, yLims] = outerLims(allPsthAx);
+
     % modify appearance:
     set(findall(fig, 'Type', 'Axes'), 'XColor', 'k', 'YColor', 'k', ...
         'TickDir', 'Out', 'LineWidth', 1, 'Color', 'w', 'Box', 'Off');
     set(findall(fig, 'Type', 'Text'), 'Color', 0.2*[1 1 1], ...
         'FontSize', 8);
     set(fig, 'Position', [150 50 750 1000]);
+    set(allPsthAx, 'YLim', yLims)
     drawnow;
 
     % Appending only works with postscript files in MATLAB so we will
