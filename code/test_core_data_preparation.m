@@ -65,10 +65,33 @@ end
 fprintf('Loading session data from: %s\n', data_file);
 load(data_file, 'session_data');
 
+%% Step 2: Calculate and Store Diagnostic Metrics
+giveFeed('Step 2: Calculating and storing diagnostic metrics...');
+
+% Calculate baseline firing rates and add to session_data
+session_data.metrics.baseline_frs = calculate_baseline_fr(session_data);
+
+% Calculate waveform metrics and add to session_data
+nClusters = height(session_data.spikes.cluster_info.cluster_id);
+for i_cluster = 1:nClusters
+
+    % get current unit's multi-channel waveform:
+    mean_waveform = session_data.spikes.wfMeans{i_cluster};
+
+    % find channel with max variance:
+    [~,max_var_chan] = max(var(mean_waveform,[],2));
+
+    % Note: Assuming a sampling rate of 30000 Hz
+    session_data.metrics.wf_metrics(i_cluster, 1) = ...
+        calculate_waveform_metrics(mean_waveform(max_var_chan,:), 30000);
+end
+giveFeed('Diagnostic metrics calculated and stored.');
+
 %% Run neuron screening
 giveFeed('Step 3: Running neuron screening...');
 if strcmp(manifest.screening_status{session_idx}, 'complete')
-    giveFeed('Screening status is ''complete''. Loading results from session_data...');
+    giveFeed(['Screening status is ''complete''. ' ...
+        'Loading results from session_data...']);
 
     % Load pre-computed results from the session_data struct
     selected_neurons = session_data.analysis.selected_neurons;
