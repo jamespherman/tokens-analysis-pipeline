@@ -1,12 +1,30 @@
-function conditions = define_task_conditions(trialInfo, eventTimes)
+function conditions = define_task_conditions(trialInfo, eventTimes, codes)
 % DEFINE_TASK_CONDITIONS - Creates a struct of logical masks for trial conditions.
 %
+% This function first identifies valid 'tokens' task trials and then
+% generates logical masks for various conditions within those trials. The
+% output masks are therefore the same length as the number of tokens trials.
+%
 % INPUTS:
-%   trialInfo  - Struct with trial-by-trial information.
-%   eventTimes - Struct with event times for each trial.
+%   trialInfo  - Struct with trial-by-trial information for the whole session.
+%   eventTimes - Struct with event times for each trial for the whole session.
+%   codes      - Struct with unique task codes.
 %
 % OUTPUTS:
-%   conditions - Struct with logical masks for different trial conditions.
+%   conditions - Struct with logical masks for different trial conditions,
+%                filtered for tokens task trials.
+
+% Identify valid tokens trials (task code match and reward delivered)
+is_tokens_trial = (trialInfo.taskCode == codes.uniqueTaskCode_tokens) & ...
+    ~cellfun(@isempty, eventTimes.rewardCell);
+
+% Filter all relevant data structures to include only tokens trials.
+% This ensures that all generated masks are of the correct length.
+trialInfo.cueFile = trialInfo.cueFile(is_tokens_trial);
+trialInfo.dist = trialInfo.dist(is_tokens_trial);
+trialInfo.rewardAmt = trialInfo.rewardAmt(is_tokens_trial);
+trialInfo.isAVTrial = trialInfo.isAVTrial(is_tokens_trial);
+eventTimes.reward = eventTimes.reward(is_tokens_trial);
 
 % A. Foundational Conditions
 conditions.is_familiar = contains(trialInfo.cueFile, 'fam');

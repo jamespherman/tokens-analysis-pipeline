@@ -73,9 +73,11 @@ Code should be organized into logical sections using `%%` headers. For example:
 ```
 
 ---
-## General Principles
+## Conventions
 
-### **Selecting Trials by Task**
+### **Analysis Pipeline**
+
+#### **1. Selecting Trials by Task**
 It is crucial to filter trials based on the specific task being analyzed. Neural responses are highly task-dependent, and calculations must be performed only on the relevant behavioral data. Use the `session_data.trialInfo.taskCode` field to select trials corresponding to a given task.
 
 First, load the task code definitions, then create a logical mask to select the desired trial indices.
@@ -91,6 +93,11 @@ tokens_trial_indices = session_data.trialInfo.taskCode == codes.uniqueTaskCode_t
 % Subsequent analyses should use these indices to filter the data
 valid_cue_on_times = session_data.eventTimes.CUE_ON(tokens_trial_indices);
 ```
+
+#### **2. Condition Mask Compatibility**
+When creating logical masks for different experimental conditions, ensure they are compatible with the data they are intended to select. This means the masks should have the same number of elements as the trials for the specific task being analyzed.
+
+For example, the `define_task_conditions.m` function is designed to generate condition masks specifically for 'tokens' trials. It first filters the session data to include only rewarded tokens trials and then creates masks that are the same length as this filtered set of trials. This ensures that the masks can be directly applied to `core_data` arrays, which are also filtered for tokens trials.
 
 ### **Interpreting Specific Task Data**
 The `gSac_jph` task has special properties that can be leveraged during analysis. Memory-guided saccade trials within this task are intentionally placed at the neuron's estimated receptive/movement field center. This experimental design allows for two major simplifications:
