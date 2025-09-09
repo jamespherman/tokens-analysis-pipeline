@@ -181,63 +181,6 @@ colors.norm_rare_high = [0.9, 0.6, 0];   % Orange
 % Plotting parameters
 psth_smoothing_width = 5; % bins
 
-% --- Manually define subplot positions for proportional widths ---
-time_windows = [2, 2, 5.5]; % Durations for Cue, Outcome, Reward
-total_time = sum(time_windows);
-proportions = time_windows / total_time;
-
-% Layout settings for a 3-row plot
-left_margin = 0.07;
-right_margin = 0.03;
-top_margin = 0.1;
-bottom_margin = 0.1;
-h_gap = 0.04; % Horizontal gap
-v_gap = 0.06; % Vertical gap for main rows
-
-plot_area_width = 1 - left_margin - right_margin - 2 * h_gap;
-% 2 gaps for 3 main content rows
-plot_area_height = 1 - top_margin - bottom_margin - 2 * v_gap;
-
-col_widths = plot_area_width * proportions;
-main_row_height = plot_area_height / 3;
-% Top content row is split into two for the heatmaps
-heatmap_height = main_row_height / 2;
-
-% Pre-calculate left positions for each column to simplify definitions
-left_pos(1) = left_margin;
-left_pos(2) = left_margin + col_widths(1) + h_gap;
-left_pos(3) = left_margin + col_widths(1) + col_widths(2) + 2*h_gap;
-
-% Pre-calculate bottom positions for each row
-bottom_pos_pupil = bottom_margin;
-bottom_pos_psth = bottom_margin + main_row_height + v_gap;
-bottom_pos_heatmap2 = bottom_margin + 2*main_row_height + 2*v_gap;
-bottom_pos_heatmap1 = bottom_pos_heatmap2 + heatmap_height;
-
-% --- Calculate all positions [left, bottom, width, height] ---
-pos = cell(4, 3); % 4 rows of axes: 2 for heatmaps, 1 for PSTH, 1 for Pupil
-
-% Top Row, Part 1: Top heatmap (e.g., condition 1)
-for i = 1:3
-    pos{1,i} = [left_pos(i), bottom_pos_heatmap1, col_widths(i), heatmap_height];
-end
-
-% Top Row, Part 2: Bottom heatmap (e.g., condition 2)
-for i = 1:3
-    pos{2,i} = [left_pos(i), bottom_pos_heatmap2, col_widths(i), heatmap_height];
-end
-
-% Middle Row: Grand-average PSTH
-for i = 1:3
-    pos{3,i} = [left_pos(i), bottom_pos_psth, col_widths(i), main_row_height];
-end
-
-% Bottom Row: Pupil traces
-for i = 1:3
-    pos{4,i} = [left_pos(i), bottom_pos_pupil, col_widths(i), main_row_height];
-end
-
-
 % --- Pre-calculate PSTHs and determine global color scale for heatmaps ---
 if any(selected_neurons)
     all_psth_matrices = [];
@@ -272,21 +215,19 @@ xlim_win = core_data.spikes.(event_name).window;
 
 % Top Row: Per-neuron heatmaps
 if any(selected_neurons)
-    % Top heatmap: Normal distribution
-    h(1,1) = axes('Position', pos{1,1});
+    h(1,1) = mySubPlot([6,3,1]);
     imagesc(time_vec, 1:size(psth_norm, 1), psth_norm);
     clim(c_lims);
     ylabel('Neurons');
 
-    % Bottom heatmap: Uniform distribution
-    h(2,1) = axes('Position', pos{2,1});
+    h(2,1) = mySubPlot([6,3,4]);
     imagesc(time_vec, 1:size(psth_unif, 1), psth_unif);
     clim(c_lims);
     ylabel('Neurons');
 end
 
 % Middle Row: Grand-average PSTH
-h(3,1) = axes('Position', pos{3,1});
+h(3,1) = mySubPlot([3,3,4]);
 hold on;
 if any(selected_neurons)
     barStairsFill(time_vec, grand_mean_norm, 'FaceColor', colors.normal_dist, 'EdgeColor', 'none');
@@ -298,7 +239,7 @@ end
 xline(0, 'k--');
 
 % Bottom Row: Pupil Trace
-h(4,1) = axes('Position', pos{4,1});
+h(4,1) = mySubPlot([3,3,7]);
 hold on;
 traces = core_data.pupil.(event_name).traces;
 time_vec_pupil = core_data.pupil.(event_name).time_vector;
@@ -320,17 +261,17 @@ xlim_win = core_data.spikes.(event_name).window;
 
 % Top Row: Per-neuron heatmaps
 if any(selected_neurons)
-    h(1,2) = axes('Position', pos{1,2});
+    h(1,2) = mySubPlot([6,3,2]);
     imagesc(time_vec, 1:size(psth_common, 1), psth_common);
     clim(c_lims);
 
-    h(2,2) = axes('Position', pos{2,2});
+    h(2,2) = mySubPlot([6,3,5]);
     imagesc(time_vec, 1:size(psth_rare, 1), psth_rare);
     clim(c_lims);
 end
 
 % Middle Row: Grand-average PSTH
-h(3,2) = axes('Position', pos{3,2});
+h(3,2) = mySubPlot([3,3,5]);
 hold on;
 if any(selected_neurons)
     barStairsFill(time_vec, grand_mean_common, 'FaceColor', colors.norm_common, 'EdgeColor', 'none');
@@ -341,7 +282,7 @@ end
 xline(0, 'k--');
 
 % Bottom Row: Pupil Trace
-h(4,2) = axes('Position', pos{4,2});
+h(4,2) = mySubPlot([3,3,8]);
 hold on;
 traces = core_data.pupil.(event_name).traces;
 time_vec_pupil = core_data.pupil.(event_name).time_vector;
@@ -362,18 +303,18 @@ xlim_win = core_data.spikes.(event_name).window;
 
 % Top Row: Per-neuron heatmaps
 if any(selected_neurons)
-    h(1,3) = axes('Position', pos{1,3});
+    h(1,3) = mySubPlot([6,3,3]);
     imagesc(time_vec, 1:size(psth_common_rew, 1), psth_common_rew);
     clim(c_lims);
 
-    h(2,3) = axes('Position', pos{2,3});
+    h(2,3) = mySubPlot([6,3,6]);
     imagesc(time_vec, 1:size(psth_rare_rew, 1), psth_rare_rew);
     clim(c_lims);
-    colorbar; % Add colorbar to the last heatmap
+    colorbar;
 end
 
 % Middle Row: Grand-average PSTH
-h(3,3) = axes('Position', pos{3,3});
+h(3,3) = mySubPlot([3,3,6]);
 hold on;
 if any(selected_neurons)
     barStairsFill(time_vec, grand_mean_common_rew, 'FaceColor', colors.norm_common, 'EdgeColor', 'none');
@@ -384,7 +325,7 @@ end
 xline(0, 'k--');
 
 % Bottom Row: Pupil Trace
-h(4,3) = axes('Position', pos{4,3});
+h(4,3) = mySubPlot([3,3,9]);
 hold on;
 traces = core_data.pupil.(event_name).traces;
 time_vec_pupil = core_data.pupil.(event_name).time_vector;
@@ -401,7 +342,9 @@ xline(0, 'k--');
 % --- De-clutter axes for clarity ---
 if any(selected_neurons)
     % Remove X-tick labels from all but the bottom row (pupil)
-    set(h(1:3, :), 'XTickLabel', []);
+    all_axes = findobj(fig, 'Type', 'axes');
+    psth_and_heatmap_axes = all_axes(~ismember(all_axes, h(4,:)));
+    set(psth_and_heatmap_axes, 'XTickLabel', []);
 
     % Remove Y-tick labels from all but the left-most column
     set(h(:, 2:3), 'YTickLabel', []);
