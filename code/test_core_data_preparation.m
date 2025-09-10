@@ -166,451 +166,317 @@ giveFeed('Step 5: Defining task conditions...');
 [conditions, is_av_session] = define_task_conditions(session_data.trialInfo, ...
     session_data.eventTimes, session_data.metadata.unique_id);
 
-%% Generate Verification Plots
-giveFeed('Step 6: Generating verification plots...');
-fig = figure('Position', [100, 100, 1200, 700]);
-fig.PaperPositionMode = 'auto';
+%% PLOTTING CONFIGURATION
+giveFeed('Step 6: Configuring plots...');
 
-% Define colors for conditions
+% --- Define Colors ---
 colors = struct();
 colors.normal_dist = [0.2, 0.2, 0.8]; % Blue
 colors.uniform_dist = [0.8, 0.2, 0.2]; % Red
 colors.norm_common = [0.5, 0.5, 0.5]; % Gray
 colors.norm_rare_high = [0.9, 0.6, 0];   % Orange
+colors.flicker_surprising = [0.8, 0.2, 0.8]; % Magenta
+colors.flicker_certain = [0.2, 0.8, 0.2]; % Green
 
-% Plotting parameters
-psth_smoothing_width = 5; % bins
-
-% --- Pre-calculate PSTHs and determine global color scale for heatmaps ---
+% --- Pre-calculate data for all plots ---
 if any(selected_neurons)
-    % --- Column 1: Aligned to CUE_ON ---
+    % --- RPE Data ---
+    % CUE_ON
     rates = core_data.spikes.CUE_ON.rates;
-    [grand_mean_norm, psth_norm] = calculate_mean_psth(rates, ...
-        conditions.is_normal_dist);
-    [grand_mean_unif, psth_unif] = calculate_mean_psth(rates, ...
-        conditions.is_uniform_dist);
-
-    % --- Column 2: Aligned to outcomeOn ---
+    [grand_mean_norm, psth_norm] = calculate_mean_psth(rates, conditions.is_normal_dist);
+    [grand_mean_unif, psth_unif] = calculate_mean_psth(rates, conditions.is_uniform_dist);
+    % outcomeOn
     rates = core_data.spikes.outcomeOn.rates;
-    [grand_mean_common, psth_common] = calculate_mean_psth(rates, ...
-        conditions.is_norm_common);
-    [grand_mean_rare, psth_rare] = calculate_mean_psth(rates, ...
-        conditions.is_norm_rare_high);
-
-    % --- Column 3: Aligned to reward ---
+    [grand_mean_common, psth_common] = calculate_mean_psth(rates, conditions.is_norm_common);
+    [grand_mean_rare, psth_rare] = calculate_mean_psth(rates, conditions.is_norm_rare_high);
+    % reward
     rates = core_data.spikes.reward.rates;
-    [grand_mean_common_rew, psth_common_rew] = calculate_mean_psth( ...
-        rates, conditions.is_norm_common);
-    [grand_mean_rare_rew, psth_rare_rew] = calculate_mean_psth(rates, ...
-        conditions.is_norm_rare_high);
+    [grand_mean_common_rew, psth_common_rew] = calculate_mean_psth(rates, conditions.is_norm_common);
+    [grand_mean_rare_rew, psth_rare_rew] = calculate_mean_psth(rates, conditions.is_norm_rare_high);
 
-    % Determine the common color scale by finding the max of all PSTHs
-    all_psth = {psth_norm, psth_unif, psth_common, psth_rare, ...
-                psth_common_rew, psth_rare_rew};
+    % --- SPE Data (if applicable) ---
+    if is_av_session
+        % CUE_ON
+        rates = core_data.spikes.CUE_ON.rates;
+        [grand_mean_surprising_cue, psth_surprising_cue] = calculate_mean_psth(rates, conditions.is_flicker_surprising);
+        [grand_mean_certain_cue, psth_certain_cue] = calculate_mean_psth(rates, conditions.is_flicker_certain);
+        % outcomeOn
+        rates = core_data.spikes.outcomeOn.rates;
+        [grand_mean_surprising_outcome, psth_surprising_outcome] = calculate_mean_psth(rates, conditions.is_flicker_surprising);
+        [grand_mean_certain_outcome, psth_certain_outcome] = calculate_mean_psth(rates, conditions.is_flicker_certain);
+        % reward
+        rates = core_data.spikes.reward.rates;
+        [grand_mean_surprising_reward, psth_surprising_reward] = calculate_mean_psth(rates, conditions.is_flicker_surprising);
+        [grand_mean_certain_reward, psth_certain_reward] = calculate_mean_psth(rates, conditions.is_flicker_certain);
+    end
+
+    % --- Determine common color scale for heatmaps ---
+    all_psth = {psth_norm, psth_unif, psth_common, psth_rare, psth_common_rew, psth_rare_rew};
+    if is_av_session
+        all_psth = [all_psth, {psth_surprising_cue, psth_certain_cue, ...
+            psth_surprising_outcome, psth_certain_outcome, ...
+            psth_surprising_reward, psth_certain_reward}];
+    end
     all_maxes = cellfun(@(x) max(x, [], 'all'), all_psth);
     max_rate = max(all_maxes);
     c_lims = [0, max_rate];
 end
 
-% --- Column 1: Aligned to CUE_ON ---
-event_name = 'CUE_ON';
-time_vec = core_data.spikes.(event_name).time_vector;
-xlim_win = core_data.spikes.(event_name).window;
+% --- Master Figure Configuration ---
+figures = struct();
 
-% Top Row: Per-neuron heatmaps
+% --- RPE Figure Definition ---
+figures.RPE.title = sprintf('Core Data Verification (RPE): %s', unique_id);
+figures.RPE.fileName = fullfile(project_root, 'figures', [unique_id '_RPE_verification.pdf']);
+figures.RPE.panel_config = [];
+
 if any(selected_neurons)
-    h(1,1) = mySubPlot([6,3,1]);
-    imagesc(time_vec, 1:size(psth_norm, 1), psth_norm);
-    clim(c_lims);
-    colormap(flipud(bone(256)))
-    ylabel('Neurons');
+    align_events = {'CUE_ON', 'outcomeOn', 'reward'};
+    psth_data_rpe = {{psth_norm, psth_unif}, {psth_common, psth_rare}, {psth_common_rew, psth_rare_rew}};
+    grand_mean_data_rpe = {{grand_mean_norm, grand_mean_unif}, {grand_mean_common, grand_mean_rare}, {grand_mean_common_rew, grand_mean_rare_rew}};
+    pupil_conditions_rpe = {{conditions.is_normal_dist, conditions.is_uniform_dist}, {conditions.is_norm_common, conditions.is_norm_rare_high}, {conditions.is_norm_common, conditions.is_norm_rare_high}};
+    color_sets_rpe = {{colors.normal_dist, colors.uniform_dist}, {colors.norm_common, colors.norm_rare_high}, {colors.norm_common, colors.norm_rare_high}};
+    legend_sets_rpe = {{'Normal Dist', 'Uniform Dist'}, {'Common', 'Rare High'}, {'Common', 'Rare High'}};
 
-    h(2,1) = mySubPlot([6,3,4]);
-    imagesc(time_vec, 1:size(psth_unif, 1), psth_unif);
-    clim(c_lims);
-    colormap(flipud(bone(256)))
-    ylabel('Neurons');
+    p = 1;
+    % Row 1: Heatmaps (cond 1)
+    for i_align = 1:numel(align_events)
+        align_event = align_events{i_align};
+        figures.RPE.panel_config(p).dataType = 'Heatmap';
+        figures.RPE.panel_config(p).alignEvent = align_event;
+        figures.RPE.panel_config(p).xdata = {core_data.spikes.(align_event).time_vector};
+        figures.RPE.panel_config(p).ydata = {psth_data_rpe{i_align}{1}};
+        figures.RPE.panel_config(p).c_lims = c_lims;
+        p = p+1;
+    end
+    % Row 2: Heatmaps (cond 2)
+    for i_align = 1:numel(align_events)
+        align_event = align_events{i_align};
+        figures.RPE.panel_config(p).dataType = 'Heatmap';
+        figures.RPE.panel_config(p).alignEvent = align_event;
+        figures.RPE.panel_config(p).xdata = {core_data.spikes.(align_event).time_vector};
+        figures.RPE.panel_config(p).ydata = {psth_data_rpe{i_align}{2}};
+        figures.RPE.panel_config(p).c_lims = c_lims;
+        p = p+1;
+    end
+    % Row 3: PSTHs
+    for i_align = 1:numel(align_events)
+        align_event = align_events{i_align};
+        figures.RPE.panel_config(p).dataType = 'PSTH';
+        figures.RPE.panel_config(p).alignEvent = align_event;
+        figures.RPE.panel_config(p).xdata = {core_data.spikes.(align_event).time_vector, core_data.spikes.(align_event).time_vector};
+        figures.RPE.panel_config(p).ydata = grand_mean_data_rpe{i_align};
+        figures.RPE.panel_config(p).colors = cell2mat(color_sets_rpe{i_align}');
+        figures.RPE.panel_config(p).legendStrings = legend_sets_rpe{i_align};
+        p = p+1;
+    end
+    % Row 4: Pupil
+    for i_align = 1:numel(align_events)
+        align_event = align_events{i_align};
+        figures.RPE.panel_config(p).dataType = 'Pupil';
+        figures.RPE.panel_config(p).alignEvent = align_event;
+        figures.RPE.panel_config(p).xdata = {core_data.pupil.(align_event).time_vector, core_data.pupil.(align_event).time_vector};
+        mean_trace1 = mean(core_data.pupil.(align_event).traces(pupil_conditions_rpe{i_align}{1}, :), 1, 'omitnan');
+        mean_trace2 = mean(core_data.pupil.(align_event).traces(pupil_conditions_rpe{i_align}{2}, :), 1, 'omitnan');
+        figures.RPE.panel_config(p).ydata = {mean_trace1, mean_trace2};
+        figures.RPE.panel_config(p).colors = cell2mat(color_sets_rpe{i_align}');
+        p = p+1;
+    end
 end
 
-% Middle Row: Grand-average PSTH
-h(3,1) = mySubPlot([3,3,4]);
-hold on;
-if any(selected_neurons)
-    hb = barStairsFill(time_vec, zeros(size(grand_mean_norm)), ...
-        grand_mean_norm);
-    delete(hb(1:2))
-    set(hb(3), 'Color', colors.normal_dist);
-    hb = barStairsFill(time_vec, zeros(size(grand_mean_unif)), ...
-        grand_mean_unif);
-    delete(hb(1:2))
-    set(hb(3), 'Color', colors.uniform_dist);
-    ylabel('Firing Rate (spikes/s)');
-    xlim(xlim_win);
-    grid on;
-end
-xline(0, 'k--');
-
-% Bottom Row: Pupil Trace
-h(4,1) = mySubPlot([3,3,7]);
-hold on;
-traces = core_data.pupil.(event_name).traces;
-time_vec_pupil = core_data.pupil.(event_name).time_vector;
-xlim_win_pupil = core_data.pupil.(event_name).window;
-mean_trace_norm = mean(traces(conditions.is_normal_dist, :), 1, 'omitnan');
-plot(time_vec_pupil, mean_trace_norm, 'Color', colors.normal_dist, 'LineWidth', 1.5);
-mean_trace_unif = mean(traces(conditions.is_uniform_dist, :), 1, 'omitnan');
-plot(time_vec_pupil, mean_trace_unif, 'Color', colors.uniform_dist, 'LineWidth', 1.5);
-ylabel('Pupil Size (norm.)');
-xlabel(['Time from ' strrep(event_name, '_', ' ') ' (s)']);
-xlim(xlim_win_pupil);
-grid on;
-xline(0, 'k--');
-
-% --- Column 2: Aligned to outcomeOn ---
-event_name = 'outcomeOn';
-time_vec = core_data.spikes.(event_name).time_vector;
-xlim_win = core_data.spikes.(event_name).window;
-
-% Top Row: Per-neuron heatmaps
-if any(selected_neurons)
-    h(1,2) = mySubPlot([6,3,2]);
-    imagesc(time_vec, 1:size(psth_common, 1), psth_common);
-    clim(c_lims);
-    colormap(flipud(bone(256)))
-
-    h(2,2) = mySubPlot([6,3,5]);
-    imagesc(time_vec, 1:size(psth_rare, 1), psth_rare);
-    clim(c_lims);
-    colormap(flipud(bone(256)))
-end
-
-% Middle Row: Grand-average PSTH
-h(3,2) = mySubPlot([3,3,5]);
-hold on;
-if any(selected_neurons)
-    hb = barStairsFill(time_vec, zeros(size(grand_mean_common)), ...
-        grand_mean_common);
-    delete(hb(1:2))
-    set(hb(3), 'Color', colors.norm_common);
-    hb = barStairsFill(time_vec, zeros(size(grand_mean_rare)), ...
-        grand_mean_rare);
-    delete(hb(1:2))
-    set(hb(3), 'Color', colors.norm_rare_high);
-    xlim(xlim_win);
-    grid on;
-end
-xline(0, 'k--');
-
-% Bottom Row: Pupil Trace
-h(4,2) = mySubPlot([3,3,8]);
-hold on;
-traces = core_data.pupil.(event_name).traces;
-time_vec_pupil = core_data.pupil.(event_name).time_vector;
-xlim_win_pupil = core_data.pupil.(event_name).window;
-mean_trace_common = mean(traces(conditions.is_norm_common, :), 1, 'omitnan');
-plot(time_vec_pupil, mean_trace_common, 'Color', colors.norm_common, 'LineWidth', 1.5);
-mean_trace_rare = mean(traces(conditions.is_norm_rare_high, :), 1, 'omitnan');
-plot(time_vec_pupil, mean_trace_rare, 'Color', colors.norm_rare_high, 'LineWidth', 1.5);
-xlabel(['Time from ' strrep(event_name, '_', ' ') ' (s)']);
-xlim(xlim_win_pupil);
-grid on;
-xline(0, 'k--');
-
-% --- Column 3: Aligned to reward ---
-event_name = 'reward';
-time_vec = core_data.spikes.(event_name).time_vector;
-xlim_win = core_data.spikes.(event_name).window;
-
-% Top Row: Per-neuron heatmaps
-if any(selected_neurons)
-    h(1,3) = mySubPlot([6,3,3]);
-    imagesc(time_vec, 1:size(psth_common_rew, 1), psth_common_rew);
-    clim(c_lims);
-    colormap(flipud(bone(256)))
-
-    h(2,3) = mySubPlot([6,3,6]);
-    imagesc(time_vec, 1:size(psth_rare_rew, 1), psth_rare_rew);
-    clim(c_lims);
-    colormap(flipud(bone(256)))
-end
-
-% Middle Row: Grand-average PSTH
-h(3,3) = mySubPlot([3,3,6]);
-hold on;
-if any(selected_neurons)
-    hb = barStairsFill(time_vec, zeros(size(grand_mean_common_rew)), ...
-        grand_mean_common_rew);
-    delete(hb(1:2))
-    set(hb(3), 'Color', colors.norm_common);
-    hb = barStairsFill(time_vec, zeros(size(grand_mean_rare_rew)), ...
-        grand_mean_rare_rew);
-    delete(hb(1:2))
-    set(hb(3), 'Color', colors.norm_rare_high);
-    xlim(xlim_win);
-    grid on;
-end
-xline(0, 'k--');
-
-% Bottom Row: Pupil Trace
-h(4,3) = mySubPlot([3,3,9]);
-hold on;
-traces = core_data.pupil.(event_name).traces;
-time_vec_pupil = core_data.pupil.(event_name).time_vector;
-xlim_win_pupil = core_data.pupil.(event_name).window;
-mean_trace_common = mean(traces(conditions.is_norm_common, :), 1, 'omitnan');
-plot(time_vec_pupil, mean_trace_common, 'Color', colors.norm_common, 'LineWidth', 1.5);
-mean_trace_rare = mean(traces(conditions.is_norm_rare_high, :), 1, 'omitnan');
-plot(time_vec_pupil, mean_trace_rare, 'Color', colors.norm_rare_high, 'LineWidth', 1.5);
-xlabel(['Time from ' strrep(event_name, '_', ' ') ' (s)']);
-xlim(xlim_win_pupil);
-grid on;
-xline(0, 'k--');
-
-% --- De-clutter axes for clarity ---
-if any(selected_neurons)
-    % Remove X-tick labels from all but the bottom row (pupil)
-    all_axes = findobj(fig, 'Type', 'axes');
-    psth_and_heatmap_axes = all_axes(~ismember(all_axes, h(4,:)));
-    set(psth_and_heatmap_axes, 'XTickLabel', []);
-
-    % Remove Y-tick labels from all but the left-most column
-    set(h(:, 2:3), 'YTickLabel', []);
-end
-
-sgtitle(sprintf('Core Data Verification: %s', unique_id), 'Interpreter', 'none');
-giveFeed('Done.');
-
-% --- Save the RPE figure ---
-giveFeed('Saving RPE verification figure...');
-rpe_fig_filename = fullfile(project_root, 'figures', ...
-    [unique_id '_RPE_verification.pdf']);
-pdfSave(fig, rpe_fig_filename);
-giveFeed(['RPE figure saved to: ' rpe_fig_filename]);
-
-%% Generate SPE-Focused Diagnostic Figure (if applicable)
+% --- SPE Figure Definition ---
 if is_av_session
-    giveFeed('Step 6b: Generating SPE-focused diagnostic plots...');
-    fig2 = figure('Position', [100, 100, 1200, 700]);
-    fig2.PaperPositionMode = 'auto';
+    figures.SPE.title = sprintf('Core Data Verification (SPE): %s', unique_id);
+    figures.SPE.fileName = fullfile(project_root, 'figures', [unique_id '_SPE_verification.pdf']);
+    figures.SPE.panel_config = [];
 
-    % --- Pre-calculate PSTHs for SPE conditions ---
     if any(selected_neurons)
-        % Aligned to CUE_ON
-        rates = core_data.spikes.CUE_ON.rates;
-        [grand_mean_surprising_cue, psth_surprising_cue] = ...
-            calculate_mean_psth(rates, conditions.is_flicker_surprising);
-        [grand_mean_certain_cue, psth_certain_cue] = ...
-            calculate_mean_psth(rates, conditions.is_flicker_certain);
+        align_events = {'CUE_ON', 'outcomeOn', 'reward'};
+        psth_data_spe = {{psth_surprising_cue, psth_certain_cue}, {psth_surprising_outcome, psth_certain_outcome}, {psth_surprising_reward, psth_certain_reward}};
+        grand_mean_data_spe = {{grand_mean_surprising_cue, grand_mean_certain_cue}, {grand_mean_surprising_outcome, grand_mean_certain_outcome}, {grand_mean_surprising_reward, grand_mean_certain_reward}};
+        pupil_conditions_spe = {{conditions.is_flicker_surprising, conditions.is_flicker_certain}, {conditions.is_flicker_surprising, conditions.is_flicker_certain}, {conditions.is_flicker_surprising, conditions.is_flicker_certain}};
+        color_sets_spe = {{colors.flicker_surprising, colors.flicker_certain}, {colors.flicker_surprising, colors.flicker_certain}, {colors.flicker_surprising, colors.flicker_certain}};
+        legend_sets_spe = {{'Surprising', 'Certain'}, {'Surprising', 'Certain'}, {'Surprising', 'Certain'}};
 
-        % Aligned to outcomeOn
-        rates = core_data.spikes.outcomeOn.rates;
-        [grand_mean_surprising_outcome, psth_surprising_outcome] = ...
-            calculate_mean_psth(rates, conditions.is_flicker_surprising);
-        [grand_mean_certain_outcome, psth_certain_outcome] = ...
-            calculate_mean_psth(rates, conditions.is_flicker_certain);
+        p = 1;
+        % Row 1: Heatmaps (cond 1)
+        for i_align = 1:numel(align_events)
+            align_event = align_events{i_align};
+            figures.SPE.panel_config(p).dataType = 'Heatmap';
+            figures.SPE.panel_config(p).alignEvent = align_event;
+            figures.SPE.panel_config(p).xdata = {core_data.spikes.(align_event).time_vector};
+            figures.SPE.panel_config(p).ydata = {psth_data_spe{i_align}{1}};
+            figures.SPE.panel_config(p).c_lims = c_lims;
+            p = p+1;
+        end
+        % Row 2: Heatmaps (cond 2)
+        for i_align = 1:numel(align_events)
+            align_event = align_events{i_align};
+            figures.SPE.panel_config(p).dataType = 'Heatmap';
+            figures.SPE.panel_config(p).alignEvent = align_event;
+            figures.SPE.panel_config(p).xdata = {core_data.spikes.(align_event).time_vector};
+            figures.SPE.panel_config(p).ydata = {psth_data_spe{i_align}{2}};
+            figures.SPE.panel_config(p).c_lims = c_lims;
+            p = p+1;
+        end
+        % Row 3: PSTHs
+        for i_align = 1:numel(align_events)
+            align_event = align_events{i_align};
+            figures.SPE.panel_config(p).dataType = 'PSTH';
+            figures.SPE.panel_config(p).alignEvent = align_event;
+            figures.SPE.panel_config(p).xdata = {core_data.spikes.(align_event).time_vector, core_data.spikes.(align_event).time_vector};
+            figures.SPE.panel_config(p).ydata = grand_mean_data_spe{i_align};
+            figures.SPE.panel_config(p).colors = cell2mat(color_sets_spe{i_align}');
+            figures.SPE.panel_config(p).legendStrings = legend_sets_spe{i_align};
+            p = p+1;
+        end
+        % Row 4: Pupil
+        for i_align = 1:numel(align_events)
+            align_event = align_events{i_align};
+            figures.SPE.panel_config(p).dataType = 'Pupil';
+            figures.SPE.panel_config(p).alignEvent = align_event;
+            figures.SPE.panel_config(p).xdata = {core_data.pupil.(align_event).time_vector, core_data.pupil.(align_event).time_vector};
+            mean_trace1 = mean(core_data.pupil.(align_event).traces(pupil_conditions_spe{i_align}{1}, :), 1, 'omitnan');
+            mean_trace2 = mean(core_data.pupil.(align_event).traces(pupil_conditions_spe{i_align}{2}, :), 1, 'omitnan');
+            figures.SPE.panel_config(p).ydata = {mean_trace1, mean_trace2};
+            figures.SPE.panel_config(p).colors = cell2mat(color_sets_spe{i_align}');
+            p = p+1;
+        end
+    end
+end
 
-        % Aligned to reward
-        rates = core_data.spikes.reward.rates;
-        [grand_mean_surprising_reward, psth_surprising_reward] = ...
-            calculate_mean_psth(rates, conditions.is_flicker_surprising);
-        [grand_mean_certain_reward, psth_certain_reward] = ...
-            calculate_mean_psth(rates, conditions.is_flicker_certain);
+%% GENERATE PLOTS
+giveFeed('Step 7: Generating plots...');
+
+figure_names = fieldnames(figures);
+for i_fig = 1:numel(figure_names)
+    fig_name = figure_names{i_fig};
+    fig_config = figures.(fig_name);
+
+    if isempty(fig_config.panel_config)
+        continue;
     end
 
-    % Define colors for SPE conditions
-    colors.flicker_surprising = [0.8, 0.2, 0.8]; % Magenta
-    colors.flicker_certain = [0.2, 0.8, 0.2]; % Green
+    fig_h = figure('Position', [100, 100, 1200, 700]);
+    fig_h.PaperPositionMode = 'auto';
 
-    % --- Column 1: Aligned to CUE_ON ---
-    event_name = 'CUE_ON';
-    time_vec = core_data.spikes.(event_name).time_vector;
-    xlim_win = core_data.spikes.(event_name).window;
+    % --- Layout Calculation ---
+    n_cols = 3;
+    n_rows = 4; % 2xHeatmap, 1xPSTH, 1xPupil
 
-    % Top Row: Per-neuron heatmaps
-    if any(selected_neurons)
-        h2(1,1) = mySubPlot(6,3,1);
-        imagesc(time_vec, 1:size(psth_surprising_cue, 1), psth_surprising_cue);
-        clim(c_lims);
-        colormap(flipud(bone(256)))
-        ylabel('Neurons');
+    % Proportional widths
+    time_windows = [diff(core_data.spikes.CUE_ON.window), ...
+                    diff(core_data.spikes.outcomeOn.window), ...
+                    diff(core_data.spikes.reward.window)];
+    proportions = time_windows / sum(time_windows);
+    left_margin = 0.07; right_margin = 0.05; h_gap = 0.06;
+    plot_area_width = 1 - left_margin - right_margin - (n_cols-1)*h_gap;
+    col_widths = plot_area_width * proportions;
 
-        h2(2,1) = mySubPlot(6,3,4);
-        imagesc(time_vec, 1:size(psth_certain_cue, 1), psth_certain_cue);
-        clim(c_lims);
-        colormap(flipud(bone(256)))
-        ylabel('Neurons');
+    col_lefts = zeros(1, n_cols);
+    col_lefts(1) = left_margin;
+    for i_col = 2:n_cols
+        col_lefts(i_col) = col_lefts(i_col-1) + col_widths(i_col-1) + h_gap;
     end
 
-    % Middle Row: Grand-average PSTH
-    h2(3,1) = mySubPlot(3,3,4);
-    hold on;
-    if any(selected_neurons)
-        hb = barStairsFill(time_vec, zeros(size(grand_mean_surprising_cue)), ...
-            grand_mean_surprising_cue);
-        delete(hb(1:2))
-        set(hb(3), 'Color', colors.flicker_surprising);
-        hb = barStairsFill(time_vec, zeros(size(grand_mean_certain_cue)), ...
-            grand_mean_certain_cue);
-        delete(hb(1:2))
-        set(hb(3), 'Color', colors.flicker_certain);
-        ylabel('Firing Rate (spikes/s)');
-        xlim(xlim_win);
-        grid on;
-    end
-    xline(0, 'k--');
+    % Fixed heights
+    row_proportions = [0.15, 0.15, 0.3, 0.3]; % Relative heights
+    top_margin = 0.1; bottom_margin = 0.1; v_gap = 0.08;
+    plot_area_height = 1 - top_margin - bottom_margin - (n_rows-1)*v_gap;
+    row_heights = plot_area_height * row_proportions;
 
-    % Bottom Row: Pupil Trace
-    h2(4,1) = mySubPlot(3,3,7);
-    hold on;
-    traces = core_data.pupil.(event_name).traces;
-    time_vec_pupil = core_data.pupil.(event_name).time_vector;
-    xlim_win_pupil = core_data.pupil.(event_name).window;
-    mean_trace_surprising = mean(traces(conditions.is_flicker_surprising, :), 1, 'omitnan');
-    plot(time_vec_pupil, mean_trace_surprising, 'Color', colors.flicker_surprising, 'LineWidth', 1.5);
-    mean_trace_certain = mean(traces(conditions.is_flicker_certain, :), 1, 'omitnan');
-    plot(time_vec_pupil, mean_trace_certain, 'Color', colors.flicker_certain, 'LineWidth', 1.5);
-    ylabel('Pupil Size (norm.)');
-    xlabel(['Time from ' strrep(event_name, '_', ' ') ' (s)']);
-    xlim(xlim_win_pupil);
-    grid on;
-    xline(0, 'k--');
-
-    % --- Column 2: Aligned to outcomeOn ---
-    event_name = 'outcomeOn';
-    time_vec = core_data.spikes.(event_name).time_vector;
-    xlim_win = core_data.spikes.(event_name).window;
-
-    % Top Row: Per-neuron heatmaps
-    if any(selected_neurons)
-        h2(1,2) = mySubPlot(6,3,2);
-        imagesc(time_vec, 1:size(psth_surprising_outcome, 1), psth_surprising_outcome);
-        clim(c_lims);
-        colormap(flipud(bone(256)))
-
-        h2(2,2) = mySubPlot(6,3,5);
-        imagesc(time_vec, 1:size(psth_certain_outcome, 1), psth_certain_outcome);
-        clim(c_lims);
-        colormap(flipud(bone(256)))
+    row_bottoms = zeros(1, n_rows);
+    row_bottoms(n_rows) = bottom_margin;
+    for i_row = (n_rows-1):-1:1
+        row_bottoms(i_row) = row_bottoms(i_row+1) + row_heights(i_row+1) + v_gap;
     end
 
-    % Middle Row: Grand-average PSTH
-    h2(3,2) = mySubPlot(3,3,5);
-    hold on;
-    if any(selected_neurons)
-        hb = barStairsFill(time_vec, zeros(size(grand_mean_surprising_outcome)), ...
-            grand_mean_surprising_outcome);
-        delete(hb(1:2))
-        set(hb(3), 'Color', colors.flicker_surprising);
-        hb = barStairsFill(time_vec, zeros(size(grand_mean_certain_outcome)), ...
-            grand_mean_certain_outcome);
-        delete(hb(1:2))
-        set(hb(3), 'Color', colors.flicker_certain);
-        xlim(xlim_win);
-        grid on;
-    end
-    xline(0, 'k--');
+    % --- Plotting Loop ---
+    for i_panel = 1:numel(fig_config.panel_config)
+        panel = fig_config.panel_config(i_panel);
 
-    % Bottom Row: Pupil Trace
-    h2(4,2) = mySubPlot(3,3,8);
-    hold on;
-    traces = core_data.pupil.(event_name).traces;
-    time_vec_pupil = core_data.pupil.(event_name).time_vector;
-    xlim_win_pupil = core_data.pupil.(event_name).window;
-    mean_trace_surprising = mean(traces(conditions.is_flicker_surprising, :), 1, 'omitnan');
-    plot(time_vec_pupil, mean_trace_surprising, 'Color', colors.flicker_surprising, 'LineWidth', 1.5);
-    mean_trace_certain = mean(traces(conditions.is_flicker_certain, :), 1, 'omitnan');
-    plot(time_vec_pupil, mean_trace_certain, 'Color', colors.flicker_certain, 'LineWidth', 1.5);
-    xlabel(['Time from ' strrep(event_name, '_', ' ') ' (s)']);
-    xlim(xlim_win_pupil);
-    grid on;
-    xline(0, 'k--');
+        col = rem(i_panel-1, n_cols) + 1;
+        row = floor((i_panel-1) / n_cols) + 1;
 
-    % --- Column 3: Aligned to reward ---
-    event_name = 'reward';
-    time_vec = core_data.spikes.(event_name).time_vector;
-    xlim_win = core_data.spikes.(event_name).window;
+        ax_pos = [col_lefts(col), row_bottoms(row), col_widths(col), row_heights(row)];
+        ax = axes('Position', ax_pos);
 
-    % Top Row: Per-neuron heatmaps
-    if any(selected_neurons)
-        h2(1,3) = mySubPlot(6,3,3);
-        imagesc(time_vec, 1:size(psth_surprising_reward, 1), psth_surprising_reward);
-        clim(c_lims);
-        colormap(flipud(bone(256)))
+        ax.Tag = sprintf('%s_%s_Axis', panel.alignEvent, panel.dataType);
 
-        h2(2,3) = mySubPlot(6,3,6);
-        imagesc(time_vec, 1:size(psth_certain_reward, 1), psth_certain_reward);
-        clim(c_lims);
-        colormap(flipud(bone(256)))
+        hold on;
+
+        switch panel.dataType
+            case 'Heatmap'
+                imagesc(ax, panel.xdata{1}, 1:size(panel.ydata{1}, 1), panel.ydata{1});
+                clim(ax, panel.c_lims);
+                colormap(ax, flipud(bone(256)));
+            case 'PSTH'
+                for i_trace = 1:numel(panel.ydata)
+                    hb = barStairsFill(panel.xdata{i_trace}, zeros(size(panel.ydata{i_trace})), panel.ydata{i_trace});
+                    set(hb(3), 'FaceColor', panel.colors(i_trace, :), 'EdgeColor', 'none', 'FaceAlpha', 0.7);
+                    delete(hb(1:2)); % Remove edge and baseline
+                end
+                if col == n_cols && ~isempty(panel.legendStrings)
+                    legend(ax, panel.legendStrings, 'Location', 'northeast', 'Interpreter', 'none');
+                end
+            case 'Pupil'
+                for i_trace = 1:numel(panel.ydata)
+                    plot(ax, panel.xdata{i_trace}, panel.ydata{i_trace}, 'Color', panel.colors(i_trace, :), 'LineWidth', 1.5);
+                end
+        end
+
+        xlim(ax, core_data.spikes.(panel.alignEvent).window);
+        grid(ax, 'on');
+        xline(ax, 0, 'k--', 'LineWidth', 1);
+        set(ax, 'TickDir', 'out', 'Box', 'off', 'LineWidth', 1);
     end
 
-    % Middle Row: Grand-average PSTH
-    h2(3,3) = mySubPlot(3,3,6);
-    hold on;
-    if any(selected_neurons)
-        hb = barStairsFill(time_vec, zeros(size(grand_mean_surprising_reward)), ...
-            grand_mean_surprising_reward);
-        delete(hb(1:2))
-        set(hb(3), 'Color', colors.flicker_surprising);
-        hb = barStairsFill(time_vec, zeros(size(grand_mean_certain_reward)), ...
-            grand_mean_certain_reward);
-        delete(hb(1:2))
-        set(hb(3), 'Color', colors.flicker_certain);
-        xlim(xlim_win);
-        grid on;
-    end
-    xline(0, 'k--');
+    % --- Post-Plot Formatting ---
+    all_axes = findobj(fig_h, 'Type', 'axes');
 
-    % Bottom Row: Pupil Trace
-    h2(4,3) = mySubPlot(3,3,9);
-    hold on;
-    traces = core_data.pupil.(event_name).traces;
-    time_vec_pupil = core_data.pupil.(event_name).time_vector;
-    xlim_win_pupil = core_data.pupil.(event_name).window;
-    mean_trace_surprising = mean(traces(conditions.is_flicker_surprising, :), 1, 'omitnan');
-    plot(time_vec_pupil, mean_trace_surprising, 'Color', colors.flicker_surprising, 'LineWidth', 1.5);
-    mean_trace_certain = mean(traces(conditions.is_flicker_certain, :), 1, 'omitnan');
-    plot(time_vec_pupil, mean_trace_certain, 'Color', colors.flicker_certain, 'LineWidth', 1.5);
-    xlabel(['Time from ' strrep(event_name, '_', ' ') ' (s)']);
-    xlim(xlim_win_pupil);
-    grid on;
-    xline(0, 'k--');
+    % De-clutter tick labels and add labels
+    for i_ax = 1:numel(all_axes)
+        ax = all_axes(i_ax);
+        pos = get(ax, 'Position');
 
-    % --- De-clutter axes for clarity ---
-    if any(selected_neurons)
-        % Remove X-tick labels from all but the bottom row (pupil)
-        all_axes = findobj(fig2, 'Type', 'axes');
-        psth_and_heatmap_axes = all_axes(~ismember(all_axes, h2(4,:)));
-        set(psth_and_heatmap_axes, 'XTickLabel', []);
+        is_left_col = abs(pos(1) - col_lefts(1)) < 1e-4;
 
-        % Remove Y-tick labels from all but the left-most column
-        set(h2(:, 2:3), 'YTickLabel', []);
+        current_row = 0;
+        for i_row = 1:n_rows
+            if abs(pos(2) - row_bottoms(i_row)) < 1e-4
+                current_row = i_row;
+                break;
+            end
+        end
+
+        if ~is_left_col
+            set(ax, 'YTickLabel', []);
+        else
+            if current_row == 1; ylabel(ax, 'Neurons (Cond 1)'); end
+            if current_row == 2; ylabel(ax, 'Neurons (Cond 2)'); end
+            if current_row == 3; ylabel(ax, 'Firing Rate (spikes/s)'); end
+            if current_row == 4; ylabel(ax, 'Pupil Size (norm.)'); end
+        end
+
+        if current_row ~= n_rows
+            set(ax, 'XTickLabel', []);
+        else
+            xlabel(ax, ['Time from ' strrep(ax.Tag, '_', ' ') ' (s)']);
+        end
     end
 
-    sgtitle(sprintf('SPE-Focused Data Verification: %s', unique_id), 'Interpreter', 'none');
-    giveFeed('Done with SPE-focused plots.');
+    % Link Y-axes
+    psth_axes = findobj(fig_h, 'Type', 'axes', '-regexp', 'Tag', '.*_PSTH_Axis');
+    if numel(psth_axes) > 1; linkaxes(psth_axes, 'y'); end
 
-    % --- Link Y-axes across both figures for direct comparison ---
-    giveFeed('Step 6c: Linking Y-axes across figures...');
+    pupil_axes = findobj(fig_h, 'Type', 'axes', '-regexp', 'Tag', '.*_Pupil_Axis');
+    if numel(pupil_axes) > 1; linkaxes(pupil_axes, 'y'); end
 
-    % Link PSTH plots (h from fig 1, h2 from fig 2)
-    psth_axes = [h(3, 1:3), h2(1:3)];
-    [~, y_lims_psth] = outerLims(psth_axes);
-    set(psth_axes, 'YLim', y_lims_psth);
-
-    % Link Pupil plots (h from fig 1, h2 from fig 2)
-    pupil_axes = [h(4, 1:3), h2(4:6)];
-    [~, y_lims_pupil] = outerLims(pupil_axes);
-    set(pupil_axes, 'YLim', y_lims_pupil);
-
-    set(findall(0, 'Type', 'axes'), 'TickDir', 'Out', ...
-        'Box', 'Off', 'LineWidth', 1)
-
-    % --- Save the SPE figure ---
-    giveFeed('Saving SPE verification figure...');
-    spe_fig_filename = fullfile(project_root, 'figures', ...
-        [unique_id '_SPE_verification.pdf']);
-    pdfSave(fig2, spe_fig_filename);
-    giveFeed(['SPE figure saved to: ' spe_fig_filename]);
+    % Add title and save
+    sgtitle(fig_h, fig_config.title, 'Interpreter', 'none');
+    giveFeed(['Saving ' fig_name ' verification figure...']);
+    pdfSave(fig_h, fig_config.fileName);
+    giveFeed([fig_name ' figure saved to: ' fig_config.fileName]);
 end
 
 %% Finalize and Save Manifest
