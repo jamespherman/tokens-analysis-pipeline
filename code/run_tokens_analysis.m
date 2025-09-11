@@ -16,7 +16,7 @@ clear; clc; close all;
 
 % --- USER TOGGLES ---
 % Force re-computation of all steps, even if marked 'complete'
-force_rerun = false;
+force_rerun = true;
 % --- END USER TOGGLES ---
 
 % Add utility functions to the MATLAB path
@@ -79,7 +79,8 @@ for i = 1:height(manifest)
 
     % 2. PDF Generation
     diag_output_dir_dry_run = fullfile(project_root, 'figures', unique_id);
-    if (~exist(diag_output_dir_dry_run, 'dir') || isempty(dir(fullfile(diag_output_dir_dry_run, '*.pdf')))) || force_rerun
+    if (~exist(diag_output_dir_dry_run, 'dir') || ...
+            isempty(dir(fullfile(diag_output_dir_dry_run, '*.pdf'))))
         n_total_steps = n_total_steps + 1;
     end
 
@@ -91,24 +92,28 @@ for i = 1:height(manifest)
     % 4. Analyses
     analysis_name_baseline = 'baseline_comparison';
     if isfield(analysis_plan, analysis_name_baseline)
-        conditions_to_run = analysis_plan.(analysis_name_baseline).conditions_to_run;
+        conditions_to_run = analysis_plan.( ...
+            analysis_name_baseline).conditions_to_run;
         for j = 1:length(conditions_to_run)
             condition_name = conditions_to_run{j};
             if (~isfield(session_data, 'analysis') || ...
                ~isfield(session_data.analysis, analysis_name_baseline) || ...
-               ~isfield(session_data.analysis.(analysis_name_baseline), condition_name)) || force_rerun
+               ~isfield(session_data.analysis.(analysis_name_baseline), ...
+               condition_name)) || force_rerun
                 n_total_steps = n_total_steps + 1;
             end
         end
     end
     analysis_name_roc = 'roc_comparison';
     if isfield(analysis_plan, analysis_name_roc)
-        comparisons_to_run = analysis_plan.(analysis_name_roc).comparisons_to_run;
+        comparisons_to_run = analysis_plan.( ...
+            analysis_name_roc).comparisons_to_run;
         for j = 1:length(comparisons_to_run)
             comp = comparisons_to_run(j);
             if (~isfield(session_data, 'analysis') || ...
                ~isfield(session_data.analysis, analysis_name_roc) || ...
-               ~isfield(session_data.analysis.(analysis_name_roc), comp.name)) || force_rerun
+               ~isfield(session_data.analysis.(analysis_name_roc), ...
+               comp.name)) || force_rerun
                 n_total_steps = n_total_steps + 1;
             end
         end

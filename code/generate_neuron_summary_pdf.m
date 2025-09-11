@@ -97,7 +97,8 @@ end
 % Identify valid tokens task trials:
 tokens_task_code = codes.uniqueTaskCode_tokens;
 tokens_trials = session_data.trialInfo.taskCode == ...
-    tokens_task_code & ~cellfun(@isempty, eventTimes.rewardCell);
+    tokens_task_code & ~cellfun(@isempty, ...
+    session_data.eventTimes.rewardCell);
 
 % Loop through each cluster to create a page of plots
 for i_cluster = 1:nClusters
@@ -314,7 +315,8 @@ for i_cluster = 1:nClusters
 
     text(0.1, 0.5, summary_text, 'Parent', ax_summary, ...
         'VerticalAlignment', 'middle', 'FontSize', 10);
-    title(ax_summary, 'Summary Information');
+    titleObj = title(ax_summary, 'Summary Information');
+    set(titleObj, 'Position', [0.5 1.5 0.5])
 
     %% --- Final Formatting ---
     % Find all PSTH axes by tag
@@ -382,7 +384,7 @@ badRows = false(nPsthRows, 1);
 for i = 1:nPsthRows
     badRows(i) = all((psth(i,:)) == 0 | isnan(psth(i,:)));
 end
-psth(badRows) = [];
+psth(badRows, :) = [];
 
 % compute mean rate
 n_trials = size(psth, 1);
@@ -398,7 +400,9 @@ set(ax_raster, 'xticklabel', {[]}); % No x-labels on raster
 % Plot PSTH
 if ~isempty(psth_rate)
     axes(ax_psth); % Select the correct axes
-    barStairsFill(bin_centers, psth_rate, zeros(size(psth_rate)));
+    hBS = barStairsFill(bin_centers, psth_rate, zeros(size(psth_rate)));
+    delete(hBS(2:3))
+    hBS(1).FaceColor = 'k';
     xline(ax_psth, 0, 'r--');
     xlabel(ax_psth, xlabel_text);
     if show_y_label

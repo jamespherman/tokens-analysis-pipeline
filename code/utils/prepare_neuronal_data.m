@@ -126,10 +126,16 @@ for i_event = 1:numel(alignment_events)
         end
     end
 
+    try
+
     % Store the final processed data for this event
     aligned_spikes.(event_name).rates = binned_rates;
     aligned_spikes.(event_name).time_vector = time_vector;
     aligned_spikes.(event_name).window = time_window;
+    
+    catch me
+        keyboard
+    end
 end
 
 end
