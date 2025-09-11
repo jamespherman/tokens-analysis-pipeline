@@ -35,6 +35,22 @@ N_COLS = 6;
 PSTH_WINDOW = [-0.5, 1.0]; % 1.5s window for PSTHs
 PSTH_BIN_SIZE = 0.025;     % 25ms bin size
 
+%% Layout Configuration
+% Define column counts for different sections of the plot
+N_COLS1 = 6; % For general diagnostics
+N_COLS2 = 4; % For PSTH/raster pairs
+
+% Pre-calculate subplot indices for a complex layout
+% This allows mixing plots from different conceptual grids on the same figure
+grid1_indices = reshape(1:(N_COLS1 * N_ROWS), N_COLS1, N_ROWS)';
+grid2_indices = reshape(1:(N_COLS2 * N_ROWS), N_COLS2, N_ROWS)';
+
+% Indices for the left-side plots (Waveform, ISI) using the 6-column grid
+left_plot_indices = grid1_indices(:, 1:2);
+
+% Indices for the right-side plots (PSTHs) using the 4-column grid
+right_plot_indices = grid2_indices(:, 3:4);
+
 %% Configuration
 % In-line function to report timing
 giveFeed = @(x)disp([num2str(toc) 's - ' x]);
@@ -107,9 +123,80 @@ for i_cluster = 1:nClusters
 
     spike_times = all_spike_times(all_spike_clusters == cluster_id);
 
+    %% --- Top Panel Diagnostics ---
+    % This section is now outside the conditional `do_spatial_tuning_plot`
+    % block to avoid code duplication. It uses the pre-calculated indices
+    % to place plots in a complex, multi-grid layout.
+
+    % Waveform Plot (Position 1)
+    ax_wf = mySubPlot([N_ROWS, N_COLS1, left_plot_indices(1,1)]);
+    set(ax_wf, 'Tag', 'Waveform_Axis');
+    if isfield(session_data.spikes, 'wfMeans') && ...
+            numel(session_data.spikes.wfMeans) >= i_cluster
+        plot(ax_wf, session_data.spikes.wfMeans{i_cluster}');
+        title(ax_wf, 'Mean Waveform');
+        xlabel(ax_wf, 'Samples');
+        ylabel(ax_wf, 'Amplitude (uV)');
+        axis(ax_wf, 'tight');
+    else
+        text(0.5, 0.5, 'No waveform', 'Parent', ax_wf, ...
+            'HorizontalAlignment', 'center');
+    end
+
+    % ISI Histogram (Position 2)
+    ax_isi = mySubPlot([N_ROWS, N_COLS1, left_plot_indices(1,2)]);
+    set(ax_isi, 'Tag', 'ISI_Axis');
+    if numel(spike_times) > 1
+        isi = diff(spike_times) * 1000; % ms
+        histogram(ax_isi, isi, 'EdgeColor', 'k', ...
+            'FaceColor', [0.5 0.5 0.5]);
+        set(ax_isi, 'XScale', 'log');
+        title(ax_isi, 'ISI Histogram');
+        xlabel(ax_isi, 'ISI (ms, log)');
+        ylabel(ax_isi, 'Count');
+    else
+        text(0.5, 0.5, 'No ISI', 'Parent', ax_isi, ...
+            'HorizontalAlignment', 'center');
+    end
+
+    % CUE_ON PSTH and Raster (Position 3)
+    ax_raster_cue = mySubPlot([N_ROWS, N_COLS2, right_plot_indices(1,1)]);
+    set(ax_raster_cue, 'Tag', 'Raster_Axis');
+    ax_psth_cue = mySubPlot([N_ROWS, N_COLS2, right_plot_indices(1,1) + N_COLS2]);
+    set(ax_psth_cue, 'Tag', 'PSTH_Axis');
+    if isfield(session_data.eventTimes, 'CUE_ON')
+        tokens_task_code = codes.uniqueTaskCode_tokens;
+        tokens_trials = session_data.trialInfo.taskCode == tokens_task_code;
+        event_times = session_data.eventTimes.CUE_ON;
+        valid_trials = tokens_trials & event_times > 0;
+        plot_psth_and_raster(ax_raster_cue, ax_psth_cue, spike_times, ...
+            event_times(valid_trials), PSTH_WINDOW, PSTH_BIN_SIZE, ...
+            'Cue On (Tokens)', 'Time from Cue On (s)', true);
+    else
+        text(0.5, 0.5, 'No CUE_ON event', 'Parent', ax_raster_cue, ...
+            'HorizontalAlignment', 'center');
+    end
+
+    % outcomeOn PSTH and Raster (Position 4)
+    ax_raster_outcome = mySubPlot([N_ROWS, N_COLS2, right_plot_indices(1,2)]);
+    set(ax_raster_outcome, 'Tag', 'Raster_Axis');
+    ax_psth_outcome = mySubPlot([N_ROWS, N_COLS2, right_plot_indices(1,2) + N_COLS2]);
+    set(ax_psth_outcome, 'Tag', 'PSTH_Axis');
+    if isfield(session_data.eventTimes, 'outcomeOn')
+        tokens_task_code = codes.uniqueTaskCode_tokens;
+        tokens_trials = session_data.trialInfo.taskCode == tokens_task_code;
+        event_times = session_data.eventTimes.outcomeOn;
+        valid_trials = tokens_trials & event_times > 0 & session_data.eventTimes.pdsReward > 0;
+        plot_psth_and_raster(ax_raster_outcome, ax_psth_outcome, spike_times, ...
+            event_times(valid_trials), PSTH_WINDOW, PSTH_BIN_SIZE, ...
+            'Outcome (Tokens)', 'Time from Outcome (s)', false);
+    else
+        text(0.5, 0.5, 'No outcome event', 'Parent', ax_raster_outcome, ...
+            'HorizontalAlignment', 'center');
+    end
+
     if do_spatial_tuning_plot
         %% --- Spatial Tuning Plots ---
-
         % --- Data Setup for Spatial Tuning ---
         gSac_trial_idx = session_data.trialInfo.taskCode == ...
             gSac_task_code;
@@ -124,56 +211,6 @@ for i_cluster = 1:nClusters
                 gSac_jph_memSac_trials));
         end
         n_thetas_jph = numel(unique_thetas_jph);
-
-        % --- Column 1-2: Basic Diagnostics ---
-        % Waveform Plot
-        ax_wf = mySubPlot([top_panel_grid, 1]);
-        set(ax_wf, 'Tag', 'Waveform_Axis');
-        if isfield(session_data.spikes, 'wfMeans') && ...
-                numel(session_data.spikes.wfMeans) >= i_cluster
-            plot(ax_wf, session_data.spikes.wfMeans{i_cluster}');
-            title(ax_wf, 'Mean Waveform');
-            xlabel(ax_wf, 'Samples');
-            ylabel(ax_wf, 'Amplitude (uV)');
-            axis(ax_wf, 'tight');
-        else
-            text(0.5, 0.5, 'No waveform', 'Parent', ax_wf, ...
-                'HorizontalAlignment', 'center');
-        end
-
-        % ISI Histogram
-        ax_isi = mySubPlot([top_panel_grid, 2]);
-        set(ax_isi, 'Tag', 'ISI_Axis');
-        if numel(spike_times) > 1
-            isi = diff(spike_times) * 1000; % ms
-            histogram(ax_isi, isi, 'EdgeColor', 'k', ...
-                'FaceColor', [0.5 0.5 0.5]);
-            set(ax_isi, 'XScale', 'log');
-            title(ax_isi, 'ISI Histogram');
-            xlabel(ax_isi, 'ISI (ms, log)');
-            ylabel(ax_isi, 'Count');
-        else
-            text(0.5, 0.5, 'No ISI', 'Parent', ax_isi, ...
-                'HorizontalAlignment', 'center');
-        end
-
-        % --- Column 3-4: PSTH for Tokens Task Outcome ---
-        ax_raster = mySubPlot([psth_grid, 3]);
-        set(ax_raster, 'Tag', 'Raster_Axis');
-        ax_psth = mySubPlot([psth_grid, 3 + 4]);
-        set(ax_psth, 'Tag', 'PSTH_Axis');
-        if isfield(session_data.eventTimes, 'outcomeOn')
-            event_times = session_data.eventTimes.outcomeOn;
-            valid_trials = event_times > 0 & ...
-                session_data.eventTimes.pdsReward > 0;
-            plot_psth_and_raster(ax_raster, ax_psth, spike_times, ...
-                event_times(valid_trials), PSTH_WINDOW, ...
-                PSTH_BIN_SIZE, 'Outcome (Tokens)', ...
-                'Time from Outcome (s)', true);
-        else
-            text(0.5, 0.5, 'No outcome event', 'Parent', ax_raster, ...
-                'HorizontalAlignment', 'center');
-        end
 
         % --- Column 5-6: PSTHs for gSac Tasks ---
         % gSac_4factors task
@@ -240,55 +277,8 @@ for i_cluster = 1:nClusters
                 'Time from Saccade Onset (s)', false);
         end
     else
-        %% --- Basic Plots (No Spatial Tuning) ---
-        % Waveform Plot
-        ax_wf = mySubPlot([top_panel_grid, 1]);
-        set(ax_wf, 'Tag', 'Waveform_Axis');
-        if isfield(session_data.spikes, 'wfMeans') && ...
-                numel(session_data.spikes.wfMeans) >= i_cluster
-            plot(ax_wf, session_data.spikes.wfMeans{i_cluster}');
-            title(ax_wf, 'Mean Waveform');
-            xlabel(ax_wf, 'Samples');
-            ylabel(ax_wf, 'Amplitude (uV)');
-            axis(ax_wf, 'tight');
-        else
-            text(0.5, 0.5, 'No waveform', 'Parent', ax_wf, ...
-                'HorizontalAlignment', 'center');
-        end
-
-        % ISI Histogram
-        ax_isi = mySubPlot([top_panel_grid, 2]);
-        set(ax_isi, 'Tag', 'ISI_Axis');
-        if numel(spike_times) > 1
-            isi = diff(spike_times) * 1000; % ms
-            histogram(ax_isi, isi, 'EdgeColor', 'k', 'FaceColor', ...
-                [0.5 0.5 0.5]);
-            set(ax_isi, 'XScale', 'log');
-            title(ax_isi, 'ISI Histogram');
-            xlabel(ax_isi, 'ISI (ms, log)');
-            ylabel(ax_isi, 'Count');
-        else
-            text(0.5, 0.5, 'No ISI', 'Parent', ax_isi, ...
-                'HorizontalAlignment', 'center');
-        end
-
-        % PSTH for Tokens Task Outcome
-        ax_raster = mySubPlot([psth_grid, 3]);
-        set(ax_raster, 'Tag', 'Raster_Axis');
-        ax_psth = mySubPlot([psth_grid, 3 + 4]);
-        set(ax_psth, 'Tag', 'PSTH_Axis');
-        if isfield(session_data.eventTimes, 'outcomeOn')
-            event_times = session_data.eventTimes.outcomeOn;
-            valid_trials = event_times > 0 & ...
-                session_data.eventTimes.pdsReward > 0;
-            plot_psth_and_raster(ax_raster, ax_psth, spike_times, ...
-                event_times(valid_trials), PSTH_WINDOW, ...
-                PSTH_BIN_SIZE, 'Outcome (Tokens)', ...
-                'Time from Outcome (s)', true);
-        else
-            text(0.5, 0.5, 'No outcome event', 'Parent', ax_raster, ...
-                'HorizontalAlignment', 'center');
-        end
+        % This block is intentionally left empty because the top-panel
+        % diagnostics are now handled before the `if` statement.
     end
 
     %% --- Summary Information ---
