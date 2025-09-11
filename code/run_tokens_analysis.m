@@ -89,6 +89,23 @@ for i = 1:height(manifest)
         selected_neurons = session_data.analysis.selected_neurons;
     end
 
+    % --- Per-Neuron Diagnostic PDF Generation ---
+    giveFeed('Checking for per-neuron diagnostic PDFs...');
+    diag_output_dir = fullfile(project_root, 'figures', session_id);
+
+    % Check if the directory exists and contains any PDF files
+    if exist(diag_output_dir, 'dir') && ~isempty(dir(fullfile(diag_output_dir, '*.pdf')))
+        giveFeed('Diagnostic PDF already exists, skipping...');
+    else
+        giveFeed('Generating diagnostic PDF...');
+        if ~exist(diag_output_dir, 'dir')
+            mkdir(diag_output_dir);
+        end
+        generate_neuron_summary_pdf(session_data, selected_neurons, ...
+            session_id, diag_output_dir);
+        giveFeed('Diagnostic PDF generation complete.');
+    end
+
     % --- 2. Core Data Preparation ---
     if ~strcmp(manifest.dataprep_status{i}, 'complete')
         giveFeed('Data prep status is ''pending''. Running prepare_core_data...');
