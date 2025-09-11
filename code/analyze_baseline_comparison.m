@@ -46,6 +46,42 @@ end
 
 n_neurons = size(core_data.spikes.CUE_ON.rates, 1);
 
+%% Pre-calculate Total Workload
+total_workload = 0;
+total_clusters_in_session = 0;
+for i_align_dry = 1:numel(align_events)
+    align_name_dry = align_events{i_align_dry};
+    time_vector_dry = core_data.spikes.(align_name_dry).time_vector;
+
+    baseline_bins_dry = time_vector_dry >= baseline_window(1) & ...
+        time_vector_dry < baseline_window(2);
+    post_event_bins_dry = time_vector_dry >= 0;
+
+    n_cols = sum(post_event_bins_dry);
+
+    for i_cond_dry = 1:numel(conds_to_analyze)
+        cond_name_dry = conds_to_analyze{i_cond_dry};
+        trial_indices_dry = conditions.(cond_name_dry);
+        n_rows = sum(trial_indices_dry);
+
+        % The analysis will skip if there are fewer than 5 trials, so we
+        % should not include it in the workload calculation.
+        if n_rows >= 5 && (n_rows * sum(baseline_bins_dry)) > 0
+            workload_per_neuron = n_rows * n_cols;
+            total_workload = total_workload + (workload_per_neuron * n_neurons);
+            total_clusters_in_session = total_clusters_in_session + n_neurons;
+        end
+    end
+end
+
+%% Initialize Tracking Variables
+workload_completed = 0;
+clusters_processed = 0;
+master_timer = tic;
+if total_clusters_in_session > 0
+    fprintf('Starting analysis for %d clusters...\n', total_clusters_in_session);
+end
+
 %% Main Analysis Loop
 % Iterate through each alignment event
 for i_align = 1:numel(align_events)
@@ -68,10 +104,6 @@ for i_align = 1:numel(align_events)
         % Preallocate storage for significance results for this condition
         n_post_bins = sum(post_event_bins);
         sig_results = nan(n_neurons, n_post_bins);
-
-        n_total_clusters = n_neurons;
-        loop_timer = tic;
-        fprintf('Starting analysis for %d clusters...\n', n_total_clusters);
 
         % Iterate through each neuron
         for i_neuron = 1:n_neurons
@@ -103,22 +135,30 @@ for i_align = 1:numel(align_events)
             [~, ~, ~, sig] = arrayROC(X, Y, roc_perms);
             sig_results(i_neuron, :) = sig;
 
-            i_cluster = i_neuron;
-            avg_time_per_cluster = toc(loop_timer) / i_cluster;
-            etc_seconds = avg_time_per_cluster * (n_total_clusters - i_cluster);
+            % Update completed workload and cluster count
+            workload_completed = workload_completed + (size(Y, 1) * size(Y, 2));
+            clusters_processed = clusters_processed + 1;
+
+            % --- Progress Reporting ---
+            elapsed_time = toc(master_timer);
+            rate = workload_completed / elapsed_time;
+            etc_seconds = (total_workload - workload_completed) / rate;
             etc_minutes = floor(etc_seconds / 60);
             etc_rem_seconds = rem(etc_seconds, 60);
-            fprintf('Analysis completed for %d/%d clusters. Approximately %d minutes and %.0f seconds remaining.\r', ...
-                i_cluster, n_total_clusters, etc_minutes, etc_rem_seconds);
-        end
 
-        fprintf('\nAnalysis complete for all %d clusters.\n', n_total_clusters);
+            fprintf('Analysis completed for %d/%d clusters. Approximately %d minutes and %.0f seconds remaining.\r', ...
+                clusters_processed, total_clusters_in_session, etc_minutes, etc_rem_seconds);
+        end
 
         % Store the results
         analysis_results.(align_name).(cond_name).sig = sig_results;
         analysis_results.(align_name).time_vector = ...
             time_vector(post_event_bins);
     end
+end
+
+if total_clusters_in_session > 0
+    fprintf('\nAnalysis complete.\n');
 end
 
 end

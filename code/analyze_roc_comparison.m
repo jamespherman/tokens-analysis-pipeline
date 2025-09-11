@@ -45,6 +45,40 @@ if is_av_session
     comparisons = [comparisons; spe_comparisons];
 end
 
+%% Pre-calculate Total Workload
+total_workload = 0;
+total_clusters_in_session = 0;
+for i_comp_dry = 1:numel(comparisons)
+    comp_params_dry = comparisons{i_comp_dry};
+    align_name_dry = comp_params_dry{1};
+    cond1_name_dry = comp_params_dry{2};
+    cond2_name_dry = comp_params_dry{3};
+
+    time_vector_dry = core_data.spikes.(align_name_dry).time_vector;
+    n_cols = numel(time_vector_dry);
+
+    trials_cond1_dry = conditions.(cond1_name_dry);
+    trials_cond2_dry = conditions.(cond2_name_dry);
+
+    n_rows1 = sum(trials_cond1_dry);
+    n_rows2 = sum(trials_cond2_dry);
+
+    if n_rows1 >= 5 && n_rows2 >= 5
+        % The workload is estimated as (rows1 + rows2) * cols per neuron
+        workload_per_neuron = (n_rows1 + n_rows2) * n_cols;
+        total_workload = total_workload + (workload_per_neuron * n_neurons);
+        total_clusters_in_session = total_clusters_in_session + n_neurons;
+    end
+end
+
+%% Initialize Tracking Variables
+workload_completed = 0;
+clusters_processed = 0;
+master_timer = tic;
+if total_clusters_in_session > 0
+    fprintf('Starting analysis for %d clusters...\n', total_clusters_in_session);
+end
+
 %% Main Analysis Loop
 % Iterate through each of the three comparisons
 for i_comp = 1:numel(comparisons)
@@ -66,10 +100,6 @@ for i_comp = 1:numel(comparisons)
     % Preallocate storage for significance results
     sig_results = nan(n_neurons, n_time_bins);
 
-    n_total_clusters = n_neurons;
-    loop_timer = tic;
-    fprintf('Starting analysis for %d clusters...\n', n_total_clusters);
-
     % Iterate through each neuron
     for i_neuron = 1:n_neurons
         % Extract rates for the current neuron, all trials, all bins
@@ -89,21 +119,30 @@ for i_comp = 1:numel(comparisons)
         [~, ~, ~, sig] = arrayROC(rates_cond1, rates_cond2, roc_perms);
         sig_results(i_neuron, :) = sig;
 
-        i_cluster = i_neuron;
-        avg_time_per_cluster = toc(loop_timer) / i_cluster;
-        etc_seconds = avg_time_per_cluster * (n_total_clusters - i_cluster);
+        % Update completed workload and cluster count
+        workload_per_call = (size(rates_cond1, 1) + size(rates_cond2, 1)) * size(rates_cond1, 2);
+        workload_completed = workload_completed + workload_per_call;
+        clusters_processed = clusters_processed + 1;
+
+        % --- Progress Reporting ---
+        elapsed_time = toc(master_timer);
+        rate = workload_completed / elapsed_time;
+        etc_seconds = (total_workload - workload_completed) / rate;
         etc_minutes = floor(etc_seconds / 60);
         etc_rem_seconds = rem(etc_seconds, 60);
-        fprintf('Analysis completed for %d/%d clusters. Approximately %d minutes and %.0f seconds remaining.\r', ...
-            i_cluster, n_total_clusters, etc_minutes, etc_rem_seconds);
-    end
 
-    fprintf('\nAnalysis complete for all %d clusters.\n', n_total_clusters);
+        fprintf('Analysis completed for %d/%d clusters. Approximately %d minutes and %.0f seconds remaining.\r', ...
+            clusters_processed, total_clusters_in_session, etc_minutes, etc_rem_seconds);
+    end
 
     % Store the results
     analysis_results.(result_name).sig = sig_results;
     analysis_results.(result_name).time_vector = time_vector;
     analysis_results.(result_name).cond_names = {cond1_name, cond2_name};
+end
+
+if total_clusters_in_session > 0
+    fprintf('\nAnalysis complete.\n');
 end
 
 end
