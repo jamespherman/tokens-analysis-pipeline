@@ -85,11 +85,9 @@ parfor i = 1:nTotalClusters
         currentEventTimes = eventTimes{j};
         
         % align spikes to events and bin them using a sliding window
-        % The 5th argument (non-overlapping bin width) is unused, but
-        % required. We pass binWidth for simplicity.
-        [~,~,~,~,binnedCounts,binCenters] = alignAndBinSpikes(...
+        [binnedCounts, binCenters, ~] = alignAndBinSpikes(...
             spikeTimes, currentEventTimes, timeRange(1), ...
-            timeRange(2), binWidth, binWidth, stepSize);
+            timeRange(2), binWidth, stepSize);
         
         % calculate confidence interval for the mean binned rate
         meanBinnedRate = mean(binnedCounts) / binWidth;

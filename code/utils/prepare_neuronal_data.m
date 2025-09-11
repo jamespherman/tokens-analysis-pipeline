@@ -71,12 +71,10 @@ for i_event = 1:numel(alignment_events)
             continue;
         end
 
-        % Use alignAndBinSpikes to perform the binning.
-        % The 5th argument (non-overlapping bin width) is unused, but
-        % required by the function. We pass bin_width for simplicity.
-        [~,~,~,~,binned_counts,time_vector_out] = alignAndBinSpikes(...
+        % Use alignAndBinSpikes to perform the binning
+        [binned_counts, time_vector_out, ~] = alignAndBinSpikes(...
             spike_times, event_times, time_window(1), time_window(2), ...
-            bin_width, bin_width, step_size);
+            bin_width, step_size);
 
         % The output time vector should be consistent, but we'll use the
         % one from the function to be precise.
