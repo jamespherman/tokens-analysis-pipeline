@@ -109,6 +109,13 @@ for i_comp = 1:numel(comparisons)
         rates_cond1 = neuron_rates_all_trials(trials_cond1, :);
         rates_cond2 = neuron_rates_all_trials(trials_cond2, :);
 
+        % Filter out silent trials for each condition independently
+        is_silent_cond1 = all(rates_cond1 == 0 | isnan(rates_cond1), 2);
+        rates_cond1 = rates_cond1(~is_silent_cond1, :);
+
+        is_silent_cond2 = all(rates_cond2 == 0 | isnan(rates_cond2), 2);
+        rates_cond2 = rates_cond2(~is_silent_cond2, :);
+
         % Skip if there are not enough trials in either condition
         if size(rates_cond1, 1) < 5 || size(rates_cond2, 1) < 5
             continue;
