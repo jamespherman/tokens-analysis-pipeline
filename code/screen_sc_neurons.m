@@ -196,8 +196,8 @@ else
 
     % Create masks for left and right hemifield trials, but only apply them
     % to the gSac_4factors trials.
-    left_trials_mask = is_4factors_trial & (thetas_all > 90 & thetas_all < 270)';
-    right_trials_mask = is_4factors_trial & (thetas_all < 90 | thetas_all > 270)';
+    left_trials_mask = is_4factors_trial & (thetas_all > 90 & thetas_all < 270);
+    right_trials_mask = is_4factors_trial & (thetas_all < 90 | thetas_all > 270);
 
     % Calculate avg visual FR for left vs. right trials across all neurons.
     mean_vis_fr_left = mean(epoch_frs(:, 2, left_trials_mask), 3, 'omitnan');

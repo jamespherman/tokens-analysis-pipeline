@@ -1,5 +1,5 @@
 function generate_neuron_summary_pdf(session_data, ...
-    selected_neurons, unique_id)
+    selected_neurons, unique_id, output_dir)
 % GENERATE_NEURON_SUMMARY_PDF Generates a multi-page PDF with
 % diagnostic plots for each neuron.
 %
@@ -16,10 +16,12 @@ function generate_neuron_summary_pdf(session_data, ...
 %                          which neurons were selected by a screening
 %                          process.
 %       unique_id        - A string used to name the output PDF file.
+%       output_dir       - A string used to indicate where the output PDF
+%                          file will be stored.
 %
 %   Output:
 %       The function saves a PDF file named
-%       '[unique_id]_neuron_diagnostics.pdf' in the 'figures/'
+%       '[unique_id]_neuron_diagnostics.pdf' in the 'figures/output_dir/'
 %       directory.
 
 %% Setup Paths
@@ -54,14 +56,6 @@ right_plot_indices = grid2_indices(:, 3:4);
 %% Configuration
 % In-line function to report timing
 giveFeed = @(x)disp([num2str(toc) 's - ' x]);
-
-% Define output directory and filename
-project_root = fullfile(findOneDrive, 'Code', ...
-    'tokens-analysis-pipeline');
-output_dir = fullfile(project_root, 'figures');
-if ~exist(output_dir, 'dir')
-    mkdir(output_dir);
-end
 
 %% --- Setup and Data Extraction ---
 cluster_info = session_data.spikes.cluster_info;
