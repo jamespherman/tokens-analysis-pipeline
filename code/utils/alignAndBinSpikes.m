@@ -97,7 +97,7 @@ for i = 1:nEventTimes
     % store sliding binned counts (if desired):
     if nargout > 3
         try
-        [counts, sBinTimes] = slidingBinnedCounts(...
+        [counts, sBinTimes] = sbc(...
             slidingBinWidth, spikeTimes(gSl) - eventTimes(i), slideTime,...
             minTime - slidingBinWidth/2, minTime - slidingBinWidth/2, ...
             maxTime + slidingBinWidth/2);
@@ -134,4 +134,41 @@ eventNumberVector = vertcat(eventNumberVector{:});
 % return outputs
 for i = 1:nargout
     varargout{i} = eval(argOutNames{i});
+end
+end
+
+function [counts, binCenters] = sbc(binWidth, eventTimes, slideTime, ...
+    alignTime, minTime, maxTime)
+    % Validate input arguments
+    if ~isscalar(binWidth) || ~isscalar(slideTime) || ...
+            ~isscalar(alignTime) || ...
+            ~isscalar(minTime) || ~isscalar(maxTime)
+        error(['binWidth, slideTime, alignTime, minTime, ...' ...
+            'and maxTime must be scalar values.']);
+    end
+    
+    % Calculate the start and end times for each bin
+    binStartTimes = alignTime - binWidth / 2 : slideTime : maxTime;
+    binEndTimes = binStartTimes + binWidth;
+    
+    % Clip bin times to the specified range
+    binStartTimes = max(binStartTimes, minTime);
+    binEndTimes = min(binEndTimes, maxTime);
+    
+    % Initialize counts and binCenters
+    numBins = numel(binStartTimes);
+    counts = zeros(1, numBins);
+    binCenters = zeros(1, numBins);
+    
+    % Iterate through each bin
+    for i = 1:numBins
+        binStartTime = binStartTimes(i);
+        binEndTime = binEndTimes(i);
+        
+        % Count events within the current bin
+        counts(i) = sum(eventTimes >= binStartTime & eventTimes < binEndTime);
+        
+        % Calculate the center of the current bin
+        binCenters(i) = (binStartTime + binEndTime) / 2;
+    end
 end
