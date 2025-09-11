@@ -34,6 +34,11 @@ end
 manifest = readtable(manifest_path);
 giveFeed('Manifest loaded.');
 
+%% Load Analysis Plan
+giveFeed('Loading analysis plan...');
+analysis_plan = define_analysis_plan();
+giveFeed('Analysis plan loaded.');
+
 %% Iterate Through Sessions
 for i = 1:height(manifest)
     session_id = manifest.unique_id{i};
@@ -105,44 +110,76 @@ for i = 1:height(manifest)
         session_data.eventTimes, session_data.metadata.unique_id);
     giveFeed('Task conditions defined.');
 
-    % --- 4. Run Analyses ---
-    if ~isfield(manifest, 'analysis_status')
-        manifest.analysis_status = repmat({'pending'}, height(manifest), 1);
-    end
+    % --- 4. On-Demand Analysis Execution ---
+    giveFeed('Checking for missing analyses...');
+    data_updated = false; % Flag to track if we modify session_data
+    all_analyses_complete = true; % Flag to track if all analyses are present
 
-    if ~strcmp(manifest.analysis_status{i}, 'complete')
-        giveFeed('Analysis status is ''pending''. Running analyses...');
+    % A. Baseline Comparison Analyses
+    analysis_name = 'baseline_comparison';
+    if isfield(analysis_plan, analysis_name)
+        conditions_to_run = analysis_plan.(analysis_name).conditions_to_run;
+        for j = 1:length(conditions_to_run)
+            condition_name = conditions_to_run{j};
+            if ~isfield(session_data, 'analysis') || ...
+               ~isfield(session_data.analysis, analysis_name) || ...
+               ~isfield(session_data.analysis.(analysis_name), condition_name)
 
-        % Run Baseline vs. Post-Event Analysis
-        giveFeed('--> Running baseline comparison analysis...');
-        results_baseline = analyze_baseline_comparison(core_data, conditions, is_av_session);
+                all_analyses_complete = false; % Mark as incomplete
+                giveFeed(sprintf('--> Running missing analysis: %s for %s', ...
+                    analysis_name, condition_name));
 
-        % Run Between-Condition ROC Analysis
-        giveFeed('--> Running ROC comparison analysis...');
-        results_roc = analyze_roc_comparison(core_data, conditions, is_av_session);
+                analysis_result = analyze_baseline_comparison(core_data, ...
+                    conditions, is_av_session, 'condition', condition_name);
 
-        % --- 5. Save Analysis Results ---
-        output_dir = fullfile(project_root, 'data', 'processed', session_id);
-        if ~exist(output_dir, 'dir')
-           mkdir(output_dir);
-           giveFeed(sprintf('Created output directory: %s', output_dir));
+                session_data.analysis.(analysis_name).(condition_name) = analysis_result;
+                data_updated = true;
+            end
         end
-
-        results_path = fullfile(output_dir, 'analysis_results.mat');
-        giveFeed(sprintf('Saving analysis results to: %s', results_path));
-        save(results_path, 'results_baseline', 'results_roc', 'conditions');
-
-        manifest.analysis_status{i} = 'complete';
-        giveFeed('Analyses complete and results saved.');
-    else
-        giveFeed('Analyses already complete. Skipping.');
     end
 
-    % --- 6. Update Manifest File ---
-    giveFeed(sprintf('Updating manifest for %s...', session_id));
-    writetable(manifest, manifest_path);
+    % B. ROC Comparison Analyses
+    analysis_name = 'roc_comparison';
+    if isfield(analysis_plan, analysis_name)
+        comparisons_to_run = analysis_plan.(analysis_name).comparisons_to_run;
+        for j = 1:length(comparisons_to_run)
+            comp = comparisons_to_run(j);
+            if ~isfield(session_data, 'analysis') || ...
+               ~isfield(session_data.analysis, analysis_name) || ...
+               ~isfield(session_data.analysis.(analysis_name), comp.name)
+
+                all_analyses_complete = false; % Mark as incomplete
+                giveFeed(sprintf('--> Running missing analysis: %s for %s', ...
+                    analysis_name, comp.name));
+
+                analysis_result = analyze_roc_comparison(core_data, ...
+                    conditions, is_av_session, 'comparison', comp);
+
+                session_data.analysis.(analysis_name).(comp.name) = analysis_result;
+                data_updated = true;
+            end
+        end
+    end
+
+    % --- 5. Save Updated Data ---
+    if data_updated
+        giveFeed('Analyses run, saving updated session_data.mat...');
+        save(session_data_path, 'session_data', '-v7.3');
+        giveFeed('Save complete.');
+    else
+        giveFeed('No new analyses were required for this session.');
+    end
+
+    % Update manifest status only if all analyses are confirmed complete
+    if all_analyses_complete
+        manifest.analysis_status{i} = 'complete';
+    end
+
     giveFeed(sprintf('--- Finished processing for session: %s ---\n', session_id));
 end
 
-giveFeed('All sessions processed. Total time elapsed:');
+%% Finalize
+giveFeed('All sessions processed. Saving updated manifest...');
+writetable(manifest, manifest_path);
+giveFeed('Manifest saved. Total time elapsed:');
 toc

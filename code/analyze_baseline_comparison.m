@@ -14,34 +14,42 @@
 % Author: Jules
 % Date: 2025-09-09
 
-function analysis_results = analyze_baseline_comparison(core_data, conditions, is_av_session)
+function analysis_results = analyze_baseline_comparison(core_data, conditions, is_av_session, varargin)
 
 %% Setup Paths
 [script_dir, ~, ~] = fileparts(mfilename('fullpath'));
 addpath(fullfile(script_dir, 'utils'));
 
+%% Parse Optional Arguments
+p = inputParser;
+addParameter(p, 'condition', '', @ischar);
+parse(p, varargin{:});
+specific_condition = p.Results.condition;
+
 %% Analysis Parameters
 baseline_window = [-0.2, 0]; % -200ms to 0ms relative to event
 roc_perms = 200;
 
-% Define the alignment events and conditions to be analyzed
+% Define the alignment events and all possible conditions
 align_events = {'CUE_ON', 'outcomeOn', 'reward'};
-conds_to_analyze = {
-    'is_normal_dist', ...
-    'is_uniform_dist', ...
-    'is_norm_common', ...
-    'is_norm_rare_high', ...
-    'is_common_reward_no_spe', ...
+all_conds = {
+    'is_normal_dist', 'is_uniform_dist', 'is_norm_common', ...
+    'is_norm_rare_high', 'is_common_reward_no_spe', ...
     'is_rare_high_reward_no_spe'
     };
 
-% If it's an AV session, add the SPE-related conditions to the list
+% If it's an AV session, add the SPE-related conditions
 if is_av_session
-    conds_to_analyze = [conds_to_analyze, ...
-        {
-        'is_common_reward_with_spe', ...
-        'is_rare_high_reward_with_spe'
-        }];
+    all_conds = [all_conds, {'is_common_reward_with_spe', 'is_rare_high_reward_with_spe'}];
+end
+
+% Determine which conditions to run for this call
+if ~isempty(specific_condition)
+    % Only run the specified condition
+    conds_to_analyze = {specific_condition};
+else
+    % Run all defined conditions
+    conds_to_analyze = all_conds;
 end
 
 n_neurons = size(core_data.spikes.CUE_ON.rates, 1);
