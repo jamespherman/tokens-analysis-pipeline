@@ -14,6 +14,11 @@
 %% Setup
 clear; clc; close all;
 
+% --- USER TOGGLES ---
+% Force re-computation of all steps, even if marked 'complete'
+force_rerun = false;
+% --- END USER TOGGLES ---
+
 % Add utility functions to the MATLAB path
 [script_dir, ~, ~] = fileparts(mfilename('fullpath'));
 addpath(fullfile(script_dir, 'utils'));
@@ -62,8 +67,60 @@ for i = 1:height(manifest)
     load(session_data_path, 'session_data');
     giveFeed('Data loaded.');
 
+    % >> SESSION-LEVEL PROGRESS REPORTING (PART B)
+    % --- Dry run to calculate total number of steps for this session ---
+    n_total_steps = 0;
+    unique_id = session_id; % Use a consistent variable name for fprintf
+
+    % 1. Screening
+    if ~strcmp(manifest.screening_status{i}, 'complete') || force_rerun
+        n_total_steps = n_total_steps + 1;
+    end
+
+    % 2. PDF Generation
+    diag_output_dir_dry_run = fullfile(project_root, 'figures', unique_id);
+    if (~exist(diag_output_dir_dry_run, 'dir') || isempty(dir(fullfile(diag_output_dir_dry_run, '*.pdf')))) || force_rerun
+        n_total_steps = n_total_steps + 1;
+    end
+
+    % 3. Data Prep
+    if ~strcmp(manifest.dataprep_status{i}, 'complete') || force_rerun
+        n_total_steps = n_total_steps + 1;
+    end
+
+    % 4. Analyses
+    analysis_name_baseline = 'baseline_comparison';
+    if isfield(analysis_plan, analysis_name_baseline)
+        conditions_to_run = analysis_plan.(analysis_name_baseline).conditions_to_run;
+        for j = 1:length(conditions_to_run)
+            condition_name = conditions_to_run{j};
+            if (~isfield(session_data, 'analysis') || ...
+               ~isfield(session_data.analysis, analysis_name_baseline) || ...
+               ~isfield(session_data.analysis.(analysis_name_baseline), condition_name)) || force_rerun
+                n_total_steps = n_total_steps + 1;
+            end
+        end
+    end
+    analysis_name_roc = 'roc_comparison';
+    if isfield(analysis_plan, analysis_name_roc)
+        comparisons_to_run = analysis_plan.(analysis_name_roc).comparisons_to_run;
+        for j = 1:length(comparisons_to_run)
+            comp = comparisons_to_run(j);
+            if (~isfield(session_data, 'analysis') || ...
+               ~isfield(session_data.analysis, analysis_name_roc) || ...
+               ~isfield(session_data.analysis.(analysis_name_roc), comp.name)) || force_rerun
+                n_total_steps = n_total_steps + 1;
+            end
+        end
+    end
+
+    step_counter = 0;
+    % --- End of dry run ---
+
     % --- 1. Neuron Screening ---
-    if ~strcmp(manifest.screening_status{i}, 'complete')
+    if ~strcmp(manifest.screening_status{i}, 'complete') || force_rerun
+        step_counter = step_counter + 1;
+        fprintf('\n--- Session %s: Starting Step %d of %d: Neuron Screening ---\n', unique_id, step_counter, n_total_steps);
         giveFeed('Screening status is ''pending''. Running screening...');
 
         session_data.metadata.unique_id = session_id;
@@ -97,10 +154,9 @@ for i = 1:height(manifest)
     diag_output_dir = fullfile(project_root, 'figures', session_id);
 
     % Check if the directory exists and contains any PDF files
-    if exist(diag_output_dir, 'dir') && ~isempty(dir(fullfile( ...
-            diag_output_dir, '*.pdf')))
-        giveFeed('Diagnostic PDF already exists, skipping...');
-    else
+    if (~exist(diag_output_dir, 'dir') || isempty(dir(fullfile(diag_output_dir, '*.pdf')))) || force_rerun
+        step_counter = step_counter + 1;
+        fprintf('\n--- Session %s: Starting Step %d of %d: Diagnostic PDF Generation ---\n', unique_id, step_counter, n_total_steps);
         giveFeed('Generating diagnostic PDF...');
         if ~exist(diag_output_dir, 'dir')
             mkdir(diag_output_dir);
@@ -108,12 +164,15 @@ for i = 1:height(manifest)
         generate_neuron_summary_pdf(session_data, selected_neurons, ...
             session_id, diag_output_dir);
         giveFeed('Diagnostic PDF generation complete.');
+    else
+        giveFeed('Diagnostic PDF already exists, skipping...');
     end
 
     % --- 2. Core Data Preparation ---
-    if ~strcmp(manifest.dataprep_status{i}, 'complete')
-        giveFeed(['Data prep status is ''pending''. Running prepare_' ...
-            '            core_data...']);
+    if ~strcmp(manifest.dataprep_status{i}, 'complete') || force_rerun
+        step_counter = step_counter + 1;
+        fprintf('\n--- Session %s: Starting Step %d of %d: Core Data Preparation ---\n', unique_id, step_counter, n_total_steps);
+        giveFeed('Data prep status is ''pending''. Running prepare_core_data...');
         core_data = prepare_core_data(session_data, selected_neurons);
         session_data.analysis.core_data = core_data;
 
@@ -145,10 +204,13 @@ for i = 1:height(manifest)
             analysis_name).conditions_to_run;
         for j = 1:length(conditions_to_run)
             condition_name = conditions_to_run{j};
-            if ~isfield(session_data, 'analysis') || ...
+            if (~isfield(session_data, 'analysis') || ...
                ~isfield(session_data.analysis, analysis_name) || ...
-               ~isfield(session_data.analysis.(analysis_name), ...
-               condition_name)
+               ~isfield(session_data.analysis.(analysis_name), condition_name)) || force_rerun
+
+                step_counter = step_counter + 1;
+                progress_message = sprintf('Baseline Comparison for %s', condition_name);
+                fprintf('\n--- Session %s: Starting Step %d of %d: %s ---\n', unique_id, step_counter, n_total_steps, progress_message);
 
                 all_analyses_complete = false; % Mark as incomplete
                 giveFeed(sprintf( ...
@@ -173,9 +235,13 @@ for i = 1:height(manifest)
             analysis_name).comparisons_to_run;
         for j = 1:length(comparisons_to_run)
             comp = comparisons_to_run(j);
-            if ~isfield(session_data, 'analysis') || ...
+            if (~isfield(session_data, 'analysis') || ...
                ~isfield(session_data.analysis, analysis_name) || ...
-               ~isfield(session_data.analysis.(analysis_name), comp.name)
+               ~isfield(session_data.analysis.(analysis_name), comp.name)) || force_rerun
+
+                step_counter = step_counter + 1;
+                progress_message = sprintf('ROC Comparison for %s', comp.name);
+                fprintf('\n--- Session %s: Starting Step %d of %d: %s ---\n', unique_id, step_counter, n_total_steps, progress_message);
 
                 all_analyses_complete = false; % Mark as incomplete
                 giveFeed(sprintf( ...
