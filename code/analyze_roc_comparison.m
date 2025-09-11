@@ -66,6 +66,10 @@ for i_comp = 1:numel(comparisons)
     % Preallocate storage for significance results
     sig_results = nan(n_neurons, n_time_bins);
 
+    n_total_clusters = n_neurons;
+    loop_timer = tic;
+    fprintf('Starting analysis for %d clusters...\n', n_total_clusters);
+
     % Iterate through each neuron
     for i_neuron = 1:n_neurons
         % Extract rates for the current neuron, all trials, all bins
@@ -84,7 +88,17 @@ for i_comp = 1:numel(comparisons)
         % Note: arrayROC is efficient for this; no need to loop bins
         [~, ~, ~, sig] = arrayROC(rates_cond1, rates_cond2, roc_perms);
         sig_results(i_neuron, :) = sig;
+
+        i_cluster = i_neuron;
+        avg_time_per_cluster = toc(loop_timer) / i_cluster;
+        etc_seconds = avg_time_per_cluster * (n_total_clusters - i_cluster);
+        etc_minutes = floor(etc_seconds / 60);
+        etc_rem_seconds = rem(etc_seconds, 60);
+        fprintf('Analysis completed for %d/%d clusters. Approximately %d minutes and %.0f seconds remaining.\r', ...
+            i_cluster, n_total_clusters, etc_minutes, etc_rem_seconds);
     end
+
+    fprintf('\nAnalysis complete for all %d clusters.\n', n_total_clusters);
 
     % Store the results
     analysis_results.(result_name).sig = sig_results;
