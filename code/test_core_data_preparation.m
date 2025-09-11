@@ -26,7 +26,7 @@ giveFeed = @(x)disp([num2str(toc) 's - ' x]);
 addpath(fullfile(script_dir, 'utils'));
 
 %% Setup
-unique_id = 'Feynman_08_15_2025_SNc'; % Hardcoded session
+unique_id = 'Feynman_08_15_2025_SC'; % Hardcoded session
 giveFeed(sprintf('Testing diagnostic workflow for session: %s', ...
     unique_id));
 
@@ -357,7 +357,8 @@ for i_fig = 1:numel(figure_names)
         continue;
     end
 
-    fig_h = figure('Position', [100, 100, 1200, 700]);
+    fig_h = figure('Position', [100, 100, 1200, 700], ...
+        'Color', 'w', 'MenuBar', 'None', 'ToolBar', 'None');
     fig_h.PaperPositionMode = 'auto';
 
     % --- Layout Calculation ---
@@ -388,7 +389,8 @@ for i_fig = 1:numel(figure_names)
     row_bottoms = zeros(1, n_rows);
     row_bottoms(n_rows) = bottom_margin;
     for i_row = (n_rows-1):-1:1
-        row_bottoms(i_row) = row_bottoms(i_row+1) + row_heights(i_row+1) + v_gap;
+        row_bottoms(i_row) = row_bottoms(i_row+1) + ...
+            row_heights(i_row+1) + v_gap;
     end
 
     % --- Plotting Loop ---
@@ -398,7 +400,8 @@ for i_fig = 1:numel(figure_names)
         col = rem(i_panel-1, n_cols) + 1;
         row = floor((i_panel-1) / n_cols) + 1;
 
-        ax_pos = [col_lefts(col), row_bottoms(row), col_widths(col), row_heights(row)];
+        ax_pos = [col_lefts(col), row_bottoms(row), ...
+            col_widths(col), row_heights(row)];
         ax = axes('Position', ax_pos);
 
         ax.Tag = sprintf('%s_%s_Axis', panel.alignEvent, panel.dataType);
@@ -407,21 +410,28 @@ for i_fig = 1:numel(figure_names)
 
         switch panel.dataType
             case 'Heatmap'
-                imagesc(ax, panel.xdata{1}, 1:size(panel.ydata{1}, 1), panel.ydata{1});
+                imagesc(ax, panel.xdata{1}, ...
+                    1:size(panel.ydata{1}, 1), panel.ydata{1});
                 clim(ax, panel.c_lims);
                 colormap(ax, flipud(bone(256)));
             case 'PSTH'
                 for i_trace = 1:numel(panel.ydata)
-                    hb = barStairsFill(panel.xdata{i_trace}, zeros(size(panel.ydata{i_trace})), panel.ydata{i_trace});
-                    set(hb(3), 'FaceColor', panel.colors(i_trace, :), 'EdgeColor', 'none', 'FaceAlpha', 0.7);
+                    hb = barStairsFill(panel.xdata{i_trace}, ...
+                        zeros(size(panel.ydata{i_trace})), ...
+                        panel.ydata{i_trace});
+                    set(hb(3), 'Color', panel.colors(i_trace, :));
                     delete(hb(1:2)); % Remove edge and baseline
                 end
                 if col == n_cols && ~isempty(panel.legendStrings)
-                    legend(ax, panel.legendStrings, 'Location', 'northeast', 'Interpreter', 'none');
+                    legend(ax, panel.legendStrings, 'Location', 'best', ...
+                        'Interpreter', 'none');
                 end
             case 'Pupil'
                 for i_trace = 1:numel(panel.ydata)
-                    plot(ax, panel.xdata{i_trace}, panel.ydata{i_trace}, 'Color', panel.colors(i_trace, :), 'LineWidth', 1.5);
+                    plot(ax, panel.xdata{i_trace}, ...
+                        panel.ydata{i_trace}, ...
+                        'Color', panel.colors(i_trace, :), ...
+                        'LineWidth', 1.5);
                 end
         end
 
@@ -475,7 +485,7 @@ for i_fig = 1:numel(figure_names)
     % Add title and save
     sgtitle(fig_h, fig_config.title, 'Interpreter', 'none');
     giveFeed(['Saving ' fig_name ' verification figure...']);
-    pdfSave(fig_h, fig_config.fileName);
+    pdfSave(fig_config.fileName, fig_h.Position(3:4)/72, fig_h);
     giveFeed([fig_name ' figure saved to: ' fig_config.fileName]);
 end
 
