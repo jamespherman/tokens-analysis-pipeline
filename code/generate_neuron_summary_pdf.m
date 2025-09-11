@@ -35,7 +35,8 @@ addpath(fullfile(script_dir, 'utils'));
 N_ROWS = 12;
 N_COLS = 6;
 PSTH_WINDOW = [-0.5, 1.0]; % 1.5s window for PSTHs
-PSTH_BIN_SIZE = 0.025;     % 25ms bin size
+SLIDING_BIN_WIDTH = 0.2;   % 200ms sliding bin
+SLIDING_STEP_SIZE = 0.1;   % 100ms step size
 
 %% Layout Configuration
 % Define column counts for different sections of the plot
@@ -168,8 +169,9 @@ for i_cluster = 1:nClusters
         event_times = session_data.eventTimes.CUE_ON;
         valid_trials = tokens_trials & event_times > 0;
         plot_psth_and_raster(ax_raster_cue, ax_psth_cue, spike_times, ...
-            event_times(valid_trials), PSTH_WINDOW, PSTH_BIN_SIZE, ...
-            'Cue On (Tokens)', 'Time from Cue On (s)', true);
+            event_times(valid_trials), PSTH_WINDOW, 'Cue On (Tokens)', ...
+            'Time from Cue On (s)', true, SLIDING_BIN_WIDTH, ...
+            SLIDING_STEP_SIZE);
     else
         text(0.5, 0.5, 'No CUE_ON event', 'Parent', ax_raster_cue, ...
             'HorizontalAlignment', 'center');
@@ -187,8 +189,9 @@ for i_cluster = 1:nClusters
         valid_trials = tokens_trials & event_times > 0;
         plot_psth_and_raster(ax_raster_outcome, ax_psth_outcome, ...
             spike_times, ...
-            event_times(valid_trials), PSTH_WINDOW, PSTH_BIN_SIZE, ...
-            'Outcome (Tokens)', 'Time from Outcome (s)', false);
+            event_times(valid_trials), PSTH_WINDOW, ...
+            'Outcome (Tokens)', 'Time from Outcome (s)', false, ...
+            SLIDING_BIN_WIDTH, SLIDING_STEP_SIZE);
     else
         text(0.5, 0.5, 'No outcome event', 'Parent', ax_raster_outcome, ...
             'HorizontalAlignment', 'center');
@@ -226,9 +229,9 @@ for i_cluster = 1:nClusters
             set(ax_p, 'Tag', 'PSTH_Axis');
             et = session_data.eventTimes.targetOn(theta_trials);
             plot_psth_and_raster(ax_r, ax_p, spike_times, et, ...
-                PSTH_WINDOW, PSTH_BIN_SIZE, ...
-                sprintf('Target On (gSac): %d deg', current_theta), ...
-                'Time from Target On (s)', i_theta == 1);
+                PSTH_WINDOW, sprintf('Target On (gSac): %d deg', ...
+                current_theta), 'Time from Target On (s)', ...
+                i_theta == 1, SLIDING_BIN_WIDTH, SLIDING_STEP_SIZE);
             if i_theta < n_thetas_gSac, set(ax_p, 'xticklabel', {[]}); end
 
             % Aligned to Saccade Onset
@@ -238,8 +241,9 @@ for i_cluster = 1:nClusters
             set(ax_p, 'Tag', 'PSTH_Axis');
             et = session_data.eventTimes.saccadeOnset(theta_trials);
             plot_psth_and_raster(ax_r, ax_p, spike_times, et, ...
-                PSTH_WINDOW, PSTH_BIN_SIZE, 'Saccade Onset (gSac)',...
-                'Time from Saccade Onset (s)', false);
+                PSTH_WINDOW, 'Saccade Onset (gSac)', ...
+                'Time from Saccade Onset (s)', false, ...
+                SLIDING_BIN_WIDTH, SLIDING_STEP_SIZE);
             if i_theta < n_thetas_gSac, set(ax_p, 'xticklabel', {[]}); end
         end
 
@@ -260,9 +264,9 @@ for i_cluster = 1:nClusters
             set(ax_p, 'Tag', 'PSTH_Axis');
             et = session_data.eventTimes.targetOn(final_indices);
             plot_psth_and_raster(ax_r, ax_p, spike_times, et, ...
-                PSTH_WINDOW, PSTH_BIN_SIZE, ...
-                sprintf('Target On (jph): %d deg', current_theta), ...
-                'Time from Target On (s)', true);
+                PSTH_WINDOW, sprintf('Target On (jph): %d deg', ...
+                current_theta), 'Time from Target On (s)', true, ...
+                SLIDING_BIN_WIDTH, SLIDING_STEP_SIZE);
 
             % Aligned to Saccade Onset
             ax_r = mySubPlot([psth_grid, 44]);
@@ -271,9 +275,9 @@ for i_cluster = 1:nClusters
             set(ax_p, 'Tag', 'PSTH_Axis');
             et = session_data.eventTimes.saccadeOnset(final_indices);
             plot_psth_and_raster(ax_r, ax_p, spike_times, et, ...
-                PSTH_WINDOW, PSTH_BIN_SIZE, ...
-                'Saccade Onset (jph)', ...
-                'Time from Saccade Onset (s)', false);
+                PSTH_WINDOW, 'Saccade Onset (jph)', ...
+                'Time from Saccade Onset (s)', false, ...
+                SLIDING_BIN_WIDTH, SLIDING_STEP_SIZE);
         end
     else
         % This block is intentionally left empty because the top-panel
@@ -348,26 +352,29 @@ end
 %% Local Helper Functions
 
 function plot_psth_and_raster(ax_raster, ax_psth, spike_times, ...
-    event_times, psth_win, bin_size, title_text, xlabel_text, ...
-    show_y_label)
-% PLOT_PSTH_AND_RASTER Plots a raster and its corresponding PSTH.
+    event_times, psth_win, title_text, xlabel_text, show_y_label, ...
+    bin_width, step_size)
+% PLOT_PSTH_AND_RASTER Plots a raster and its corresponding PSTH using
+% a sliding window.
 %
 %   Inputs:
 %       ax_raster      - Axes handle for the raster plot.
 %       ax_psth        - Axes handle for the PSTH plot.
 %       spike_times    - Vector of spike timestamps.
 %       event_times    - Vector of event timestamps to align to.
-%       psth_win       - 2-element vector specifying the time window
-%                        [start, end] around the event.
-%       bin_size       - Width of the bins for the PSTH in seconds.
+%       psth_win       - 2-element vector for the time window.
 %       title_text     - String for the title of the raster plot.
 %       xlabel_text    - String for the xlabel of the PSTH plot.
-%       show_y_label   - Boolean to control visibility of the PSTH
-%                        y-label.
+%       show_y_label   - Boolean to control y-label visibility.
+%       bin_width      - Width of the sliding window bins (seconds).
+%       step_size      - Step size for the sliding window (seconds).
 
-% Calculate PSTH
-[~, psth, bin_centers] = alignAndBinSpikes(spike_times, ...
-    event_times, psth_win(1), psth_win(2), bin_size);
+% Calculate PSTH using sliding window.
+% The 5th argument (non-overlapping bin width) is unused, but
+% required. We pass bin_width for simplicity.
+[~,~,~,~,psth,bin_centers] = alignAndBinSpikes(spike_times, ...
+    event_times, psth_win(1), psth_win(2), bin_width, bin_width, ...
+    step_size);
 
 % get rid of rows composed exclusively of 0 or NaN:
 nPsthRows = size(psth, 1);
@@ -379,7 +386,7 @@ psth(badRows) = [];
 
 % compute mean rate
 n_trials = size(psth, 1);
-psth_rate = sum(psth, 1, 'omitnan') / (n_trials * bin_size);
+psth_rate = sum(psth, 1, 'omitnan') / (n_trials * bin_width);
 
 % Plot Raster
 imagesc(ax_raster, bin_centers, 1:n_trials, psth);

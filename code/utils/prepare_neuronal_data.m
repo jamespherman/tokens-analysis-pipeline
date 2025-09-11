@@ -71,28 +71,24 @@ for i_event = 1:numel(alignment_events)
             continue;
         end
 
-        % Align spike times to all event times for this neuron
-        % This creates a [n_trials x n_spikes] matrix
-        aligned_spikes = spike_times' - event_times;
+        % Use alignAndBinSpikes to perform the binning.
+        % The 5th argument (non-overlapping bin width) is unused, but
+        % required by the function. We pass bin_width for simplicity.
+        [~,~,~,~,binned_counts,time_vector_out] = alignAndBinSpikes(...
+            spike_times, event_times, time_window(1), time_window(2), ...
+            bin_width, bin_width, step_size);
 
-        % Initialize counts for this neuron
-        binned_counts_neuron = nan(n_tokens_trials, n_time_bins);
-
-        % Loop over each overlapping bin to calculate spike counts
-        for i_bin = 1:n_time_bins
-            bin_start = bin_starts(i_bin);
-            bin_end = bin_start + bin_width;
-
-            % Count spikes within the [start, end) interval for each trial
-            spikes_in_bin = (aligned_spikes >= bin_start) & ...
-                            (aligned_spikes < bin_end);
-
-            % Sum across spikes to get the count for each trial in this bin
-            binned_counts_neuron(:, i_bin) = sum(spikes_in_bin, 2);
+        % The output time vector should be consistent, but we'll use the
+        % one from the function to be precise.
+        if i_neuron == 1
+             time_vector = time_vector_out;
         end
 
         % Convert spike counts to firing rate (spikes/sec)
-        binned_rates(i_neuron, :, :) = binned_counts_neuron / bin_width;
+        % and reshape to fit the destination matrix
+        binned_rates(i_neuron, :, :) = reshape(...
+            binned_counts / bin_width, ...
+            [1, size(binned_counts,1), size(binned_counts,2)]);
     end
 
     % --- Special Handling for Variable-Length 'reward' Epoch ---
