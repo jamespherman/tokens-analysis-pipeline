@@ -99,6 +99,11 @@ if has_gSac_jph_trials
     end
 end
 
+% Identify valid tokens task trials:
+tokens_task_code = codes.uniqueTaskCode_tokens;
+tokens_trials = session_data.trialInfo.taskCode == ...
+    tokens_task_code & ~cellfun(@isempty, eventTimes.rewardCell);
+
 % Loop through each cluster to create a page of plots
 for i_cluster = 1:nClusters
 
@@ -162,11 +167,10 @@ for i_cluster = 1:nClusters
     % CUE_ON PSTH and Raster (Position 3)
     ax_raster_cue = mySubPlot([N_ROWS, N_COLS2, right_plot_indices(1,1)]);
     set(ax_raster_cue, 'Tag', 'Raster_Axis');
-    ax_psth_cue = mySubPlot([N_ROWS, N_COLS2, right_plot_indices(1,1) + N_COLS2]);
+    ax_psth_cue = mySubPlot([N_ROWS, N_COLS2, right_plot_indices(1,1) ...
+        + N_COLS2]);
     set(ax_psth_cue, 'Tag', 'PSTH_Axis');
     if isfield(session_data.eventTimes, 'CUE_ON')
-        tokens_task_code = codes.uniqueTaskCode_tokens;
-        tokens_trials = session_data.trialInfo.taskCode == tokens_task_code;
         event_times = session_data.eventTimes.CUE_ON;
         valid_trials = tokens_trials & event_times > 0;
         plot_psth_and_raster(ax_raster_cue, ax_psth_cue, spike_times, ...
@@ -178,16 +182,17 @@ for i_cluster = 1:nClusters
     end
 
     % outcomeOn PSTH and Raster (Position 4)
-    ax_raster_outcome = mySubPlot([N_ROWS, N_COLS2, right_plot_indices(1,2)]);
+    ax_raster_outcome = mySubPlot([N_ROWS, N_COLS2, ...
+        right_plot_indices(1,2)]);
     set(ax_raster_outcome, 'Tag', 'Raster_Axis');
-    ax_psth_outcome = mySubPlot([N_ROWS, N_COLS2, right_plot_indices(1,2) + N_COLS2]);
+    ax_psth_outcome = mySubPlot([N_ROWS, N_COLS2, ...
+        right_plot_indices(1,2) + N_COLS2]);
     set(ax_psth_outcome, 'Tag', 'PSTH_Axis');
     if isfield(session_data.eventTimes, 'outcomeOn')
-        tokens_task_code = codes.uniqueTaskCode_tokens;
-        tokens_trials = session_data.trialInfo.taskCode == tokens_task_code;
         event_times = session_data.eventTimes.outcomeOn;
-        valid_trials = tokens_trials & event_times > 0 & session_data.eventTimes.pdsReward > 0;
-        plot_psth_and_raster(ax_raster_outcome, ax_psth_outcome, spike_times, ...
+        valid_trials = tokens_trials & event_times > 0;
+        plot_psth_and_raster(ax_raster_outcome, ax_psth_outcome, ...
+            spike_times, ...
             event_times(valid_trials), PSTH_WINDOW, PSTH_BIN_SIZE, ...
             'Outcome (Tokens)', 'Time from Outcome (s)', false);
     else
@@ -369,8 +374,18 @@ function plot_psth_and_raster(ax_raster, ax_psth, spike_times, ...
 % Calculate PSTH
 [~, psth, bin_centers] = alignAndBinSpikes(spike_times, ...
     event_times, psth_win(1), psth_win(2), bin_size);
+
+% get rid of rows composed exclusively of 0 or NaN:
+nPsthRows = size(psth, 1);
+badRows = false(nPsthRows, 1);
+for i = 1:nPsthRows
+    badRows(i) = all((psth(i,:)) == 0 | isnan(psth(i,:)));
+end
+psth(badRows) = [];
+
+% compute mean rate
 n_trials = size(psth, 1);
-psth_rate = sum(psth, 1) / (n_trials * bin_size);
+psth_rate = sum(psth, 1, 'omitnan') / (n_trials * bin_size);
 
 % Plot Raster
 imagesc(ax_raster, bin_centers, 1:n_trials, psth);
