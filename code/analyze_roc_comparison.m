@@ -14,42 +14,53 @@
 % Author: Jules
 % Date: 2025-09-09
 
-function analysis_results = analyze_roc_comparison(core_data, conditions, is_av_session)
+function analysis_results = analyze_roc_comparison(core_data, conditions, is_av_session, varargin)
 
 %% Setup Paths
 [script_dir, ~, ~] = fileparts(mfilename('fullpath'));
 addpath(fullfile(script_dir, 'utils'));
 
+%% Parse Optional Arguments
+p = inputParser;
+addParameter(p, 'comparison', struct(), @isstruct);
+parse(p, varargin{:});
+specific_comparison = p.Results.comparison;
+
 %% Analysis Parameters
 roc_perms = 200;
 n_neurons = size(core_data.spikes.CUE_ON.rates, 1);
 
-% Define the three key comparisons to make
-comparisons = {
-    ... % Comparison 1: Normal vs. Uniform at Cue On
-    {'CUE_ON', 'is_normal_dist', 'is_uniform_dist', 'cue_normal_vs_uniform'}, ...
-    ... % Comparison 2: Common vs. Rare High at Outcome
-    {'outcomeOn', 'is_norm_common', 'is_norm_rare_high', 'outcome_common_vs_rare'}, ...
-    ... % Comparison 3: Common vs. Rare High at Reward
-    {'reward', 'is_common_reward_no_spe', 'is_rare_high_reward_no_spe', 'reward_common_vs_rare'}
+% Define all possible comparisons
+all_comparisons = {
+    {'CUE_ON', 'is_normal_dist', 'is_uniform_dist', 'Dist_at_Cue'}, ...
+    {'outcomeOn', 'is_norm_common', 'is_norm_rare_high', 'RPE_at_Outcome'}, ...
+    {'reward', 'is_norm_common', 'is_norm_rare_high', 'RPE_at_Reward'}, ...
     };
 
-% If it's an AV session, add the SPE-related comparisons
 if is_av_session
-    spe_comparisons = {
-        ... % Comparison 4: No SPE vs. SPE (Common Reward)
-        {'outcomeOn', 'is_common_reward_no_spe', 'is_common_reward_with_spe', 'outcome_common_reward_no_spe_vs_with_spe'}, ...
-        ... % Comparison 5: No SPE vs. SPE (Rare High Reward)
-        {'outcomeOn', 'is_rare_high_reward_no_spe', 'is_rare_high_reward_with_spe', 'outcome_rare_high_reward_no_spe_vs_with_spe'}
+    av_comparisons = {
+        {'outcomeOn', 'is_flicker_certain', 'is_flicker_surprising', 'SPE_at_Outcome'}
         };
-    comparisons = [comparisons; spe_comparisons];
+    all_comparisons = [all_comparisons; av_comparisons];
+end
+
+% Determine which comparisons to run
+if ~isempty(fieldnames(specific_comparison))
+    % Run only the specified comparison
+    comparisons_to_run = {
+        {specific_comparison.event, specific_comparison.cond1, ...
+        specific_comparison.cond2, specific_comparison.name}
+        };
+else
+    % Run all defined comparisons
+    comparisons_to_run = all_comparisons;
 end
 
 %% Pre-calculate Total Workload
 total_workload = 0;
 total_clusters_in_session = 0;
-for i_comp_dry = 1:numel(comparisons)
-    comp_params_dry = comparisons{i_comp_dry};
+for i_comp_dry = 1:numel(comparisons_to_run)
+    comp_params_dry = comparisons_to_run{i_comp_dry};
     align_name_dry = comp_params_dry{1};
     cond1_name_dry = comp_params_dry{2};
     cond2_name_dry = comp_params_dry{3};
@@ -81,8 +92,8 @@ end
 
 %% Main Analysis Loop
 % Iterate through each of the three comparisons
-for i_comp = 1:numel(comparisons)
-    comp_params = comparisons{i_comp};
+for i_comp = 1:numel(comparisons_to_run)
+    comp_params = comparisons_to_run{i_comp};
     align_name = comp_params{1};
     cond1_name = comp_params{2};
     cond2_name = comp_params{3};
