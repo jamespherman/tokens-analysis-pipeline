@@ -20,7 +20,8 @@ function aligned_spikes = prepare_neuronal_data(session_data, ...
     selected_neurons, tokens_trial_indices, alignment_events)
 
 %% Define Alignment Parameters
-bin_width = 0.025; % 25ms bin size, as per analysis plan
+bin_width = 0.2; % 200ms bin size
+step_size = 0.1; % 100ms step size
 
 % Get basic info
 neuron_cluster_ids = find(selected_neurons);
@@ -38,20 +39,25 @@ for i_event = 1:numel(alignment_events)
         time_window = [-0.5, 1.5]; % Standard window for other events
     end
 
+    % --- New Overlapping Binning ---
+    % Define bin start times for the sliding window
+    bin_starts = time_window(1):step_size:(time_window(2) - bin_width);
+
+    % The time vector represents the center of each bin
+    time_vector = bin_starts + bin_width / 2;
+    n_time_bins = numel(time_vector);
+
     % Get alignment times for the current event
     % Note: For 'reward', this aligns to the *first* reward pulse
     if strcmp(event_name, 'reward')
         event_times = cellfun(@(c) c(1), ...
             session_data.eventTimes.rewardCell(tokens_trial_indices));
     else
-    event_times = session_data.eventTimes.(event_name)( ...
-        tokens_trial_indices);
+        event_times = session_data.eventTimes.(event_name)( ...
+            tokens_trial_indices);
     end
 
-    % Get a template time vector and initialize storage
-    [~, ~, time_vector] = alignAndBinSpikes([], [], time_window(1), ...
-        time_window(2), bin_width);
-    n_time_bins = numel(time_vector);
+    % Initialize storage for binned firing rates
     binned_rates = nan(n_selected_neurons, n_tokens_trials, n_time_bins);
 
     % Loop through each selected neuron to bin their spike times
@@ -60,11 +66,33 @@ for i_event = 1:numel(alignment_events)
         spike_times = session_data.spikes.times( ...
             session_data.spikes.clusters == cluster_id);
 
-        [~, binned_counts, ~] = alignAndBinSpikes(spike_times, ...
-            event_times, time_window(1), time_window(2), bin_width);
+        if isempty(spike_times)
+            binned_rates(i_neuron, :, :) = 0;
+            continue;
+        end
+
+        % Align spike times to all event times for this neuron
+        % This creates a [n_trials x n_spikes] matrix
+        aligned_spikes = spike_times' - event_times;
+
+        % Initialize counts for this neuron
+        binned_counts_neuron = nan(n_tokens_trials, n_time_bins);
+
+        % Loop over each overlapping bin to calculate spike counts
+        for i_bin = 1:n_time_bins
+            bin_start = bin_starts(i_bin);
+            bin_end = bin_start + bin_width;
+
+            % Count spikes within the [start, end) interval for each trial
+            spikes_in_bin = (aligned_spikes >= bin_start) & ...
+                            (aligned_spikes < bin_end);
+
+            % Sum across spikes to get the count for each trial in this bin
+            binned_counts_neuron(:, i_bin) = sum(spikes_in_bin, 2);
+        end
 
         % Convert spike counts to firing rate (spikes/sec)
-        binned_rates(i_neuron, :, :) = binned_counts / bin_width;
+        binned_rates(i_neuron, :, :) = binned_counts_neuron / bin_width;
     end
 
     % --- Special Handling for Variable-Length 'reward' Epoch ---
