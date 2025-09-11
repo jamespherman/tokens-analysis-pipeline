@@ -372,11 +372,8 @@ function plot_psth_and_raster(ax_raster, ax_psth, spike_times, ...
 %       step_size      - Step size for the sliding window (seconds).
 
 % Calculate PSTH using sliding window.
-% The 5th argument (non-overlapping bin width) is unused, but
-% required. We pass bin_width for simplicity.
-[~,~,~,~,psth,bin_centers] = alignAndBinSpikes(spike_times, ...
-    event_times, psth_win(1), psth_win(2), bin_width, bin_width, ...
-    step_size);
+[psth, bin_centers, ~] = alignAndBinSpikes(spike_times, ...
+    event_times, psth_win(1), psth_win(2), bin_width, step_size);
 
 % get rid of rows composed exclusively of 0 or NaN:
 nPsthRows = size(psth, 1);
