@@ -25,8 +25,8 @@ To begin an analysis, you should always start by consulting the manifest to iden
 | `dat_status` | The status of the `.dat` file conversion step. |
 | `behavior_status` | The status of the behavioral data preparation step (`prep.prepare_behavioral_data`). |
 | `kilosort_status` | The status of the Kilosort spike sorting step. |
-| `waveform_status` | The status of the mean waveform extraction step. |
-| `consolidation_status` | The status of the final data consolidation step (`consolidate.consolidate_data`). |
+| `waveform_status` | Status of the mean waveform extraction step (`consolidate.extract_waveforms`). This step creates a preliminary `session_data.mat` file with only waveform data. |
+| `consolidation_status` | Status of the final data consolidation step (`consolidate.consolidate_data`). This step merges behavioral, spike, and waveform data, overwriting the preliminary file. |
 | `notes` | A free-text field for any relevant notes about the session, often including the names of the behavioral tasks that were run. |
 
 ## Locating Session Data Files

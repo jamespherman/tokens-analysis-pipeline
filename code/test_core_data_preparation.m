@@ -535,7 +535,7 @@ function [grand_mean_psth, per_neuron_psth] = calculate_mean_psth(rates, ...
 
     end
 
-    % get rid of 0-rows:
+    % get rid of rows composed exclusively of 0 or NaN:
     per_neuron_psth(isnan(per_neuron_psth)) = 0;
     per_neuron_psth(all(per_neuron_psth == 0,2), :) = [];
 
