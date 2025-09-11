@@ -28,12 +28,37 @@ The analysis pipeline expects pre-consolidated data in the form of `session_data
 
 ## Pipeline Architecture
 
-The pipeline is orchestrated by the main script `run_tokens_analysis.m`. It operates in several stages, with progress tracked in the `session_manifest.csv` file:
+The pipeline is orchestrated by the main script `run_tokens_analysis.m`. It operates in several stages, with progress for each session tracked in the `config/session_manifest.csv` file. The script is idempotent, meaning it can be run multiple times without re-processing completed steps.
 
-1.  **Neuron Screening:** Selects high-quality, task-modulated neurons based on area-specific criteria.
-2.  **Data Preparation:** Generates event-aligned, binned spike rate matrices for the selected neurons.
-3.  **Analysis Execution:** Runs a suite of analyses (e.g., discriminability, classification, CCA) on the prepared data.
-4.  **Aggregation & Visualization:** Aggregates results across sessions and generates summary figures.
+1.  **Neuron Screening:** For each session, selects task-modulated neurons using area-specific criteria.
+    *   `screen_da_neurons.m`: Selects putative dopamine neurons based on firing rate and waveform shape.
+    *   `screen_sc_neurons.m`: Selects task-modulated superior colliculus neurons and determines the recorded hemisphere.
+2.  **Core Data Preparation:** The `prepare_core_data.m` script is called to generate analysis-ready data structures. It uses helper functions from the `/utils` directory to create event-aligned, binned spike rate matrices and processed pupil data for the selected neurons.
+3.  **Define Task Conditions:** The `define_task_conditions.m` utility is used to create logical masks for various experimental conditions (e.g., trials with normal vs. uniform reward distributions).
+4.  **Analysis Execution:** A suite of analyses are run on the prepared data:
+    *   `analyze_baseline_comparison.m`: Compares baseline firing rates to post-event firing rates using ROC analysis.
+    *   `analyze_roc_comparison.m`: Performs bin-by-bin ROC analysis to compare firing rates between key conditions (e.g., high vs. low RPE trials).
+    *   `analyze_anova.m`: Performs a more complex N-way ANOVA to test for main effects and interactions of multiple task factors on firing rates.
+5.  **Save Results:** The results of all analyses are saved to a single `analysis_results.mat` file in the `data/processed/{session_id}/` directory.
+
+## Function Descriptions
+
+This section provides a concise overview of the main `.m` files in the `/code` directory.
+
+*   `run_tokens_analysis.m`: The main entry point for the analysis pipeline, which orchestrates neuron screening, data preparation, and analysis execution.
+*   `screen_da_neurons.m`: Selects putative dopamine (DA) neurons based on firing rate and waveform characteristics.
+*   `screen_sc_neurons.m`: Identifies task-modulated neurons in the superior colliculus (SC) and determines the recorded brain hemisphere.
+*   `prepare_core_data.m`: A wrapper script that calls functions to prepare neuronal and pupil data for analysis.
+*   `define_task_conditions.m`: Defines logical masks for various experimental conditions based on trial information and event times.
+*   `analyze_baseline_comparison.m`: Compares baseline firing rates to post-event firing rates using ROC analysis.
+*   `analyze_roc_comparison.m`: Performs a bin-by-bin ROC analysis to compare firing rates between two specified conditions.
+*   `analyze_anova.m`: Performs an N-way ANOVA on firing rate data to test for main effects and interactions of task factors.
+*   `generate_neuron_summary_pdf.m`: Generates a multi-page PDF with diagnostic plots for each individual neuron.
+*   `plot_baseline_comparison.m`: Creates a summary figure visualizing the results of the baseline vs. post-event analysis.
+*   `plot_roc_comparison.m`: Generates a summary figure visualizing the results of the between-condition ROC analysis.
+*   `define_analysis_plan.m`: A configuration file that defines a plan for which analyses to run (currently unused).
+*   `test_core_data_preparation.m`: A test script that verifies the functionality of the data preparation pipeline and generates diagnostic plots.
+*   `test_neuron_diagnostics.m`: A test script that verifies the functionality of the neuron screening and diagnostic PDF generation workflow.
 
 ## Usage
 
