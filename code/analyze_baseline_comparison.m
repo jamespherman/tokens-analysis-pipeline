@@ -115,6 +115,16 @@ for i_align = 1:numel(align_events)
             % Squeeze to [nTrials x nTimeBins]
             neuron_rates_all_bins = squeeze(neuron_rates_all_bins);
 
+            % Filter out silent trials (all zeros or NaNs)
+            is_silent_trial = all(neuron_rates_all_bins == 0 | isnan(neuron_rates_all_bins), 2);
+            active_trials = ~is_silent_trial;
+            neuron_rates_all_bins = neuron_rates_all_bins(active_trials, :);
+
+            % If no active trials, skip to the next neuron
+            if isempty(neuron_rates_all_bins)
+                continue;
+            end
+
             % Construct the baseline distribution (x)
             % Pool values from all baseline bins across all trials
             baseline_data = neuron_rates_all_bins(:, baseline_bins);
