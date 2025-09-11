@@ -42,7 +42,8 @@ giveFeed('Analysis plan loaded.');
 %% Iterate Through Sessions
 for i = 1:height(manifest)
     session_id = manifest.unique_id{i};
-    giveFeed(sprintf('--- Starting processing for session: %s ---', session_id));
+    giveFeed(sprintf('--- Starting processing for session: %s ---', ...
+        session_id));
 
     % Define path to the session_data.mat file
     one_drive_path = findOneDrive;
@@ -69,12 +70,14 @@ for i = 1:height(manifest)
         if contains(session_id, 'SNc')
             selected_neurons = screen_da_neurons(session_data, session_id);
         elseif contains(session_id, 'SC')
-            [selected_neurons, sig_epoch_comp, scSide] = screen_sc_neurons(session_data);
+            [selected_neurons, sig_epoch_comp, scSide] = ...
+                screen_sc_neurons(session_data);
             session_data.analysis.scSide = scSide;
             session_data.analysis.sig_epoch_comparison = sig_epoch_comp;
         else
             warning('run_tokens_analysis:unknownSessionType', ...
-                'Unknown session type for %s. Cannot screen neurons.', session_id);
+                'Unknown session type for %s. Cannot screen neurons.', ...
+                session_id);
             continue;
         end
 
@@ -94,7 +97,8 @@ for i = 1:height(manifest)
     diag_output_dir = fullfile(project_root, 'figures', session_id);
 
     % Check if the directory exists and contains any PDF files
-    if exist(diag_output_dir, 'dir') && ~isempty(dir(fullfile(diag_output_dir, '*.pdf')))
+    if exist(diag_output_dir, 'dir') && ~isempty(dir(fullfile( ...
+            diag_output_dir, '*.pdf')))
         giveFeed('Diagnostic PDF already exists, skipping...');
     else
         giveFeed('Generating diagnostic PDF...');
@@ -108,7 +112,8 @@ for i = 1:height(manifest)
 
     % --- 2. Core Data Preparation ---
     if ~strcmp(manifest.dataprep_status{i}, 'complete')
-        giveFeed('Data prep status is ''pending''. Running prepare_core_data...');
+        giveFeed(['Data prep status is ''pending''. Running prepare_' ...
+            '            core_data...']);
         core_data = prepare_core_data(session_data, selected_neurons);
         session_data.analysis.core_data = core_data;
 
@@ -123,33 +128,39 @@ for i = 1:height(manifest)
 
     % --- 3. Define Task Conditions ---
     giveFeed('Defining task conditions...');
-    [conditions, is_av_session] = define_task_conditions(session_data.trialInfo, ...
+    [conditions, is_av_session] = define_task_conditions( ...
+        session_data.trialInfo, ...
         session_data.eventTimes, session_data.metadata.unique_id);
     giveFeed('Task conditions defined.');
 
     % --- 4. On-Demand Analysis Execution ---
     giveFeed('Checking for missing analyses...');
     data_updated = false; % Flag to track if we modify session_data
-    all_analyses_complete = true; % Flag to track if all analyses are present
+    all_analyses_complete = true; % Flag to track if all analyses r present
 
     % A. Baseline Comparison Analyses
     analysis_name = 'baseline_comparison';
     if isfield(analysis_plan, analysis_name)
-        conditions_to_run = analysis_plan.(analysis_name).conditions_to_run;
+        conditions_to_run = analysis_plan.( ...
+            analysis_name).conditions_to_run;
         for j = 1:length(conditions_to_run)
             condition_name = conditions_to_run{j};
             if ~isfield(session_data, 'analysis') || ...
                ~isfield(session_data.analysis, analysis_name) || ...
-               ~isfield(session_data.analysis.(analysis_name), condition_name)
+               ~isfield(session_data.analysis.(analysis_name), ...
+               condition_name)
 
                 all_analyses_complete = false; % Mark as incomplete
-                giveFeed(sprintf('--> Running missing analysis: %s for %s', ...
+                giveFeed(sprintf( ...
+                    '--> Running missing analysis: %s for %s', ...
                     analysis_name, condition_name));
 
-                analysis_result = analyze_baseline_comparison(core_data, ...
-                    conditions, is_av_session, 'condition', condition_name);
+                analysis_result = analyze_baseline_comparison( ...
+                    core_data, conditions, is_av_session, 'condition', ...
+                    condition_name);
 
-                session_data.analysis.(analysis_name).(condition_name) = analysis_result;
+                session_data.analysis.(analysis_name).( ...
+                    condition_name) = analysis_result;
                 data_updated = true;
             end
         end
@@ -158,7 +169,8 @@ for i = 1:height(manifest)
     % B. ROC Comparison Analyses
     analysis_name = 'roc_comparison';
     if isfield(analysis_plan, analysis_name)
-        comparisons_to_run = analysis_plan.(analysis_name).comparisons_to_run;
+        comparisons_to_run = analysis_plan.( ...
+            analysis_name).comparisons_to_run;
         for j = 1:length(comparisons_to_run)
             comp = comparisons_to_run(j);
             if ~isfield(session_data, 'analysis') || ...
@@ -166,13 +178,15 @@ for i = 1:height(manifest)
                ~isfield(session_data.analysis.(analysis_name), comp.name)
 
                 all_analyses_complete = false; % Mark as incomplete
-                giveFeed(sprintf('--> Running missing analysis: %s for %s', ...
+                giveFeed(sprintf( ...
+                    '--> Running missing analysis: %s for %s', ...
                     analysis_name, comp.name));
 
                 analysis_result = analyze_roc_comparison(core_data, ...
                     conditions, is_av_session, 'comparison', comp);
 
-                session_data.analysis.(analysis_name).(comp.name) = analysis_result;
+                session_data.analysis.(analysis_name).(comp.name) = ...
+                    analysis_result;
                 data_updated = true;
             end
         end
@@ -192,7 +206,8 @@ for i = 1:height(manifest)
         manifest.analysis_status{i} = 'complete';
     end
 
-    giveFeed(sprintf('--- Finished processing for session: %s ---\n', session_id));
+    giveFeed(sprintf('--- Finished processing for session: %s ---\n', ...
+        session_id));
 end
 
 %% Finalize
