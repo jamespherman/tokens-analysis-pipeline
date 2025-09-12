@@ -24,8 +24,55 @@ function [aggregated_sc_data, aggregated_snc_data] = aggregate_analysis_results(
 [script_dir, ~, ~] = fileparts(mfilename('fullpath'));
 addpath(fullfile(script_dir, 'utils'));
 
-% Get the definitive analysis plan
-analysis_plan = define_analysis_plan();
+%% Discover Superset of Analysis Fields and Dimensions
+% To decouple aggregation from a static analysis plan, we first iterate
+% through all completed session files to dynamically discover the full
+% superset of analysis results and key dimensions (e.g., n_time_bins).
+all_roc_fields = {};
+all_anova_fields = {};
+n_time_bins_canonical = NaN; % To store the canonical number of time bins for ANOVA
+
+complete_sessions = manifest(strcmp(manifest.analysis_status, 'complete'), :);
+
+for i_session = 1:height(complete_sessions)
+    session_id = complete_sessions.unique_id{i_session};
+    session_data_path = fullfile(findOneDrive(), ...
+        'Neuronal Data Analysis', session_id, ...
+        [session_id '_session_data.mat']);
+
+    if exist(session_data_path, 'file')
+        data = load(session_data_path, 'session_data');
+        session_data = data.session_data;
+
+        if isfield(session_data, 'analysis')
+            % Discover ROC comparison fields
+            if isfield(session_data.analysis, 'roc_comparison')
+                all_roc_fields = [all_roc_fields; fieldnames(session_data.analysis.roc_comparison)];
+            end
+            % Discover ANOVA fields and n_time_bins
+            if isfield(session_data.analysis, 'anova_results')
+                anova_results = session_data.analysis.anova_results;
+                all_anova_fields = [all_anova_fields; fieldnames(anova_results)];
+
+                % If we haven't found n_time_bins yet, get it from the first
+                % available anova result in this session.
+                if isnan(n_time_bins_canonical) && ~isempty(fieldnames(anova_results))
+                    any_existing_field = fieldnames(anova_results);
+                    any_existing_subfield = fieldnames(anova_results.(any_existing_field{1}));
+                    n_time_bins_canonical = size(anova_results.(any_existing_field{1}).(any_existing_subfield{1}), 2);
+                end
+            end
+        end
+    end
+end
+
+% Get the unique field names for each analysis type
+discovered_roc_fields = unique(all_roc_fields);
+discovered_anova_fields = unique(all_anova_fields);
+
+
+% The analysis plan is now discovered dynamically from the data,
+% so the static define_analysis_plan() is no longer needed.
 
 %% Initialize Aggregated Data Structures
 aggregated_sc_data = struct();
@@ -39,19 +86,17 @@ for i_area = 1:length(brain_areas)
     % Initialize a temporary struct for the current area's aggregated data
     aggregated_data = struct();
 
-    % --- Dynamic Initialization from Analysis Plan ---
-    % Initialize fields for ROC comparisons
-    for i_comp = 1:length(analysis_plan.roc_comparison.comparisons_to_run)
-        comp_name = analysis_plan.roc_comparison.comparisons_to_run(i_comp).name;
+    % --- Dynamic Initialization from Discovered Fields ---
+    % Initialize fields for ROC comparisons based on the discovered superset
+    for i_comp = 1:length(discovered_roc_fields)
+        comp_name = discovered_roc_fields{i_comp};
         aggregated_data.roc_comparison.(comp_name).sig = [];
     end
 
-    % Initialize fields for ANOVA results
-    if analysis_plan.anova.run
-        for i_field = 1:length(analysis_plan.anova.fields_to_aggregate)
-            field_name = analysis_plan.anova.fields_to_aggregate{i_field};
-            aggregated_data.anova_results.(field_name) = [];
-        end
+    % Initialize fields for ANOVA results based on the discovered superset
+    for i_field = 1:length(discovered_anova_fields)
+        field_name = discovered_anova_fields{i_field};
+        aggregated_data.anova_results.(field_name) = [];
     end
 
 
@@ -97,37 +142,37 @@ for i_area = 1:length(brain_areas)
         end
 
         % --- Aggregate ROC Comparison Results ---
-        roc_comparisons = analysis_plan.roc_comparison.comparisons_to_run;
-        for i_roc = 1:length(roc_comparisons)
-            field = roc_comparisons(i_roc).name;
+        for i_roc = 1:length(discovered_roc_fields)
+            field = discovered_roc_fields{i_roc};
 
-            % The field is guaranteed to exist in aggregated_data due to
-            % the dynamic initialization step.
-            aggregated_data.roc_comparison.(field).sig = [aggregated_data.roc_comparison.(field).sig; ...
-                session_data.analysis.roc_comparison.(field).sig];
+            if isfield(session_data.analysis, 'roc_comparison') && ...
+               isfield(session_data.analysis.roc_comparison, field)
+                data_to_append = session_data.analysis.roc_comparison.(field).sig;
+            else
+                % Pad with NaNs for missing data
+                data_to_append = nan(n_neurons, 1);
+            end
+
+            aggregated_data.roc_comparison.(field).sig = ...
+                [aggregated_data.roc_comparison.(field).sig; data_to_append];
         end
 
         % --- Aggregate ANOVA Results (Flexible Handling) ---
-        anova_results = session_data.analysis.anova_results;
-        if analysis_plan.anova.run
-            anova_fields = analysis_plan.anova.fields_to_aggregate;
-            for i_anova = 1:length(anova_fields)
-                field = anova_fields{i_anova};
+        for i_anova = 1:length(discovered_anova_fields)
+            field = discovered_anova_fields{i_anova};
 
-                if isfield(anova_results, field)
-                    data_to_append = anova_results.(field);
-                else
-                    % This handles cases where a field is not applicable to the
-                    % session (e.g., flicker terms in a 'main' task session).
-                    % We get nTimeBins from a field that is guaranteed to exist.
-                    any_existing_field = fieldnames(anova_results);
-                    any_existing_subfield = fieldnames(anova_results.(any_existing_field{1}));
-                    n_time_bins = size(anova_results.(any_existing_field{1}).(any_existing_subfield{1}), 2);
-                    data_to_append = nan(n_neurons, n_time_bins);
-                end
-                aggregated_data.anova_results.(field) = ...
-                    [aggregated_data.anova_results.(field); data_to_append];
+            if isfield(session_data.analysis, 'anova_results') && ...
+               isfield(session_data.analysis.anova_results, field)
+                data_to_append = session_data.analysis.anova_results.(field);
+            else
+                % Pad with NaNs of the canonical size.
+                % If n_time_bins_canonical is still NaN (e.g., no ANOVA
+                % results found anywhere), this will create a 0-column
+                % matrix, which is handled but should be noted.
+                data_to_append = nan(n_neurons, n_time_bins_canonical);
             end
+            aggregated_data.anova_results.(field) = ...
+                [aggregated_data.anova_results.(field); data_to_append];
         end
     end
 
