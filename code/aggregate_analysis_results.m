@@ -29,7 +29,8 @@ addpath(fullfile(script_dir, 'utils'));
 % through all completed session files to dynamically discover the full
 % superset of analysis results and key dimensions (e.g., n_time_bins).
 all_roc_fields = {};
-all_anova_fields = {};
+roc_time_bins = containers.Map('KeyType', 'char', 'ValueType', 'any');
+discovered_anova_fields = struct();
 n_time_bins_canonical = NaN; % To store the canonical number of time bins for ANOVA
 
 complete_sessions = manifest(strcmp(manifest.analysis_status, 'complete'), :);
@@ -45,21 +46,40 @@ for i_session = 1:height(complete_sessions)
         session_data = data.session_data;
 
         if isfield(session_data, 'analysis')
-            % Discover ROC comparison fields
+            % Discover ROC comparison fields and their time dimensions
             if isfield(session_data.analysis, 'roc_comparison')
-                all_roc_fields = [all_roc_fields; fieldnames(session_data.analysis.roc_comparison)];
+                roc_fields = fieldnames(session_data.analysis.roc_comparison);
+                all_roc_fields = [all_roc_fields; roc_fields];
+                for i_field = 1:length(roc_fields)
+                    field = roc_fields{i_field};
+                    if ~isKey(roc_time_bins, field)
+                        n_bins = size(session_data.analysis.roc_comparison.(field).sig, 2);
+                        roc_time_bins(field) = n_bins;
+                    end
+                end
             end
-            % Discover ANOVA fields and n_time_bins
+
+            % Discover nested ANOVA fields (alignment_event -> p_value_field)
             if isfield(session_data.analysis, 'anova_results')
                 anova_results = session_data.analysis.anova_results;
-                all_anova_fields = [all_anova_fields; fieldnames(anova_results)];
+                alignment_events = fieldnames(anova_results);
 
-                % If we haven't found n_time_bins yet, get it from the first
-                % available anova result in this session.
-                if isnan(n_time_bins_canonical) && ~isempty(fieldnames(anova_results))
-                    any_existing_field = fieldnames(anova_results);
-                    any_existing_subfield = fieldnames(anova_results.(any_existing_field{1}));
-                    n_time_bins_canonical = size(anova_results.(any_existing_field{1}).(any_existing_subfield{1}), 2);
+                for i_event = 1:length(alignment_events)
+                    event_name = alignment_events{i_event};
+                    if isstruct(anova_results.(event_name))
+                        p_value_fields = fieldnames(anova_results.(event_name));
+
+                        if ~isfield(discovered_anova_fields, event_name)
+                            discovered_anova_fields.(event_name) = {};
+                        end
+                        discovered_anova_fields.(event_name) = [discovered_anova_fields.(event_name); p_value_fields];
+
+                        % Capture canonical n_time_bins from the first valid p-value matrix
+                        if isnan(n_time_bins_canonical) && ~isempty(p_value_fields)
+                            p_field = p_value_fields{1};
+                            n_time_bins_canonical = size(anova_results.(event_name).(p_field), 2);
+                        end
+                    end
                 end
             end
         end
@@ -68,7 +88,13 @@ end
 
 % Get the unique field names for each analysis type
 discovered_roc_fields = unique(all_roc_fields);
-discovered_anova_fields = unique(all_anova_fields);
+
+% Make the list of p-value fields for each ANOVA event unique
+alignment_events = fieldnames(discovered_anova_fields);
+for i_event = 1:length(alignment_events)
+    event_name = alignment_events{i_event};
+    discovered_anova_fields.(event_name) = unique(discovered_anova_fields.(event_name));
+end
 
 
 % The analysis plan is now discovered dynamically from the data,
@@ -93,10 +119,15 @@ for i_area = 1:length(brain_areas)
         aggregated_data.roc_comparison.(comp_name).sig = [];
     end
 
-    % Initialize fields for ANOVA results based on the discovered superset
-    for i_field = 1:length(discovered_anova_fields)
-        field_name = discovered_anova_fields{i_field};
-        aggregated_data.anova_results.(field_name) = [];
+    % Initialize fields for ANOVA results using the discovered nested structure
+    alignment_events = fieldnames(discovered_anova_fields);
+    for i_event = 1:length(alignment_events)
+        event_name = alignment_events{i_event};
+        p_value_fields = discovered_anova_fields.(event_name);
+        for i_p_field = 1:length(p_value_fields)
+            p_field_name = p_value_fields{i_p_field};
+            aggregated_data.anova_results.(event_name).(p_field_name) = [];
+        end
     end
 
 
@@ -149,30 +180,38 @@ for i_area = 1:length(brain_areas)
                isfield(session_data.analysis.roc_comparison, field)
                 data_to_append = session_data.analysis.roc_comparison.(field).sig;
             else
-                % Pad with NaNs for missing data
-                data_to_append = nan(n_neurons, 1);
+                % Pad with NaNs of the correct size for the specific comparison
+                n_bins = roc_time_bins(field);
+                data_to_append = nan(n_neurons, n_bins);
             end
 
             aggregated_data.roc_comparison.(field).sig = ...
                 [aggregated_data.roc_comparison.(field).sig; data_to_append];
         end
 
-        % --- Aggregate ANOVA Results (Flexible Handling) ---
-        for i_anova = 1:length(discovered_anova_fields)
-            field = discovered_anova_fields{i_anova};
+        % --- Aggregate Nested ANOVA Results ---
+        alignment_events = fieldnames(discovered_anova_fields);
+        for i_event = 1:length(alignment_events)
+            event_name = alignment_events{i_event};
+            p_value_fields = discovered_anova_fields.(event_name);
 
-            if isfield(session_data.analysis, 'anova_results') && ...
-               isfield(session_data.analysis.anova_results, field)
-                data_to_append = session_data.analysis.anova_results.(field);
-            else
-                % Pad with NaNs of the canonical size.
-                % If n_time_bins_canonical is still NaN (e.g., no ANOVA
-                % results found anywhere), this will create a 0-column
-                % matrix, which is handled but should be noted.
-                data_to_append = nan(n_neurons, n_time_bins_canonical);
+            for i_p_field = 1:length(p_value_fields)
+                p_field_name = p_value_fields{i_p_field};
+
+                % Check if the specific p-value field exists for the session
+                if isfield(session_data.analysis, 'anova_results') && ...
+                   isfield(session_data.analysis.anova_results, event_name) && ...
+                   isfield(session_data.analysis.anova_results.(event_name), p_field_name)
+                    data_to_append = session_data.analysis.anova_results.(event_name).(p_field_name);
+                else
+                    % Pad with NaNs of the canonical size.
+                    data_to_append = nan(n_neurons, n_time_bins_canonical);
+                end
+
+                % Append data to the correct nested field
+                aggregated_data.anova_results.(event_name).(p_field_name) = ...
+                    [aggregated_data.anova_results.(event_name).(p_field_name); data_to_append];
             end
-            aggregated_data.anova_results.(field) = ...
-                [aggregated_data.anova_results.(field); data_to_append];
         end
     end
 
