@@ -47,18 +47,8 @@ for i_comp = 1:n_comparisons
     end
 
     % --- Time Vector Loading ---
-    % Load a single session_data.mat file to get the time vectors, which are
-    % consistent across all sessions.
-    one_drive_path = findOneDrive;
-    first_session_id = aggregated_sc_data.session_id{1}; % Use first SC session as template
-    session_data_path = fullfile(one_drive_path, 'Neuronal Data Analysis', ...
-        first_session_id, [first_session_id '_session_data.mat']);
-
-    if ~exist(session_data_path, 'file')
-        error('Could not find session file for %s to get time vectors.', first_session_id);
-    end
-    temp_data = load(session_data_path, 'session_data');
-    time_vector = temp_data.session_data.analysis.roc_comparison.(comp_name).time_vector;
+    % The time vector is now self-contained in the aggregated data structure.
+    time_vector = aggregated_sc_data.roc_comparison.(comp_name).time_vector;
 
     % --- Data Extraction and Count Calculation ---
     sig_sc = aggregated_sc_data.roc_comparison.(comp_name).sig;
