@@ -36,8 +36,19 @@ alignment_events = {'CUE_ON', 'outcomeOn', 'reward'};
 % set of rewarded 'tokens' trials that were used to create the core_data
 % and conditions structs.
 codes = initCodes();
-is_tokens_trial = (session_data.trialInfo.taskCode == codes.uniqueTaskCode_tokens) & ...
+tempCueFile = session_data.trialInfo.cueFile;
+tempCueFile(cellfun(@isempty, tempCueFile)) = {''};
+
+% define one variable indexing all tokens task trials including those that
+% are not going to be part of this anova analysis:
+is_tokens_trial_all = (session_data.trialInfo.taskCode == ...
+    codes.uniqueTaskCode_tokens) & ...
     ~cellfun(@isempty, session_data.eventTimes.rewardCell);
+
+% define another variable that indexes only the tokens task trials that
+% will be used for the anova analysis (those that had a cue image):
+is_tokens_trial = is_tokens_trial_all & ...
+    ~contains(tempCueFile, 'blank');
 n_trials = sum(is_tokens_trial);
 
 % Factor 1: RPE (Continuous Predictor)
@@ -48,17 +59,21 @@ rpe_predictor = rewardAmt - mean(rewardAmt);
 
 % Factor 2: Distribution (Categorical, 2 Levels: 'Normal', 'Uniform')
 % A cell array of strings defining the reward distribution for each trial.
+% first make a logical index of the same size as
+% 'conditions.is_normal_dist' / 'conditions.is_uniform_dist' so we can use
+% those to define 'dist_factor':
+gDist = find(~contains(tempCueFile(is_tokens_trial_all), 'blank'));
 dist_factor = cell(n_trials, 1);
-dist_factor(conditions.is_normal_dist) = {'Normal'};
-dist_factor(conditions.is_uniform_dist) = {'Uniform'};
+dist_factor(conditions.is_normal_dist(gDist)) = {'Normal'};
+dist_factor(conditions.is_uniform_dist(gDist)) = {'Uniform'};
 
 % Factor 3: Flicker (Categorical, 4 Levels)
 % A cell array of strings defining the flicker condition for each trial.
 flicker_factor = cell(n_trials, 1);
-flicker_factor(conditions.is_noflicker_certain) = {'CertainAbsent'};
-flicker_factor(conditions.is_flicker_certain) = {'CertainPresent'};
-flicker_factor(conditions.is_flicker_omitted) = {'UncertainAbsent'};
-flicker_factor(conditions.is_flicker_surprising) = {'UncertainPresent'};
+flicker_factor(conditions.is_noflicker_certain(gDist)) = {'CertainAbsent'};
+flicker_factor(conditions.is_flicker_certain(gDist)) = {'CertainPresent'};
+flicker_factor(conditions.is_flicker_omitted(gDist)) = {'UncertainAbsent'};
+flicker_factor(conditions.is_flicker_surprising(gDist)) = {'UncertainPresent'};
 
 
 %% Main Analysis Loop
@@ -66,7 +81,8 @@ for i_event = 1:numel(alignment_events)
     event_name = alignment_events{i_event};
 
     % Get dimensions from core_data for this event
-    [n_neurons, n_trials, n_bins] = size(core_data.spikes.(event_name).rates);
+    [n_neurons, n_trials, n_bins] = size(...
+        core_data.spikes.(event_name).rates);
 
     % Pre-allocate the results structure for the current event. This improves
     % performance and code clarity. The p-values for each model term will be
@@ -85,7 +101,7 @@ for i_event = 1:numel(alignment_events)
             % Extract the firing rates for the current neuron and time bin
             % across all trials. Squeeze removes singleton dimensions.
             firing_rates = squeeze(core_data.spikes.(event_name).rates( ...
-                i_neuron, :, i_bin));
+                i_neuron, gDist, i_bin));
 
             % Anovan requires at least two groups for each categorical
             % variable. If NaNs in the firing rate data cause a factor to

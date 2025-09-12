@@ -16,7 +16,7 @@ clear; clc; close all;
 
 % --- USER TOGGLES ---
 % Force re-computation of all steps, even if marked 'complete'
-force_rerun = true;
+force_rerun = false;
 % --- END USER TOGGLES ---
 
 % Add utility functions to the MATLAB path
@@ -75,24 +75,9 @@ for i = 1:height(manifest)
     n_total_steps = 0;
     unique_id = session_id; % Use a consistent variable name for fprintf
 
-    % 0. Screening
+    % 0. Metrics
     if ~isfield(session_data, 'metrics') || force_rerun
         n_total_steps = n_total_steps + 1;
-        % Calculate waveform metrics and add to session_data
-        nClusters = height(session_data.spikes.cluster_info.cluster_id);
-        for i_cluster = 1:nClusters
-
-            % get current unit's multi-channel waveform:
-            mean_waveform = session_data.spikes.wfMeans{i_cluster};
-
-            % find channel with max variance:
-            [~,max_var_chan] = max(var(mean_waveform,[],2));
-
-            % Note: Assuming a sampling rate of 30000 Hz
-            session_data.metrics.wf_metrics(i_cluster, 1) = ...
-            calculate_waveform_metrics(mean_waveform(max_var_chan,:), 30000);
-        end
-        giveFeed('Diagnostic metrics calculated and stored.');
     end
     
     % 1. Screening
@@ -153,6 +138,28 @@ for i = 1:height(manifest)
     step_counter = 0;
     % --- End of dry run ---
 
+    % --- 0. Metrics Calculation ---
+    if ~isfield(session_data, 'metrics') || force_rerun
+
+        giveFeed('Computing waveform metrics.');
+        % Calculate waveform metrics and add to session_data
+        nClusters = height(session_data.spikes.cluster_info.cluster_id);
+        for i_cluster = 1:nClusters
+
+            % get current unit's multi-channel waveform:
+            mean_waveform = session_data.spikes.wfMeans{i_cluster};
+
+            % find channel with max variance:
+            [~,max_var_chan] = max(var(mean_waveform,[],2));
+
+            % Note: Assuming a sampling rate of 30000 Hz
+            session_data.metrics.wf_metrics(i_cluster, 1) = ...
+            calculate_waveform_metrics(mean_waveform(max_var_chan,:), ...
+            30000);
+        end
+        giveFeed('Diagnostic metrics calculated and stored.');
+    end
+
     % --- 1. Neuron Screening ---
     if ~strcmp(manifest.screening_status{i}, 'complete') || force_rerun
         step_counter = step_counter + 1;
@@ -189,9 +196,12 @@ for i = 1:height(manifest)
     diag_output_dir = fullfile(project_root, 'figures', session_id);
 
     % Check if the directory exists and contains any PDF files
-    if (~exist(diag_output_dir, 'dir') || isempty(dir(fullfile(diag_output_dir, '*.pdf')))) || force_rerun
+    if (~exist(diag_output_dir, 'dir') || isempty(dir(fullfile( ...
+            diag_output_dir, '*.pdf')))) || force_rerun
         step_counter = step_counter + 1;
-        fprintf('\n--- Session %s: Starting Step %d of %d: Diagnostic PDF Generation ---\n', unique_id, step_counter, n_total_steps);
+        fprintf(['\n--- Session %s: Starting Step %d of %d: ' ...
+            'Diagnostic PDF Generation ---\n'], unique_id, step_counter, ...
+            n_total_steps);
         giveFeed('Generating diagnostic PDF...');
         if ~exist(diag_output_dir, 'dir')
             mkdir(diag_output_dir);

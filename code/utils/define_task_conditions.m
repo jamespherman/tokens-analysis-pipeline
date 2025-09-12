@@ -23,7 +23,8 @@ is_av_session = isfield(trialInfo, 'isAVTrial');
 
 % Identify valid tokens trials (task code match and reward delivered)
 is_tokens_trial = (trialInfo.taskCode == codes.uniqueTaskCode_tokens) & ...
-    ~cellfun(@isempty, eventTimes.rewardCell);
+    ~cellfun(@isempty, eventTimes.rewardCell) & ...
+    ~cellfun(@isempty, trialInfo.cueFile);
 
 % Filter all relevant data structures to include only tokens trials.
 % This ensures that all generated masks are of the correct length.

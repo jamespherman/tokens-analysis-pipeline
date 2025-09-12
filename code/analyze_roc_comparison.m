@@ -41,7 +41,7 @@ if is_av_session
     av_comparisons = {
         {'outcomeOn', 'is_flicker_certain', 'is_flicker_surprising', 'SPE_at_Outcome'}
         };
-    all_comparisons = [all_comparisons; av_comparisons];
+    all_comparisons = [all_comparisons, av_comparisons];
 end
 
 % Determine which comparisons to run
