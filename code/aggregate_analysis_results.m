@@ -111,16 +111,16 @@ for i_area = 1:length(brain_areas)
             if isfield(anova_results, field)
                 data_to_append = anova_results.(field);
             else
-                % Get nTimeBins from a reliable source (e.g., an existing anova field)
-                if isfield(anova_results, 'p_value_reward')
-                    n_time_bins = size(anova_results.p_value_reward, 2);
-                else % Fallback for sessions with no anova results at all
-                    n_time_bins = size(session_data.analysis.roc_comparison.Dist_at_Cue.sig, 2);
-                end
+                % Get nTimeBins from a fieldname that does exist:
+                tfn1 = fieldnames(anova_results);
+                tfn2 = fieldnames(anova_results.(tfn1{1}));
+                n_time_bins = size(anova_results.(tfn1{1}).(tfn2{1}), 2);
                 data_to_append = nan(n_neurons, n_time_bins);
             end
-            aggregated_data.anova_results.(field) = [aggregated_data.anova_results.(field); data_to_append];
+            aggregated_data.anova_results.(field) = ...
+                [aggregated_data.anova_results.(field); data_to_append];
         end
+        keyboard
     end
 
     % Assign the populated temporary struct to the correct output variable
