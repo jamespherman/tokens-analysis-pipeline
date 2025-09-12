@@ -91,9 +91,12 @@ for i_area = 1:length(brain_areas)
             if ~isfield(aggregated_data, 'roc_comparison') || ~isfield(aggregated_data.roc_comparison, field)
                 aggregated_data.roc_comparison.(field).sig = [];
             end
-
+            try
             aggregated_data.roc_comparison.(field).sig = [aggregated_data.roc_comparison.(field).sig; ...
                 session_data.analysis.roc_comparison.(field).sig];
+            catch me
+                keyboard
+            end
         end
 
         % --- Aggregate ANOVA Results (Flexible Handling) ---
