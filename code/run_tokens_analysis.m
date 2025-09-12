@@ -75,6 +75,26 @@ for i = 1:height(manifest)
     n_total_steps = 0;
     unique_id = session_id; % Use a consistent variable name for fprintf
 
+    % 0. Screening
+    if ~isfield(session_data, 'metrics') || force_rerun
+        n_total_steps = n_total_steps + 1;
+        % Calculate waveform metrics and add to session_data
+        nClusters = height(session_data.spikes.cluster_info.cluster_id);
+        for i_cluster = 1:nClusters
+
+            % get current unit's multi-channel waveform:
+            mean_waveform = session_data.spikes.wfMeans{i_cluster};
+
+            % find channel with max variance:
+            [~,max_var_chan] = max(var(mean_waveform,[],2));
+
+            % Note: Assuming a sampling rate of 30000 Hz
+            session_data.metrics.wf_metrics(i_cluster, 1) = ...
+            calculate_waveform_metrics(mean_waveform(max_var_chan,:), 30000);
+        end
+        giveFeed('Diagnostic metrics calculated and stored.');
+    end
+    
     % 1. Screening
     if ~strcmp(manifest.screening_status{i}, 'complete') || force_rerun
         n_total_steps = n_total_steps + 1;
