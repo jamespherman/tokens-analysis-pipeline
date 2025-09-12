@@ -20,7 +20,8 @@ function plot_aggregated_roc_comparison(aggregated_sc_data, aggregated_snc_data)
 addpath(fullfile(script_dir, 'utils'));
 
 %% Figure and Plotting Setup
-figure('Position', [100, 100, 1200, 400]);
+figure('Position', [100, 100, 1200, 800]); % Adjusted for 2x3 layout
+h_axes = gobjects(2, 3);
 
 % Define the three comparisons to plot
 comparisons = struct(...
@@ -40,82 +41,100 @@ plot_alpha = 0.5; % Transparency for overlapping plots
 for i_comp = 1:length(comparisons)
     comp_name = comparisons(i_comp).name;
 
-    % --- Subplot Setup ---
-    mySubPlot([1, 3, i_comp]);
-    hold on;
-
-    % --- Data Extraction ---
-    % Note: This function assumes the aggregation script has been fixed to
-    % include 'time_vector' in the aggregated data structures.
-    % As of 2025-09-12, it is a known issue that it does not.
+    % --- Data Validation ---
     if ~isfield(aggregated_sc_data, 'roc_comparison') || ~isfield(aggregated_sc_data.roc_comparison, comp_name)
         warning('plot_aggregated_roc_comparison:no_sc_data', 'No data for %s in SC struct.', comp_name);
         continue;
     end
-     if ~isfield(aggregated_snc_data, 'roc_comparison') || ~isfield(aggregated_snc_data.roc_comparison, comp_name)
+    if ~isfield(aggregated_snc_data, 'roc_comparison') || ~isfield(aggregated_snc_data.roc_comparison, comp_name)
         warning('plot_aggregated_roc_comparison:no_snc_data', 'No data for %s in SNc struct.', comp_name);
         continue;
     end
 
-    sig_sc = aggregated_sc_data.roc_comparison.(comp_name).sig;
-    sig_snc = aggregated_snc_data.roc_comparison.(comp_name).sig;
+    % --- Time Vector Loading ---
+    % Load a single session_data.mat file to get the time vectors, which are
+    % consistent across all sessions.
+    one_drive_path = findOneDrive;
+    first_session_id = aggregated_sc_data.session_id{1}; % Use first SC session as template
+    session_data_path = fullfile(one_drive_path, 'Neuronal Data Analysis', ...
+        first_session_id, [first_session_id '_session_data.mat']);
 
-    % HACK: The time vector is not currently aggregated. We load a data file
-    % from the first session in the aggregation list to get it. This should be
-    % fixed in `aggregate_analysis_results.m`.
-    if isfield(aggregated_sc_data, 'session_id') && ~isempty(aggregated_sc_data.session_id)
-        first_session_id = aggregated_sc_data.session_id{1};
-        hack_path = fullfile('data', 'processed', first_session_id, 'analysis_results.mat');
-        if exist(hack_path, 'file')
-            temp_data = load(hack_path, 'analysis_results');
-            time_vector = temp_data.analysis_results.roc_comparison.(comp_name).time_vector;
-        else
-            error('Could not find analysis file for session %s to get time_vector.', first_session_id);
-        end
-    else
-        error('Cannot determine time_vector because aggregated_sc_data is empty or missing session_id.');
+    if ~exist(session_data_path, 'file')
+        error('Could not find session file for %s to get time vectors.', first_session_id);
     end
+    temp_data = load(session_data_path, 'session_data');
+    time_vector = temp_data.session_data.analysis.roc_comparison.(comp_name).time_vector;
 
-
-    % --- Proportion Calculation ---
+    % --- Data Extraction and Proportion Calculation ---
+    sig_sc = aggregated_sc_data.roc_comparison.(comp_name).sig;
     n_total_sc = size(sig_sc, 1);
     prop_sc_cond2 = sum(sig_sc == 1, 1) / n_total_sc;
     prop_sc_cond1 = -sum(sig_sc == -1, 1) / n_total_sc;
 
+    sig_snc = aggregated_snc_data.roc_comparison.(comp_name).sig;
     n_total_snc = size(sig_snc, 1);
     prop_snc_cond2 = sum(sig_snc == 1, 1) / n_total_snc;
     prop_snc_cond1 = -sum(sig_snc == -1, 1) / n_total_snc;
 
-    % --- Plotting ---
-    % Plot SC data
-    barStairsFill(time_vector, prop_sc_cond2, 'FaceColor', sc_color, 'EdgeColor', 'none', 'FaceAlpha', plot_alpha);
-    barStairsFill(time_vector, prop_sc_cond1, 'FaceColor', sc_color, 'EdgeColor', 'none', 'FaceAlpha', plot_alpha);
+    % --- Plotting SC Data (Top Row) ---
+    h_axes(1, i_comp) = mySubPlot([2, 3, i_comp]);
+    hold on;
 
-    % Plot SNc data
-    barStairsFill(time_vector, prop_snc_cond2, 'FaceColor', snc_color, 'EdgeColor', 'none', 'FaceAlpha', plot_alpha);
-    barStairsFill(time_vector, prop_snc_cond1, 'FaceColor', snc_color, 'EdgeColor', 'none', 'FaceAlpha', plot_alpha);
+    % Plot SC proportions
+    h_sc1 = barStairsFill(time_vector, zeros(size(prop_sc_cond2)), prop_sc_cond2);
+    delete(h_sc1(2)); % Delete baseline
+    set(h_sc1(1), 'FaceColor', sc_color, 'FaceAlpha', plot_alpha, 'EdgeColor', 'none');
+    set(h_sc1(3), 'Color', sc_color);
 
-    % --- Formatting ---
+    h_sc2 = barStairsFill(time_vector, zeros(size(prop_sc_cond1)), prop_sc_cond1);
+    delete(h_sc2(2)); % Delete baseline
+    set(h_sc2(1), 'FaceColor', sc_color, 'FaceAlpha', plot_alpha, 'EdgeColor', 'none');
+    set(h_sc2(3), 'Color', sc_color);
+
+    % Formatting for SC plots
     title(comparisons(i_comp).title);
-    xlabel(comparisons(i_comp).xlabel);
     xlim([time_vector(1), time_vector(end)]);
     line(xlim, [0, 0], 'Color', 'k', 'LineStyle', '--');
     line([0, 0], ylim, 'Color', 'k', 'LineStyle', '--');
 
-    % De-clutter axes per AGENTS.md instructions
-    if i_comp == 1
-        ylabel('Proportion of Neurons');
-    else
-        set(gca, 'YTickLabel', []);
-    end
+    % --- Plotting SNc Data (Bottom Row) ---
+    h_axes(2, i_comp) = mySubPlot([2, 3, i_comp + 3]);
+    hold on;
+
+    % Plot SNc proportions
+    h_snc1 = barStairsFill(time_vector, zeros(size(prop_snc_cond2)), prop_snc_cond2);
+    delete(h_snc1(2));
+    set(h_snc1(1), 'FaceColor', snc_color, 'FaceAlpha', plot_alpha, 'EdgeColor', 'none');
+    set(h_snc1(3), 'Color', snc_color);
+
+    h_snc2 = barStairsFill(time_vector, zeros(size(prop_snc_cond1)), prop_snc_cond1);
+    delete(h_snc2(2));
+    set(h_snc2(1), 'FaceColor', snc_color, 'FaceAlpha', plot_alpha, 'EdgeColor', 'none');
+    set(h_snc2(3), 'Color', snc_color);
+
+    % Formatting for SNc plots
+    xlim([time_vector(1), time_vector(end)]);
+    line(xlim, [0, 0], 'Color', 'k', 'LineStyle', '--');
+    line([0, 0], ylim, 'Color', 'k', 'LineStyle', '--');
 end
 
-%% Legend and Final Touches
-% Create a single legend for the entire figure
-h_sc = patch(NaN, NaN, sc_color, 'FaceAlpha', plot_alpha);
-h_snc = patch(NaN, NaN, snc_color, 'FaceAlpha', plot_alpha);
-legend([h_sc, h_snc], {'SC', 'SNc'}, 'Location', 'northwest', 'Box', 'off');
+%% Figure Cleanup and Final Touches
+% De-clutter axes per AGENTS.md instructions
+set(h_axes(1, :), 'XTickLabel', []); % Remove x-labels from top row
+set(h_axes(:, 2:3), 'YTickLabel', []); % Remove y-labels from middle and right columns
 
-sgtitle('Aggregated Population Preference: SC vs. SNc', 'FontSize', 16, 'FontWeight', 'bold');
+% Add axis labels to outer plots
+ylabel(h_axes(1, 1), 'Proportion of Neurons (SC)');
+ylabel(h_axes(2, 1), 'Proportion of Neurons (SNc)');
+for i = 1:3
+    xlabel(h_axes(2, i), comparisons(i).xlabel);
+end
+
+% Create a single legend for the entire figure
+h_sc_patch = patch(NaN, NaN, sc_color, 'FaceAlpha', plot_alpha);
+h_snc_patch = patch(NaN, NaN, snc_color, 'FaceAlpha', plot_alpha);
+legend([h_sc_patch, h_snc_patch], {'SC', 'SNc'}, 'Position', [0.05, 0.9, 0.1, 0.05], 'Box', 'off');
+
+sgtitle('Aggregated Population Preference: SC vs. SNc', 'FontSize', 16, 'FontWeight', 'bold', 'Interpreter', 'none');
 
 end
