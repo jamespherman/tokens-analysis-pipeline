@@ -20,7 +20,7 @@ function plot_aggregated_roc_comparison(aggregated_sc_data, aggregated_snc_data)
 addpath(fullfile(script_dir, 'utils'));
 
 %% Figure and Plotting Setup
-figure('Position', [100, 100, 1200, 800]); % Adjusted for 2x3 layout
+fig = figure('Position', [100, 100, 1200, 800], 'Color', 'w');
 h_axes = gobjects(2, 3);
 
 % Define the three comparisons to plot
@@ -36,6 +36,10 @@ comparisons = struct(...
 sc_color = [0, 0.4470, 0.7410];  % Blue
 snc_color = [0.8500, 0.3250, 0.0980]; % Orange
 plot_alpha = 0.5; % Transparency for overlapping plots
+
+% we want the right-most axes to be wider than the other two
+nCols = [4 4 2];
+plotIdx = [1 2 2; 5 6 4];
 
 %% Main Plotting Loop
 for i_comp = 1:length(comparisons)
@@ -65,19 +69,19 @@ for i_comp = 1:length(comparisons)
     temp_data = load(session_data_path, 'session_data');
     time_vector = temp_data.session_data.analysis.roc_comparison.(comp_name).time_vector;
 
-    % --- Data Extraction and Proportion Calculation ---
+    % --- Data Extraction and Count Calculation ---
     sig_sc = aggregated_sc_data.roc_comparison.(comp_name).sig;
     n_total_sc = size(sig_sc, 1);
-    prop_sc_cond2 = sum(sig_sc == 1, 1) / n_total_sc;
-    prop_sc_cond1 = -sum(sig_sc == -1, 1) / n_total_sc;
+    prop_sc_cond2 = sum(sig_sc == 1, 1);
+    prop_sc_cond1 = -sum(sig_sc == -1, 1);
 
     sig_snc = aggregated_snc_data.roc_comparison.(comp_name).sig;
     n_total_snc = size(sig_snc, 1);
-    prop_snc_cond2 = sum(sig_snc == 1, 1) / n_total_snc;
-    prop_snc_cond1 = -sum(sig_snc == -1, 1) / n_total_snc;
+    prop_snc_cond2 = sum(sig_snc == 1, 1);
+    prop_snc_cond1 = -sum(sig_snc == -1, 1);
 
     % --- Plotting SC Data (Top Row) ---
-    h_axes(1, i_comp) = mySubPlot([2, 3, i_comp]);
+    h_axes(1, i_comp) = mySubPlot([2, nCols(i_comp), plotIdx(1,i_comp)]);
     hold on;
 
     % Plot SC proportions
@@ -92,13 +96,13 @@ for i_comp = 1:length(comparisons)
     set(h_sc2(3), 'Color', sc_color);
 
     % Formatting for SC plots
-    title(comparisons(i_comp).title);
+    title(h_axes(1, i_comp), comparisons(i_comp).title);
     xlim([time_vector(1), time_vector(end)]);
     line(xlim, [0, 0], 'Color', 'k', 'LineStyle', '--');
     line([0, 0], ylim, 'Color', 'k', 'LineStyle', '--');
 
     % --- Plotting SNc Data (Bottom Row) ---
-    h_axes(2, i_comp) = mySubPlot([2, 3, i_comp + 3]);
+    h_axes(2, i_comp) = mySubPlot([2, nCols(i_comp), plotIdx(2,i_comp)]);
     hold on;
 
     % Plot SNc proportions
@@ -124,17 +128,26 @@ set(h_axes(1, :), 'XTickLabel', []); % Remove x-labels from top row
 set(h_axes(:, 2:3), 'YTickLabel', []); % Remove y-labels from middle and right columns
 
 % Add axis labels to outer plots
-ylabel(h_axes(1, 1), 'Proportion of Neurons (SC)');
-ylabel(h_axes(2, 1), 'Proportion of Neurons (SNc)');
+ylabel(h_axes(1, 1), 'Count of Neurons (SC)');
+ylabel(h_axes(2, 1), 'Count of Neurons (SNc)');
 for i = 1:3
     xlabel(h_axes(2, i), comparisons(i).xlabel);
 end
 
+% set axes properties
+allAx = findall(fig, 'Type', 'Axes');
+
+% set common y-limits:
+[~, yLims] = outerLims(allAx);
+set(allAx, 'YLim', yLims, 'TickDir', 'Out');
+
 % Create a single legend for the entire figure
 h_sc_patch = patch(NaN, NaN, sc_color, 'FaceAlpha', plot_alpha);
 h_snc_patch = patch(NaN, NaN, snc_color, 'FaceAlpha', plot_alpha);
-legend([h_sc_patch, h_snc_patch], {'SC', 'SNc'}, 'Position', [0.05, 0.9, 0.1, 0.05], 'Box', 'off');
+legend([h_sc_patch, h_snc_patch], {'SC', 'SNc'}, ...
+    'location', 'best', 'Box', 'off');
 
-sgtitle('Aggregated Population Preference: SC vs. SNc', 'FontSize', 16, 'FontWeight', 'bold', 'Interpreter', 'none');
+sgtitle('Aggregated Population Preference: SC vs. SNc', ...
+    'FontSize', 16, 'FontWeight', 'bold', 'Interpreter', 'none');
 
 end
