@@ -108,6 +108,12 @@ flicker_factor(conditions.is_flicker_certain(gDist)) = {'CertainPresent'};
 flicker_factor(conditions.is_flicker_omitted(gDist)) = {'UncertainAbsent'};
 flicker_factor(conditions.is_flicker_surprising(gDist)) = {'UncertainPresent'};
 
+% Detect Task Variant: Check if this is an 'AV' session by looking for
+% the presence of flicker manipulation. If there's only one unique value
+% in the flicker_factor (e.g., all 'CertainAbsent'), it's a main task
+% session without the AV component.
+is_av_session = numel(unique(flicker_factor)) > 1;
+
 
 %% Main Analysis Loop
 for i_event = 1:numel(alignment_events)
@@ -117,11 +123,15 @@ for i_event = 1:numel(alignment_events)
     [n_neurons, n_trials, n_bins] = size(...
         core_data.spikes.(event_name).rates);
 
-    % Pre-allocate the results structure for the current event. This improves
-    % performance and code clarity. The p-values for each model term will be
-    % stored in a matrix of size [n_neurons x n_bins].
-    term_names = {'rpe', 'dist', 'flicker', 'rpe_dist', 'rpe_flicker', ...
-        'dist_flicker'};
+    % Pre-allocate the results structure based on the session type. This
+    % improves performance and code clarity.
+    if is_av_session
+        term_names = {'rpe', 'dist', 'flicker', 'rpe_dist', ...
+            'rpe_flicker', 'dist_flicker'};
+    else
+        term_names = {'rpe', 'dist', 'rpe_dist'};
+    end
+
     for i_term = 1:numel(term_names)
         p_field_name = ['p_' term_names{i_term}];
         results.(event_name).(p_field_name) = nan(n_neurons, n_bins);
@@ -141,39 +151,44 @@ for i_event = 1:numel(alignment_events)
             % have only one level, anovan will error. We check for this
             % and skip the bin if the condition isn't met.
             valid_trials = ~isnan(firing_rates);
-            if numel(unique(dist_factor(valid_trials))) < 2 || ...
-               numel(unique(flicker_factor(valid_trials))) < 2
+            if numel(unique(dist_factor(valid_trials))) < 2
                 continue;
             end
 
-            % Perform the N-way ANOVA using the `anovan` function.
-            % A try-catch block is used to gracefully handle cases where the
-            % ANOVA cannot be computed (e.g., due to rank-deficient data
-            % for a specific bin), preventing the script from crashing.
-            %
-            % Key anovan parameters:
-            %   'model', 'interaction': Tests for all main effects and all
-            %     pairwise (2-way) interactions between factors.
-            %   'continuous', 1: Specifies that the first factor
-            %     (rpe_predictor) should be treated as a continuous
-            %     variable, not a categorical one.
-            %   'display', 'off': Suppresses the ANOVA table output window.
+            % Conditionally run the appropriate ANOVA model based on whether
+            % the session includes the flicker manipulation.
             try
-                [~, tbl, ~] = anovan(firing_rates, ...
-                    {rpe_predictor, dist_factor, flicker_factor}, ...
-                    'model', 'interaction', ...
-                    'continuous', 1, ...
-                    'varnames', {'rpe', 'dist', 'flicker'}, ...
-                    'display', 'off');
+                if is_av_session
+                    % For AV sessions, run the full 3-factor ANOVA.
+                    if numel(unique(flicker_factor(valid_trials))) < 2
+                        continue; % Skip if not enough flicker groups
+                    end
+                    [~, tbl, ~] = anovan(firing_rates, ...
+                        {rpe_predictor, dist_factor, flicker_factor}, ...
+                        'model', 'interaction', 'continuous', 1, ...
+                        'varnames', {'rpe', 'dist', 'flicker'}, ...
+                        'display', 'off');
 
-                % p-values are in the 7th column of the output table.
-                % We store the p-value for each main effect and interaction.
-                results.(event_name).p_rpe(i_neuron, i_bin) = tbl{2, 7};
-                results.(event_name).p_dist(i_neuron, i_bin) = tbl{3, 7};
-                results.(event_name).p_flicker(i_neuron, i_bin) = tbl{4, 7};
-                results.(event_name).p_rpe_dist(i_neuron, i_bin) = tbl{5, 7};
-                results.(event_name).p_rpe_flicker(i_neuron, i_bin) = tbl{6, 7};
-                results.(event_name).p_dist_flicker(i_neuron, i_bin) = tbl{7, 7};
+                    % Store p-values for all 6 terms
+                    results.(event_name).p_rpe(i_neuron, i_bin) = tbl{2, 7};
+                    results.(event_name).p_dist(i_neuron, i_bin) = tbl{3, 7};
+                    results.(event_name).p_flicker(i_neuron, i_bin) = tbl{4, 7};
+                    results.(event_name).p_rpe_dist(i_neuron, i_bin) = tbl{5, 7};
+                    results.(event_name).p_rpe_flicker(i_neuron, i_bin) = tbl{6, 7};
+                    results.(event_name).p_dist_flicker(i_neuron, i_bin) = tbl{7, 7};
+
+                else
+                    % For main task sessions, run a simpler 2-factor ANOVA.
+                    [~, tbl, ~] = anovan(firing_rates, ...
+                        {rpe_predictor, dist_factor}, ...
+                        'model', 'interaction', 'continuous', 1, ...
+                        'varnames', {'rpe', 'dist'}, 'display', 'off');
+
+                    % Store p-values for the 3 relevant terms
+                    results.(event_name).p_rpe(i_neuron, i_bin) = tbl{2, 7};
+                    results.(event_name).p_dist(i_neuron, i_bin) = tbl{3, 7};
+                    results.(event_name).p_rpe_dist(i_neuron, i_bin) = tbl{4, 7};
+                end
 
             catch ME
                 % If anovan fails, the p-values for this bin remain NaN.
