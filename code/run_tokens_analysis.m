@@ -157,6 +157,7 @@ for i = 1:height(manifest)
             calculate_waveform_metrics(mean_waveform(max_var_chan,:), ...
             30000);
         end
+        data_updated = true; % Ensure data is saved if metrics are computed
         giveFeed('Diagnostic metrics calculated and stored.');
     end
 
@@ -238,7 +239,6 @@ for i = 1:height(manifest)
 
     % --- 4. On-Demand Analysis Execution ---
     giveFeed('Checking for missing analyses...');
-    all_analyses_complete = true; % Flag to track if all analyses r present
 
     % A. Baseline Comparison Analyses
     analysis_name = 'baseline_comparison';
@@ -255,7 +255,6 @@ for i = 1:height(manifest)
                 progress_message = sprintf('Baseline Comparison for %s', condition_name);
                 fprintf('\n--- Session %s: Starting Step %d of %d: %s ---\n', unique_id, step_counter, n_total_steps, progress_message);
 
-                all_analyses_complete = false; % Mark as incomplete
                 giveFeed(sprintf( ...
                     '--> Running missing analysis: %s for %s', ...
                     analysis_name, condition_name));
@@ -286,7 +285,6 @@ for i = 1:height(manifest)
                 progress_message = sprintf('ROC Comparison for %s', comp.name);
                 fprintf('\n--- Session %s: Starting Step %d of %d: %s ---\n', unique_id, step_counter, n_total_steps, progress_message);
 
-                all_analyses_complete = false; % Mark as incomplete
                 giveFeed(sprintf( ...
                     '--> Running missing analysis: %s for %s', ...
                     analysis_name, comp.name));
@@ -311,7 +309,6 @@ for i = 1:height(manifest)
             progress_message = 'N-way ANOVA';
             fprintf('\n--- Session %s: Starting Step %d of %d: %s ---\n', unique_id, step_counter, n_total_steps, progress_message);
 
-            all_analyses_complete = false; % Mark as incomplete
             giveFeed(sprintf('--> Running missing analysis: %s', analysis_name));
 
             session_data = analyze_anova(session_data, core_data, conditions);
@@ -328,8 +325,52 @@ for i = 1:height(manifest)
         giveFeed('No new analyses or processing were required for this session.');
     end
 
+    % --- 6. Verify Analysis Completion & Update Manifest ---
+    % A new, dedicated check to see if all analyses in the plan are now
+    % present in the session_data.
+    is_analysis_complete = true; % Assume complete until proven otherwise
+
+    % Check for baseline comparison results
+    analysis_name_bc = 'baseline_comparison';
+    if isfield(analysis_plan, analysis_name_bc)
+        conditions_to_run = analysis_plan.(analysis_name_bc).conditions_to_run;
+        for j = 1:length(conditions_to_run)
+            condition_name = conditions_to_run{j};
+            if ~isfield(session_data, 'analysis') || ...
+               ~isfield(session_data.analysis, analysis_name_bc) || ...
+               ~isfield(session_data.analysis.(analysis_name_bc), condition_name)
+                is_analysis_complete = false;
+                break;
+            end
+        end
+    end
+
+    % Check for ROC comparison results
+    analysis_name_roc = 'roc_comparison';
+    if is_analysis_complete && isfield(analysis_plan, analysis_name_roc)
+        comparisons_to_run = analysis_plan.(analysis_name_roc).comparisons_to_run;
+        for j = 1:length(comparisons_to_run)
+            comp = comparisons_to_run(j);
+            if ~isfield(session_data, 'analysis') || ...
+               ~isfield(session_data.analysis, analysis_name_roc) || ...
+               ~isfield(session_data.analysis.(analysis_name_roc), comp.name)
+                is_analysis_complete = false;
+                break;
+            end
+        end
+    end
+
+    % Check for N-way ANOVA results
+    analysis_name_anova = 'anova';
+    if is_analysis_complete && isfield(analysis_plan, analysis_name_anova) && analysis_plan.anova.run
+        if ~isfield(session_data, 'analysis') || ...
+           ~isfield(session_data.analysis, 'anova_results')
+            is_analysis_complete = false;
+        end
+    end
+
     % Update manifest status only if all analyses are confirmed complete
-    if all_analyses_complete
+    if is_analysis_complete
         manifest.analysis_status{i} = 'complete';
     end
 
