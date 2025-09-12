@@ -202,23 +202,7 @@ set(h([2,3,5,6]), 'YTickLabel', []);
 ### 3. Proportional Subplot Widths for Time-Series Data
 When comparing different time epochs in adjacent subplots, the width of each subplot column should be proportional to the duration of the time window it represents. This provides an intuitive visual comparison of the temporal dynamics.
 
-Do not use automated subplot tools like `subplot` or `mySubPlot` for this. Instead, manually calculate the `Position` vector `[left, bottom, width, height]` for each axis.
-
-Example Logic:
-```matlab
-time_windows = [2, 2, 5.5]; % e.g., Cue (2s), Outcome (2s), Reward (5.5s)
-proportions = time_windows / sum(time_windows);
-
-% Calculate total available plotting width, accounting for margins/gaps
-plot_area_width = 1 - left_margin - right_margin - (n_cols-1)*h_gap;
-
-% Calculate individual column widths
-col_widths = plot_area_width * proportions;
-
-% Construct Position vectors using these widths
-pos1 = [left_margin, bottom, col_widths(1), height];
-h1 = axes('Position', pos1);
-```
+Do not use automated subplot tools like `subplot`. Instead, ONLY use `mySubPlot`. Unlike a call to 'subplot' (which shouldn't be used) which is formatted as 'subplot(a,b,c), a call to 'mySubPlot' shoud be formatted like: 'mySubPlot([a,b,c]).
 
 ### 4. Use a Single, Informative `sgtitle`
 Avoid using individual `title()` calls for each subplot. Instead, use a single, comprehensive main title for the entire figure using `sgtitle()`. This title should provide the key takeaway or context for the figure. Column and row labels can be added with `ylabel` on the leftmost plots and `xlabel` on the bottom plots.
