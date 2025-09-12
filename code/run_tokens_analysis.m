@@ -15,8 +15,14 @@
 clear; clc; close all;
 
 % --- USER TOGGLES ---
-% Force re-computation of all steps, even if marked 'complete'
-force_rerun = false;
+% Force re-computation of specific pipeline stages.
+% Set a field to true to force re-running that stage for all sessions.
+force_rerun = struct(...
+    'screening', false, ... % Neuron screening
+    'diag_pdfs', false, ... % Diagnostic PDF generation
+    'dataprep',  false, ... % Core data preparation
+    'analyses',  false ...  % All downstream analyses
+);
 % --- END USER TOGGLES ---
 
 % Add utility functions to the MATLAB path
@@ -76,12 +82,12 @@ for i = 1:height(manifest)
     unique_id = session_id; % Use a consistent variable name for fprintf
 
     % 0. Metrics
-    if ~isfield(session_data, 'metrics') || force_rerun
+    if ~isfield(session_data, 'metrics') || force_rerun.screening
         n_total_steps = n_total_steps + 1;
     end
     
     % 1. Screening
-    if ~strcmp(manifest.screening_status{i}, 'complete') || force_rerun
+    if ~strcmp(manifest.screening_status{i}, 'complete') || force_rerun.screening
         n_total_steps = n_total_steps + 1;
     end
 
@@ -93,7 +99,7 @@ for i = 1:height(manifest)
     end
 
     % 3. Data Prep
-    if ~strcmp(manifest.dataprep_status{i}, 'complete') || force_rerun
+    if ~strcmp(manifest.dataprep_status{i}, 'complete') || force_rerun.dataprep
         n_total_steps = n_total_steps + 1;
     end
 
@@ -107,7 +113,7 @@ for i = 1:height(manifest)
             if (~isfield(session_data, 'analysis') || ...
                ~isfield(session_data.analysis, analysis_name_baseline) || ...
                ~isfield(session_data.analysis.(analysis_name_baseline), ...
-               condition_name)) || force_rerun
+               condition_name)) || force_rerun.analyses
                 n_total_steps = n_total_steps + 1;
             end
         end
@@ -121,7 +127,7 @@ for i = 1:height(manifest)
             if (~isfield(session_data, 'analysis') || ...
                ~isfield(session_data.analysis, analysis_name_roc) || ...
                ~isfield(session_data.analysis.(analysis_name_roc), ...
-               comp.name)) || force_rerun
+               comp.name)) || force_rerun.analyses
                 n_total_steps = n_total_steps + 1;
             end
         end
@@ -130,7 +136,7 @@ for i = 1:height(manifest)
     analysis_name_anova = 'anova';
     if isfield(analysis_plan, analysis_name_anova)
         if (~isfield(session_data, 'analysis') || ...
-           ~isfield(session_data.analysis, 'anova_results')) || force_rerun
+           ~isfield(session_data.analysis, 'anova_results')) || force_rerun.analyses
             n_total_steps = n_total_steps + 1;
         end
     end
@@ -139,7 +145,7 @@ for i = 1:height(manifest)
     % --- End of dry run ---
 
     % --- 0. Metrics Calculation ---
-    if ~isfield(session_data, 'metrics') || force_rerun
+    if ~isfield(session_data, 'metrics') || force_rerun.screening
 
         giveFeed('Computing waveform metrics.');
         % Calculate waveform metrics and add to session_data
@@ -162,7 +168,7 @@ for i = 1:height(manifest)
     end
 
     % --- 1. Neuron Screening ---
-    if ~strcmp(manifest.screening_status{i}, 'complete') || force_rerun
+    if ~strcmp(manifest.screening_status{i}, 'complete') || force_rerun.screening
         step_counter = step_counter + 1;
         fprintf('\n--- Session %s: Starting Step %d of %d: Neuron Screening ---\n', unique_id, step_counter, n_total_steps);
         giveFeed('Screening status is ''pending''. Running screening...');
@@ -198,7 +204,7 @@ for i = 1:height(manifest)
 
     % Check if the directory exists and contains any PDF files
     if (~exist(diag_output_dir, 'dir') || isempty(dir(fullfile( ...
-            diag_output_dir, '*.pdf')))) || force_rerun
+            diag_output_dir, '*.pdf')))) || force_rerun.diag_pdfs
         step_counter = step_counter + 1;
         fprintf(['\n--- Session %s: Starting Step %d of %d: ' ...
             'Diagnostic PDF Generation ---\n'], unique_id, step_counter, ...
@@ -215,7 +221,7 @@ for i = 1:height(manifest)
     end
 
     % --- 2. Core Data Preparation ---
-    if ~strcmp(manifest.dataprep_status{i}, 'complete') || force_rerun
+    if ~strcmp(manifest.dataprep_status{i}, 'complete') || force_rerun.dataprep
         step_counter = step_counter + 1;
         fprintf(['\n--- Session %s: Starting Step %d of %d: ' ...
             'Core Data Preparation ---\n'], unique_id, ...
@@ -252,7 +258,7 @@ for i = 1:height(manifest)
             condition_name = conditions_to_run{j};
             if (~isfield(session_data, 'analysis') || ...
                ~isfield(session_data.analysis, analysis_name) || ...
-               ~isfield(session_data.analysis.(analysis_name), condition_name)) || force_rerun
+               ~isfield(session_data.analysis.(analysis_name), condition_name)) || force_rerun.analyses
 
                 step_counter = step_counter + 1;
                 progress_message = sprintf('Baseline Comparison for %s', condition_name);
@@ -282,7 +288,7 @@ for i = 1:height(manifest)
             comp = comparisons_to_run(j);
             if (~isfield(session_data, 'analysis') || ...
                ~isfield(session_data.analysis, analysis_name) || ...
-               ~isfield(session_data.analysis.(analysis_name), comp.name)) || force_rerun
+               ~isfield(session_data.analysis.(analysis_name), comp.name)) || force_rerun.analyses
 
                 step_counter = step_counter + 1;
                 progress_message = sprintf('ROC Comparison for %s', comp.name);
@@ -306,7 +312,7 @@ for i = 1:height(manifest)
     analysis_name = 'anova';
     if isfield(analysis_plan, analysis_name) && analysis_plan.anova.run
         if (~isfield(session_data, 'analysis') || ...
-           ~isfield(session_data.analysis, 'anova_results')) || force_rerun
+           ~isfield(session_data.analysis, 'anova_results')) || force_rerun.analyses
 
             step_counter = step_counter + 1;
             progress_message = 'N-way ANOVA';
