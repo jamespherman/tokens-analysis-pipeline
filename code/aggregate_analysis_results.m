@@ -18,6 +18,10 @@
 
 function [aggregated_sc_data, aggregated_snc_data] = aggregate_analysis_results(manifest)
 
+% start timer and define in-line function to give user feedback:
+tic;
+giveFeed = @(x)disp([num2str(round(toc, 1)) 's - ' x]);
+
 %% Setup Paths
 % Add the 'utils' directory to the path so that helper functions can be
 % found.
@@ -35,11 +39,27 @@ n_time_bins_canonical = NaN; % To store the canonical number of time bins for AN
 
 complete_sessions = manifest(strcmp(manifest.analysis_status, 'complete'), :);
 
-for i_session = 1:height(complete_sessions)
+nSessions = height(complete_sessions);
+
+% give user feedback:
+giveFeed('Initial data loop to discover analysis fields & dimensions.')
+
+% loop
+for i_session = 1:nSessions
+
+    % give user feedback:
+    giveFeed(['Loading session ' num2str(i_session) ' of ' ...
+        num2str(nSessions) '.'])
+
+    % load data:
     session_id = complete_sessions.unique_id{i_session};
     session_data_path = fullfile(findOneDrive(), ...
         'Neuronal Data Analysis', session_id, ...
         [session_id '_session_data.mat']);
+
+    % 
+    giveFeed(['Session ' num2str(i_session) ' of ' ...
+        num2str(nSessions) ' loaded.'])
 
     if exist(session_data_path, 'file')
         data = load(session_data_path, 'session_data');
@@ -106,6 +126,11 @@ aggregated_snc_data = struct();
 brain_areas = {'SC', 'SNc'};
 
 %% Main Loop
+
+% give user feedback:
+giveFeed('Main data loop over ''brain areas'' to aggregate.')
+
+% loop
 for i_area = 1:length(brain_areas)
     current_area = brain_areas{i_area};
 
@@ -134,6 +159,9 @@ for i_area = 1:length(brain_areas)
     % Filter manifest for complete sessions in the current area
     area_sessions = manifest(strcmp(manifest.brain_area, current_area) & ...
                              strcmp(manifest.analysis_status, 'complete'), :);
+
+    % give user feedback:
+    giveFeed(['Loop over ' brain_areas{i_area} ' sessions'])
 
     % Session Loop
     for i_session = 1:height(area_sessions)
@@ -172,6 +200,9 @@ for i_area = 1:length(brain_areas)
             aggregated_data.session_id = [aggregated_data.session_id; session_ids_to_append];
         end
 
+        % give user feedback:
+        giveFeed('Loop over discovered ROC fields.')
+
         % --- Aggregate ROC Comparison Results ---
         for i_roc = 1:length(discovered_roc_fields)
             field = discovered_roc_fields{i_roc};
@@ -188,6 +219,9 @@ for i_area = 1:length(brain_areas)
             aggregated_data.roc_comparison.(field).sig = ...
                 [aggregated_data.roc_comparison.(field).sig; data_to_append];
         end
+
+        % give user feedback:
+        giveFeed('Loop over nested ANOVA results.')
 
         % --- Aggregate Nested ANOVA Results ---
         alignment_events = fieldnames(discovered_anova_fields);
@@ -207,10 +241,13 @@ for i_area = 1:length(brain_areas)
                     % Pad with NaNs of the canonical size.
                     data_to_append = nan(n_neurons, n_time_bins_canonical);
                 end
-
+                try
                 % Append data to the correct nested field
                 aggregated_data.anova_results.(event_name).(p_field_name) = ...
                     [aggregated_data.anova_results.(event_name).(p_field_name); data_to_append];
+                catch me
+                    keyboard
+                end
             end
         end
     end

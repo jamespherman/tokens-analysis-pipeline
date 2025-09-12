@@ -27,10 +27,10 @@ n_comparisons = length(comparison_names);
 fig = figure('Position', [100, 100, 400 * n_comparisons, 800], 'Color', 'w');
 h_axes = gobjects(2, n_comparisons);
 
-% Define colors for the two populations
-sc_color = [0, 0.4470, 0.7410];  % Blue
-snc_color = [0.8500, 0.3250, 0.0980]; % Orange
-plot_alpha = 0.5; % Transparency for overlapping plots
+% Define colors for the two preferences (a > b and a < b)
+colors = richColors;
+posColor = colors(7,:);
+negColor = colors(10,:);
 
 %% Main Plotting Loop
 for i_comp = 1:n_comparisons
@@ -75,21 +75,23 @@ for i_comp = 1:n_comparisons
     h_axes(1, i_comp) = mySubPlot([2, n_comparisons, i_comp]);
     hold on;
 
-    % Plot SC proportions
+    % Plot SC proportions: positive-going histogram first
     h_sc1 = barStairsFill(time_vector, zeros(size(prop_sc_cond2)), prop_sc_cond2);
     delete(h_sc1(2)); % Delete baseline
-    set(h_sc1(1), 'FaceColor', sc_color, 'FaceAlpha', plot_alpha, 'EdgeColor', 'none');
-    set(h_sc1(3), 'Color', sc_color);
+    set(h_sc1(1), 'FaceColor', posColor, 'EdgeColor', 'none');
+    set(h_sc1(3), 'Color', posColor);
 
+    % negative going next
     h_sc2 = barStairsFill(time_vector, zeros(size(prop_sc_cond1)), prop_sc_cond1);
     delete(h_sc2(2)); % Delete baseline
-    set(h_sc2(1), 'FaceColor', sc_color, 'FaceAlpha', plot_alpha, 'EdgeColor', 'none');
-    set(h_sc2(3), 'Color', sc_color);
+    set(h_sc2(1), 'FaceColor', negColor, 'EdgeColor', 'none');
+    set(h_sc2(3), 'Color', negColor);
 
     % --- Get Plot Labels ---
     % We can use either aggregated_sc_data or aggregated_snc_data, as the
     % alignment event should be the same for a given comparison.
-    [title_str, xlabel_str] = get_plot_labels(comp_name, aggregated_sc_data);
+    [title_str, xlabel_str] = ...
+        get_plot_labels(comp_name, aggregated_sc_data);
 
     % Formatting for SC plots
     title(h_axes(1, i_comp), title_str, 'Interpreter', 'none');
@@ -101,16 +103,17 @@ for i_comp = 1:n_comparisons
     h_axes(2, i_comp) = mySubPlot([2, n_comparisons, i_comp + n_comparisons]);
     hold on;
 
-    % Plot SNc proportions
+    % Plot SNc proportions, positive first
     h_snc1 = barStairsFill(time_vector, zeros(size(prop_snc_cond2)), prop_snc_cond2);
     delete(h_snc1(2));
-    set(h_snc1(1), 'FaceColor', snc_color, 'FaceAlpha', plot_alpha, 'EdgeColor', 'none');
-    set(h_snc1(3), 'Color', snc_color);
+    set(h_snc1(1), 'FaceColor', posColor, 'EdgeColor', 'none');
+    set(h_snc1(3), 'Color', posColor);
 
+    % negaitve next:
     h_snc2 = barStairsFill(time_vector, zeros(size(prop_snc_cond1)), prop_snc_cond1);
     delete(h_snc2(2));
-    set(h_snc2(1), 'FaceColor', snc_color, 'FaceAlpha', plot_alpha, 'EdgeColor', 'none');
-    set(h_snc2(3), 'Color', snc_color);
+    set(h_snc2(1), 'FaceColor', negColor, 'EdgeColor', 'none');
+    set(h_snc2(3), 'Color', negColor);
 
     % Formatting for SNc plots
     xlabel(h_axes(2, i_comp), xlabel_str);
@@ -121,9 +124,11 @@ end
 
 %% Figure Cleanup and Final Touches
 % De-clutter axes per AGENTS.md instructions
-set(h_axes(1, :), 'XTickLabel', []); % Remove x-labels from top row
+ % Remove x-labels from top row
+set(h_axes(1, :), 'XTickLabel', []);
 if n_comparisons > 1
-    set(h_axes(:, 2:end), 'YTickLabel', []); % Remove y-labels from all but the first column
+     % Remove y-labels from all but the first column
+    set(h_axes(:, 2:end), 'YTickLabel', []);
 end
 
 % Add axis labels to outer plots
@@ -138,13 +143,10 @@ allAx = findall(fig, 'Type', 'Axes');
 set(allAx, 'YLim', yLims, 'TickDir', 'Out');
 
 % Create a single legend for the entire figure
-h_sc_patch = patch(NaN, NaN, sc_color, 'FaceAlpha', plot_alpha);
-h_snc_patch = patch(NaN, NaN, snc_color, 'FaceAlpha', plot_alpha);
-legend([h_sc_patch, h_snc_patch], {'SC', 'SNc'}, ...
-    'location', 'best', 'Box', 'off');
-
-sgtitle('Aggregated Population Preference: SC vs. SNc', ...
-    'FontSize', 16, 'FontWeight', 'bold', 'Interpreter', 'none');
+% h_sc_patch = patch(NaN, NaN, sc_color, 'FaceAlpha', plot_alpha);
+% h_snc_patch = patch(NaN, NaN, snc_color, 'FaceAlpha', plot_alpha);
+% legend([h_sc_patch, h_snc_patch], {'SC', 'SNc'}, ...
+%     'location', 'best', 'Box', 'off');
 
 end
 
