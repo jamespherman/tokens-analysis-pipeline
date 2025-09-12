@@ -34,6 +34,7 @@ addpath(fullfile(script_dir, 'utils'));
 % superset of analysis results and key dimensions (e.g., n_time_bins).
 all_roc_fields = {};
 roc_time_bins = containers.Map('KeyType', 'char', 'ValueType', 'any');
+roc_time_vectors = containers.Map('KeyType', 'char', 'ValueType', 'any'); % To store time vectors
 discovered_anova_fields = struct();
 n_time_bins_canonical = NaN; % To store the canonical number of time bins for ANOVA
 
@@ -75,6 +76,8 @@ for i_session = 1:nSessions
                     if ~isKey(roc_time_bins, field)
                         n_bins = size(session_data.analysis.roc_comparison.(field).sig, 2);
                         roc_time_bins(field) = n_bins;
+                        % Also store the time vector for this comparison
+                        roc_time_vectors(field) = session_data.analysis.roc_comparison.(field).time_vector;
                     end
                 end
             end
@@ -142,6 +145,8 @@ for i_area = 1:length(brain_areas)
     for i_comp = 1:length(discovered_roc_fields)
         comp_name = discovered_roc_fields{i_comp};
         aggregated_data.roc_comparison.(comp_name).sig = [];
+        % Add the corresponding time vector, which is now self-contained
+        aggregated_data.roc_comparison.(comp_name).time_vector = roc_time_vectors(comp_name);
     end
 
     % Initialize fields for ANOVA results using the discovered nested structure
