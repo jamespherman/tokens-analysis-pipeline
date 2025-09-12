@@ -2,20 +2,43 @@ function [conditions, is_av_session, condition_defs] = define_task_conditions(tr
 
 % DEFINE_TASK_CONDITIONS - Creates a struct of logical masks for trial conditions.
 %
-% This function first identifies valid 'tokens' task trials and then
-% generates logical masks for various conditions within those trials. The
-% output masks are therefore the same length as the number of tokens trials.
+% This function can be called in two modes:
+% 1. With session data (trialInfo, eventTimes, unique_id): It performs
+%    calculations and returns trial conditions.
+% 2. Without arguments: It returns the canonical condition definitions
+%    (condition_defs) and empty placeholders for the other outputs.
 %
 % INPUTS:
-%   trialInfo  - Struct with trial-by-trial information for the whole session.
-%   eventTimes - Struct with event times for each trial for the whole session.
-%   unique_id  - String, a unique identifier for the session, used for saving figures.
+%   trialInfo  - (Optional) Struct with trial-by-trial information.
+%   eventTimes - (Optional) Struct with event times for each trial.
+%   unique_id  - (Optional) String, a unique session identifier.
 %
 % OUTPUTS:
-%   conditions - Struct with logical masks for different trial conditions,
-%                filtered for tokens task trials.
+%   conditions - Struct with logical masks for different trial conditions.
 %   is_av_session - Logical flag indicating if the session includes AV trials.
+%   condition_defs - Struct containing canonical names for conditions.
 
+% F. Define Condition Names as the Source of Truth
+% This struct provides a canonical list of condition names for use in other
+% functions, eliminating the need for hardcoded strings.
+condition_defs.distribution = {'is_normal_dist', 'is_uniform_dist'};
+condition_defs.RPE_normal = {'is_norm_rare_low', 'is_norm_common', 'is_norm_rare_high'};
+condition_defs.SPE = {'is_flicker_certain', 'is_flicker_surprising', 'is_flicker_omitted', 'is_noflicker_certain'};
+condition_defs.RPE_comparison_pair = {'is_norm_common', 'is_norm_rare_high'};
+condition_defs.SPE_comparison_pair = {'is_flicker_certain', 'is_flicker_surprising'};
+
+% Mode 1: Vocabulary-Only Mode (no arguments provided)
+% If the function is called without arguments, return the condition definitions
+% and empty placeholders for the other outputs. This allows other functions
+% to get the canonical condition names without needing session data.
+if nargin == 0
+    conditions = [];
+    is_av_session = NaN;
+    return;
+end
+
+% Mode 2: Full-Calculation Mode (arguments are provided)
+% Proceed with the original logic to calculate conditions based on session data.
 codes = initCodes;
 
 % Determine if this is an AV session by checking for the 'isAVTrial' field.
@@ -140,14 +163,5 @@ pdfSave(file_name, [11 8.5], fig);
 
 % Close the figure to free up memory
 close(fig);
-
-% F. Define Condition Names as the Source of Truth
-% This struct provides a canonical list of condition names for use in other
-% functions, eliminating the need for hardcoded strings.
-condition_defs.distribution = {'is_normal_dist', 'is_uniform_dist'};
-condition_defs.RPE_normal = {'is_norm_rare_low', 'is_norm_common', 'is_norm_rare_high'};
-condition_defs.SPE = {'is_flicker_certain', 'is_flicker_surprising', 'is_flicker_omitted', 'is_noflicker_certain'};
-condition_defs.RPE_comparison_pair = {'is_norm_common', 'is_norm_rare_high'};
-condition_defs.SPE_comparison_pair = {'is_flicker_certain', 'is_flicker_surprising'};
 
 end
