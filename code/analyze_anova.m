@@ -1,20 +1,39 @@
 %% analyze_anova.m
 %
-% Performs an N-way ANOVA on firing rate data for each neuron and time bin
-% across three alignment events. It tests for the main effects and pairwise
-% interactions of RPE, flicker condition, and reward distribution.
+% This function performs a 3-factor ANOVA on the firing rate of each
+% neuron for each time bin around three key task events. The goal is to
+% understand how neuronal activity is modulated by different experimental
+% factors.
+%
+% The ANOVA model tests for the main effects and pairwise interactions of:
+%   1. RPE (Reward Prediction Error): A continuous variable representing
+%      the difference between actual and expected reward. This tests if
+%      neuron firing encodes reward surprise.
+%   2. Reward Distribution: A categorical variable ('Normal' vs. 'Uniform')
+%      representing the reward context of the trial block. This tests if
+%      neurons are sensitive to the overall statistical environment.
+%   3. Flicker Condition: A categorical variable representing the visual
+%      stimulus properties. This tests for sensory or cognitive effects
+%      related to the predictive cues.
+%
+% The analysis is run independently for each neuron and each time bin.
 %
 % INPUTS:
-%   session_data - The main data structure for the session.
-%   core_data    - A struct containing binned firing rates.
-%   conditions   - A struct with logical masks for trial conditions.
+%   session_data - The main data structure for the session, which contains
+%                  trial-by-trial information and metadata.
+%   core_data    - A struct containing binned firing rates for analyzed
+%                  neurons, aligned to different task events.
+%   conditions   - A struct with logical masks for various trial conditions,
+%                  used to build the factors for the ANOVA.
 %
 % OUTPUT:
 %   session_data - The input session_data struct with a new field,
-%                  'analysis.anova_results', containing the p-values.
+%                  'analysis.anova_results', which stores a structure
+%                  containing the p-values for each model term, for each
+%                  neuron, time bin, and alignment event.
 %
 % Author: Jules
-% Date: 2025-09-11
+% Date: 2025-09-12
 %
 
 function session_data = analyze_anova(session_data, core_data, conditions)
@@ -32,43 +51,57 @@ alignment_events = {'CUE_ON', 'outcomeOn', 'reward'};
 % These factors are constant across all neurons and time bins. They are
 % prepared once here to avoid redundant calculations inside the main loops.
 
-% To get the correct trial-by-trial data, we must first identify the same
-% set of rewarded 'tokens' trials that were used to create the core_data
-% and conditions structs.
+% The following section carefully selects the exact set of trials used for
+% the ANOVA. This is critical for ensuring that the firing rate data in
+% `core_data` is correctly matched with the trial-by-trial conditions.
+
+% Load task codes to identify 'tokens' task trials.
 codes = initCodes();
 tempCueFile = session_data.trialInfo.cueFile;
 tempCueFile(cellfun(@isempty, tempCueFile)) = {''};
 
-% define one variable indexing all tokens task trials including those that
-% are not going to be part of this anova analysis:
+% First, create a broad index (`is_tokens_trial_all`) of all rewarded
+% trials belonging to the 'tokens' task. This matches the full set of
+% trials that *could* have been used to generate the `conditions` struct.
 is_tokens_trial_all = (session_data.trialInfo.taskCode == ...
     codes.uniqueTaskCode_tokens) & ...
     ~cellfun(@isempty, session_data.eventTimes.rewardCell);
 
-% define another variable that indexes only the tokens task trials that
-% will be used for the anova analysis (those that had a cue image):
+% Next, create a stricter index (`is_tokens_trial`) that includes only
+% those trials that had a valid cue image (i.e., not 'blank'). These are
+% the actual trials that were included in the `core_data` structure and
+% will be used in the ANOVA. The number of trials in this index defines
+% the size of our ANOVA factors.
 is_tokens_trial = is_tokens_trial_all & ...
     ~contains(tempCueFile, 'blank');
 n_trials = sum(is_tokens_trial);
 
 % Factor 1: RPE (Continuous Predictor)
-% Calculated as the reward amount on each trial minus the mean reward amount
-% across all valid tokens trials.
+% RPE is calculated as the actual reward on a given trial minus the
+% mean reward across all trials in this task. This centers the predictor
+% at zero and represents a simple form of reward surprise. It is treated
+% as a continuous variable in the ANOVA.
 rewardAmt = session_data.trialInfo.rewardAmt(is_tokens_trial);
 rpe_predictor = rewardAmt - mean(rewardAmt);
 
-% Factor 2: Distribution (Categorical, 2 Levels: 'Normal', 'Uniform')
-% A cell array of strings defining the reward distribution for each trial.
-% first make a logical index of the same size as
-% 'conditions.is_normal_dist' / 'conditions.is_uniform_dist' so we can use
-% those to define 'dist_factor':
+% Factor 2: Distribution (Categorical, 2 Levels)
+% This factor captures the reward context of the block. In 'Normal'
+% blocks, the reward distribution is narrow, making outcomes more
+% predictable. In 'Uniform' blocks, the distribution is broad, making
+% outcomes less predictable.
+% NOTE: The `conditions` struct was created based on ALL rewarded tokens
+% trials. We must use `gDist` to select the subset of those trials that
+% correspond to the non-blank cue trials being used in this analysis.
 gDist = find(~contains(tempCueFile(is_tokens_trial_all), 'blank'));
 dist_factor = cell(n_trials, 1);
 dist_factor(conditions.is_normal_dist(gDist)) = {'Normal'};
 dist_factor(conditions.is_uniform_dist(gDist)) = {'Uniform'};
 
 % Factor 3: Flicker (Categorical, 4 Levels)
-% A cell array of strings defining the flicker condition for each trial.
+% This factor represents the state of the visual cue. The four levels
+% capture two dimensions:
+%   - Presence vs. Absence of the flicker stimulus.
+%   - Certainty of the outcome, as predicted by the cue.
 flicker_factor = cell(n_trials, 1);
 flicker_factor(conditions.is_noflicker_certain(gDist)) = {'CertainAbsent'};
 flicker_factor(conditions.is_flicker_certain(gDist)) = {'CertainPresent'};
@@ -113,8 +146,18 @@ for i_event = 1:numel(alignment_events)
                 continue;
             end
 
-            % Perform the N-way ANOVA. Use a try-catch block to gracefully
-            % handle cases where anovan might fail (e.g., rank deficiency).
+            % Perform the N-way ANOVA using the `anovan` function.
+            % A try-catch block is used to gracefully handle cases where the
+            % ANOVA cannot be computed (e.g., due to rank-deficient data
+            % for a specific bin), preventing the script from crashing.
+            %
+            % Key anovan parameters:
+            %   'model', 'interaction': Tests for all main effects and all
+            %     pairwise (2-way) interactions between factors.
+            %   'continuous', 1: Specifies that the first factor
+            %     (rpe_predictor) should be treated as a continuous
+            %     variable, not a categorical one.
+            %   'display', 'off': Suppresses the ANOVA table output window.
             try
                 [~, tbl, ~] = anovan(firing_rates, ...
                     {rpe_predictor, dist_factor, flicker_factor}, ...
