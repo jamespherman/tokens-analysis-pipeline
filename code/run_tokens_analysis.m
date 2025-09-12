@@ -216,8 +216,11 @@ for i = 1:height(manifest)
     % --- 2. Core Data Preparation ---
     if ~strcmp(manifest.dataprep_status{i}, 'complete') || force_rerun
         step_counter = step_counter + 1;
-        fprintf('\n--- Session %s: Starting Step %d of %d: Core Data Preparation ---\n', unique_id, step_counter, n_total_steps);
-        giveFeed('Data prep status is ''pending''. Running prepare_core_data...');
+        fprintf(['\n--- Session %s: Starting Step %d of %d: ' ...
+            'Core Data Preparation ---\n'], unique_id, ...
+            step_counter, n_total_steps);
+        giveFeed(['Data prep status is ''pending''. ' ...
+            '            Running prepare_core_data...']);
         core_data = prepare_core_data(session_data, selected_neurons);
         session_data.analysis.core_data = core_data;
 

@@ -58,14 +58,15 @@ alignment_events = {'CUE_ON', 'outcomeOn', 'reward'};
 % Load task codes to identify 'tokens' task trials.
 codes = initCodes();
 tempCueFile = session_data.trialInfo.cueFile;
-tempCueFile(cellfun(@isempty, tempCueFile)) = {''};
+tempCueFile(cellfun(@isempty, tempCueFile)) = {' '};
 
 % First, create a broad index (`is_tokens_trial_all`) of all rewarded
 % trials belonging to the 'tokens' task. This matches the full set of
 % trials that *could* have been used to generate the `conditions` struct.
 is_tokens_trial_all = (session_data.trialInfo.taskCode == ...
     codes.uniqueTaskCode_tokens) & ...
-    ~cellfun(@isempty, session_data.eventTimes.rewardCell);
+    ~cellfun(@isempty, session_data.eventTimes.rewardCell) & ...
+    ~cellfun(@isempty, session_data.trialInfo.cueFile);
 
 % Next, create a stricter index (`is_tokens_trial`) that includes only
 % those trials that had a valid cue image (i.e., not 'blank'). These are
@@ -108,12 +109,9 @@ flicker_factor(conditions.is_flicker_certain(gDist)) = {'CertainPresent'};
 flicker_factor(conditions.is_flicker_omitted(gDist)) = {'UncertainAbsent'};
 flicker_factor(conditions.is_flicker_surprising(gDist)) = {'UncertainPresent'};
 
-% Detect Task Variant: Check if this is an 'AV' session by looking for
-% the presence of flicker manipulation. If there's only one unique value
-% in the flicker_factor (e.g., all 'CertainAbsent'), it's a main task
-% session without the AV component.
-is_av_session = numel(unique(flicker_factor)) > 1;
-
+% Detect Task Variant: Check if this is an 'AV' session by looking for the
+% presence of a field names 'isAVTrial' in 'trialInfo.
+is_av_session = isfield(session_data.trialInfo, 'isAVTrial');
 
 %% Main Analysis Loop
 for i_event = 1:numel(alignment_events)
