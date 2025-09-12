@@ -35,4 +35,7 @@ analysis_plan.roc_comparison.comparisons_to_run = struct( ...
     'cond2', { 'is_uniform_dist',    'is_norm_rare_high',   'is_norm_rare_high',  'is_flicker_surprising' } ...
     );
 
+% "N-way ANOVA" Analysis
+analysis_plan.anova.run = true;
+
 end
