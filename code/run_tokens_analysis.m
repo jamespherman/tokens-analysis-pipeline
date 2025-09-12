@@ -21,7 +21,7 @@ force_rerun = struct(...
     'screening', false, ... % Neuron screening
     'diag_pdfs', false, ... % Diagnostic PDF generation
     'dataprep',  false, ... % Core data preparation
-    'analyses',  false ...  % All downstream analyses
+    'analyses',  true ...  % All downstream analyses
 );
 % --- END USER TOGGLES ---
 
@@ -302,7 +302,7 @@ for i = 1:height(manifest)
                     conditions, is_av_session, 'comparison', comp);
 
                 session_data.analysis.(analysis_name).(comp.name) = ...
-                    analysis_result;
+                    analysis_result.(comp.name);
                 data_updated = true;
             end
         end
