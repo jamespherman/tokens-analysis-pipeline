@@ -67,6 +67,9 @@ for i = 1:height(manifest)
     load(session_data_path, 'session_data');
     giveFeed('Data loaded.');
 
+    % Initialize a flag to track if data has been modified
+    data_updated = false;
+
     % >> SESSION-LEVEL PROGRESS REPORTING (PART B)
     % --- Dry run to calculate total number of steps for this session ---
     n_total_steps = 0;
@@ -119,6 +122,14 @@ for i = 1:height(manifest)
         end
     end
 
+    analysis_name_anova = 'anova';
+    if isfield(analysis_plan, analysis_name_anova)
+        if (~isfield(session_data, 'analysis') || ...
+           ~isfield(session_data.analysis, 'anova_results')) || force_rerun
+            n_total_steps = n_total_steps + 1;
+        end
+    end
+
     step_counter = 0;
     % --- End of dry run ---
 
@@ -145,8 +156,7 @@ for i = 1:height(manifest)
 
         session_data.analysis.selected_neurons = selected_neurons;
 
-        giveFeed('Saving screening results back to session_data.mat...');
-        save(session_data_path, 'session_data', '-v7.3');
+        data_updated = true; % Mark data as updated
         manifest.screening_status{i} = 'complete';
         giveFeed('Screening complete.');
     else
@@ -181,8 +191,7 @@ for i = 1:height(manifest)
         core_data = prepare_core_data(session_data, selected_neurons);
         session_data.analysis.core_data = core_data;
 
-        giveFeed('Saving core_data back to session_data.mat...');
-        save(session_data_path, 'session_data', '-v7.3');
+        data_updated = true; % Mark data as updated
         manifest.dataprep_status{i} = 'complete';
         giveFeed('Data prep complete.');
     else
@@ -199,7 +208,6 @@ for i = 1:height(manifest)
 
     % --- 4. On-Demand Analysis Execution ---
     giveFeed('Checking for missing analyses...');
-    data_updated = false; % Flag to track if we modify session_data
     all_analyses_complete = true; % Flag to track if all analyses r present
 
     % A. Baseline Comparison Analyses
@@ -263,13 +271,31 @@ for i = 1:height(manifest)
         end
     end
 
+    % C. N-way ANOVA Analysis
+    analysis_name = 'anova';
+    if isfield(analysis_plan, analysis_name) && analysis_plan.anova.run
+        if (~isfield(session_data, 'analysis') || ...
+           ~isfield(session_data.analysis, 'anova_results')) || force_rerun
+
+            step_counter = step_counter + 1;
+            progress_message = 'N-way ANOVA';
+            fprintf('\n--- Session %s: Starting Step %d of %d: %s ---\n', unique_id, step_counter, n_total_steps, progress_message);
+
+            all_analyses_complete = false; % Mark as incomplete
+            giveFeed(sprintf('--> Running missing analysis: %s', analysis_name));
+
+            session_data = analyze_anova(session_data, core_data, conditions);
+            data_updated = true;
+        end
+    end
+
     % --- 5. Save Updated Data ---
     if data_updated
-        giveFeed('Analyses run, saving updated session_data.mat...');
+        giveFeed('Data was updated, saving back to session_data.mat...');
         save(session_data_path, 'session_data', '-v7.3');
         giveFeed('Save complete.');
     else
-        giveFeed('No new analyses were required for this session.');
+        giveFeed('No new analyses or processing were required for this session.');
     end
 
     % Update manifest status only if all analyses are confirmed complete
