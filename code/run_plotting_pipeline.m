@@ -17,7 +17,7 @@ disp('Starting the plotting pipeline...');
 
 % Load aggregated data
 disp('Loading aggregated analysis data...');
-load('../../data/processed/aggregated_analysis_data.mat', 'aggregated_sc_data', 'aggregated_snc_data');
+load('D:\OneDrive - University of Pittsburgh\Code\tokens-analysis-pipeline\data\processed\aggregated_analysis_data.mat', 'aggregated_sc_data', 'aggregated_snc_data');
 disp('Data loaded successfully.');
 
 % Call plotting functions
