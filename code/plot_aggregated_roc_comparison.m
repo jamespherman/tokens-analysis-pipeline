@@ -175,6 +175,11 @@ function [title_str, xlabel_str] = get_plot_labels(comp_name, aggregated_data)
             title_str = strrep(comp_name, '_', ' ');
     end
 
+    % Define the regular expression pattern
+    pattern = '^[^_]*_[^_]*_(.*)$';
+    matches = regexp(comp_name, pattern, 'tokens');
+
+
     % Generate xlabel string using the alignment event
     align_event = aggregated_data.roc_comparison.(comp_name).alignEvent;
     xlabel_str = sprintf('Time from %s Onset (s)', strrep(align_event, '_', ' '));
