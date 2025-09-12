@@ -41,7 +41,7 @@ for i_comp = 1:length(comparisons)
     comp_name = comparisons(i_comp).name;
 
     % --- Subplot Setup ---
-    mySubPlot(1, 3, i_comp);
+    mySubPlot([1, 3, i_comp]);
     hold on;
 
     % --- Data Extraction ---
