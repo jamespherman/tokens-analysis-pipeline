@@ -1,4 +1,4 @@
-function [conditions, is_av_session] = define_task_conditions(trialInfo, eventTimes, unique_id)
+function [conditions, is_av_session, condition_defs] = define_task_conditions(trialInfo, eventTimes, unique_id)
 
 % DEFINE_TASK_CONDITIONS - Creates a struct of logical masks for trial conditions.
 %
@@ -140,5 +140,14 @@ pdfSave(file_name, [11 8.5], fig);
 
 % Close the figure to free up memory
 close(fig);
+
+% F. Define Condition Names as the Source of Truth
+% This struct provides a canonical list of condition names for use in other
+% functions, eliminating the need for hardcoded strings.
+condition_defs.distribution = {'is_normal_dist', 'is_uniform_dist'};
+condition_defs.RPE_normal = {'is_norm_rare_low', 'is_norm_common', 'is_norm_rare_high'};
+condition_defs.SPE = {'is_flicker_certain', 'is_flicker_surprising', 'is_flicker_omitted', 'is_noflicker_certain'};
+condition_defs.RPE_comparison_pair = {'is_norm_common', 'is_norm_rare_high'};
+condition_defs.SPE_comparison_pair = {'is_flicker_certain', 'is_flicker_surprising'};
 
 end
