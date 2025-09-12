@@ -1,0 +1,32 @@
+% run_plotting_pipeline.m
+%
+% Description:
+%   This script serves as the main entry point for generating all final,
+%   aggregated figures for the project. It loads aggregated data and then
+%   calls a series of plotting functions to generate the figures.
+%
+% Author:
+%   Jules
+%
+% Date:
+%   2025-09-12
+
+% Start timer and provide user feedback
+tic;
+disp('Starting the plotting pipeline...');
+
+% Load aggregated data
+disp('Loading aggregated analysis data...');
+load('../../data/processed/aggregated_analysis_data.mat', 'aggregated_sc_data', 'aggregated_snc_data');
+disp('Data loaded successfully.');
+
+% Call plotting functions
+disp('Generating aggregated ROC comparison plot...');
+plot_aggregated_roc_comparison(aggregated_sc_data, aggregated_snc_data);
+
+disp('Generating aggregated ANOVA plot...');
+plot_aggregated_anova(aggregated_sc_data, aggregated_snc_data);
+
+% End timer and provide user feedback
+toc;
+disp('Plotting pipeline finished.');
