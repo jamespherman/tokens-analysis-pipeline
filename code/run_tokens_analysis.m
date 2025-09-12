@@ -21,7 +21,7 @@ force_rerun = struct(...
     'screening', false, ... % Neuron screening
     'diag_pdfs', false, ... % Diagnostic PDF generation
     'dataprep',  false, ... % Core data preparation
-    'analyses',  true ...  % All downstream analyses
+    'analyses',  false ...  % All downstream analyses
 );
 % --- END USER TOGGLES ---
 
@@ -347,7 +347,9 @@ for i = 1:height(manifest)
             condition_name = conditions_to_run{j};
             if ~isfield(session_data, 'analysis') || ...
                ~isfield(session_data.analysis, analysis_name_bc) || ...
-               ~isfield(session_data.analysis.(analysis_name_bc), condition_name)
+               ~isfield(session_data.analysis.(analysis_name_bc), ...
+               condition_name) || strcmp(manifest.analysis_status{i}, ...
+               'pending')
                 is_analysis_complete = false;
                 break;
             end
@@ -362,7 +364,9 @@ for i = 1:height(manifest)
             comp = comparisons_to_run(j);
             if ~isfield(session_data, 'analysis') || ...
                ~isfield(session_data.analysis, analysis_name_roc) || ...
-               ~isfield(session_data.analysis.(analysis_name_roc), comp.name)
+               ~isfield(session_data.analysis.(analysis_name_roc), ...
+               comp.name) || strcmp(manifest.analysis_status{i}, ...
+               'pending')
                 is_analysis_complete = false;
                 break;
             end
@@ -371,9 +375,12 @@ for i = 1:height(manifest)
 
     % Check for N-way ANOVA results
     analysis_name_anova = 'anova';
-    if is_analysis_complete && isfield(analysis_plan, analysis_name_anova) && analysis_plan.anova.run
+    if is_analysis_complete && isfield(analysis_plan, ...
+            analysis_name_anova) && analysis_plan.anova.run
         if ~isfield(session_data, 'analysis') || ...
-           ~isfield(session_data.analysis, 'anova_results')
+           ~isfield(session_data.analysis, 'anova_results') || ...
+           strcmp(manifest.analysis_status{i}, ...
+               'pending')
             is_analysis_complete = false;
         end
     end
