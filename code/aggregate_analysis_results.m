@@ -24,6 +24,9 @@ function [aggregated_sc_data, aggregated_snc_data] = aggregate_analysis_results(
 [script_dir, ~, ~] = fileparts(mfilename('fullpath'));
 addpath(fullfile(script_dir, 'utils'));
 
+% Get the definitive analysis plan
+analysis_plan = define_analysis_plan();
+
 %% Initialize Aggregated Data Structures
 aggregated_sc_data = struct();
 aggregated_snc_data = struct();
@@ -36,10 +39,21 @@ for i_area = 1:length(brain_areas)
     % Initialize a temporary struct for the current area's aggregated data
     aggregated_data = struct();
 
-    % Define all possible ANOVA fields, including AV-task specific ones
-    all_anova_fields = {'p_value_reward', 'p_value_stim_id', ...
-        'p_value_interaction', 'p_value_flicker', ...
-        'p_value_flicker_x_reward'};
+    % --- Dynamic Initialization from Analysis Plan ---
+    % Initialize fields for ROC comparisons
+    for i_comp = 1:length(analysis_plan.roc_comparison.comparisons_to_run)
+        comp_name = analysis_plan.roc_comparison.comparisons_to_run(i_comp).name;
+        aggregated_data.roc_comparison.(comp_name).sig = [];
+    end
+
+    % Initialize fields for ANOVA results
+    if analysis_plan.anova.run
+        for i_field = 1:length(analysis_plan.anova.fields_to_aggregate)
+            field_name = analysis_plan.anova.fields_to_aggregate{i_field};
+            aggregated_data.anova_results.(field_name) = [];
+        end
+    end
+
 
     % Filter manifest for complete sessions in the current area
     area_sessions = manifest(strcmp(manifest.brain_area, current_area) & ...
@@ -83,44 +97,38 @@ for i_area = 1:length(brain_areas)
         end
 
         % --- Aggregate ROC Comparison Results ---
-        roc_fields = fieldnames(session_data.analysis.roc_comparison);
-        for i_roc = 1:length(roc_fields)
-            field = roc_fields{i_roc};
+        roc_comparisons = analysis_plan.roc_comparison.comparisons_to_run;
+        for i_roc = 1:length(roc_comparisons)
+            field = roc_comparisons(i_roc).name;
 
-            % Initialize struct for this comparison if it's the first time
-            if ~isfield(aggregated_data, 'roc_comparison') || ~isfield(aggregated_data.roc_comparison, field)
-                aggregated_data.roc_comparison.(field).sig = [];
-            end
-            try
+            % The field is guaranteed to exist in aggregated_data due to
+            % the dynamic initialization step.
             aggregated_data.roc_comparison.(field).sig = [aggregated_data.roc_comparison.(field).sig; ...
                 session_data.analysis.roc_comparison.(field).sig];
-            catch me
-                keyboard
-            end
         end
 
         % --- Aggregate ANOVA Results (Flexible Handling) ---
         anova_results = session_data.analysis.anova_results;
-        for i_anova = 1:length(all_anova_fields)
-            field = all_anova_fields{i_anova};
+        if analysis_plan.anova.run
+            anova_fields = analysis_plan.anova.fields_to_aggregate;
+            for i_anova = 1:length(anova_fields)
+                field = anova_fields{i_anova};
 
-            if ~isfield(aggregated_data, 'anova_results') || ~isfield(aggregated_data.anova_results, field)
-                aggregated_data.anova_results.(field) = [];
+                if isfield(anova_results, field)
+                    data_to_append = anova_results.(field);
+                else
+                    % This handles cases where a field is not applicable to the
+                    % session (e.g., flicker terms in a 'main' task session).
+                    % We get nTimeBins from a field that is guaranteed to exist.
+                    any_existing_field = fieldnames(anova_results);
+                    any_existing_subfield = fieldnames(anova_results.(any_existing_field{1}));
+                    n_time_bins = size(anova_results.(any_existing_field{1}).(any_existing_subfield{1}), 2);
+                    data_to_append = nan(n_neurons, n_time_bins);
+                end
+                aggregated_data.anova_results.(field) = ...
+                    [aggregated_data.anova_results.(field); data_to_append];
             end
-
-            if isfield(anova_results, field)
-                data_to_append = anova_results.(field);
-            else
-                % Get nTimeBins from a fieldname that does exist:
-                tfn1 = fieldnames(anova_results);
-                tfn2 = fieldnames(anova_results.(tfn1{1}));
-                n_time_bins = size(anova_results.(tfn1{1}).(tfn2{1}), 2);
-                data_to_append = nan(n_neurons, n_time_bins);
-            end
-            aggregated_data.anova_results.(field) = ...
-                [aggregated_data.anova_results.(field); data_to_append];
         end
-        keyboard
     end
 
     % Assign the populated temporary struct to the correct output variable

@@ -50,5 +50,9 @@ analysis_plan.roc_comparison.comparisons_to_run = comparisons;
 
 % "N-way ANOVA" Analysis
 analysis_plan.anova.run = true;
+analysis_plan.anova.fields_to_aggregate = { ...
+    'p_value_reward', 'p_value_stim_id', 'p_value_interaction', ...
+    'p_value_flicker', 'p_value_flicker_x_reward' ...
+    };
 
 end
