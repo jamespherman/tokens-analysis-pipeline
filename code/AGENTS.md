@@ -205,7 +205,9 @@ When comparing different time epochs in adjacent subplots, the width of each sub
 Do not use automated subplot tools like `subplot`. Instead, ONLY use `mySubPlot`. Unlike a call to 'subplot' (which shouldn't be used) which is formatted as 'subplot(a,b,c), a call to 'mySubPlot' shoud be formatted like: 'mySubPlot([a,b,c]).
 
 ### 4. Use a Single, Informative `sgtitle`
-Avoid using individual `title()` calls for each subplot. Instead, use a single, comprehensive main title for the entire figure using `sgtitle()`. This title should provide the key takeaway or context for the figure. Column and row labels can be added with `ylabel` on the leftmost plots and `xlabel` on the bottom plots.
+Use a single, comprehensive main title for the entire figure using `sgtitle()`. This title should provide the key takeaway or context for the figure as a whole.
+
+While `sgtitle` is primary, individual `title()` calls on subplots are permitted when they are necessary to provide specific context for each panel. For example, in a figure comparing multiple different analyses, each subplot's title can clarify the specific comparison it displays. The `plot_aggregated_roc_comparison.m` script serves as a good example of this convention. Column and row labels should still be used for axis identification (i.e., `ylabel` on the leftmost plots and `xlabel` on the bottom plots).
 
 ### 5. Set Interpreter to 'none' for Titles with File Paths
 When including filenames, unique IDs, or other text with special characters (like underscores `_`) in a title, always set the `'Interpreter'` property to `'none'`. This prevents MATLAB from treating the underscores as subscript indicators and ensures the text is displayed literally.

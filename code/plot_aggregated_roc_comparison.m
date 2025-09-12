@@ -20,30 +20,21 @@ function plot_aggregated_roc_comparison(aggregated_sc_data, aggregated_snc_data)
 addpath(fullfile(script_dir, 'utils'));
 
 %% Figure and Plotting Setup
-fig = figure('Position', [100, 100, 1200, 800], 'Color', 'w');
-h_axes = gobjects(2, 3);
+% Dynamically get the list of comparisons from the data structure
+comparison_names = fieldnames(aggregated_sc_data.roc_comparison);
+n_comparisons = length(comparison_names);
 
-% Define the three comparisons to plot
-comparisons = struct(...
-    'name', {'Dist_at_Cue', 'RPE_at_Outcome', 'RPE_at_Reward'}, ...
-    'title', {'Preference: Normal vs. Uniform at Cue Onset', ...
-              'Preference: Common vs. Rare High Reward at Outcome', ...
-              'Preference: Common vs. Rare High Reward at Reward'}, ...
-    'xlabel', {'Time from Cue Onset (s)', 'Time from Outcome Onset (s)', 'Time from Reward (s)'} ...
-);
+fig = figure('Position', [100, 100, 400 * n_comparisons, 800], 'Color', 'w');
+h_axes = gobjects(2, n_comparisons);
 
 % Define colors for the two populations
 sc_color = [0, 0.4470, 0.7410];  % Blue
 snc_color = [0.8500, 0.3250, 0.0980]; % Orange
 plot_alpha = 0.5; % Transparency for overlapping plots
 
-% we want the right-most axes to be wider than the other two
-nCols = [4 4 2];
-plotIdx = [1 2 2; 5 6 4];
-
 %% Main Plotting Loop
-for i_comp = 1:length(comparisons)
-    comp_name = comparisons(i_comp).name;
+for i_comp = 1:n_comparisons
+    comp_name = comparison_names{i_comp};
 
     % --- Data Validation ---
     if ~isfield(aggregated_sc_data, 'roc_comparison') || ~isfield(aggregated_sc_data.roc_comparison, comp_name)
@@ -81,7 +72,7 @@ for i_comp = 1:length(comparisons)
     prop_snc_cond1 = -sum(sig_snc == -1, 1);
 
     % --- Plotting SC Data (Top Row) ---
-    h_axes(1, i_comp) = mySubPlot([2, nCols(i_comp), plotIdx(1,i_comp)]);
+    h_axes(1, i_comp) = mySubPlot([2, n_comparisons, i_comp]);
     hold on;
 
     % Plot SC proportions
@@ -95,14 +86,19 @@ for i_comp = 1:length(comparisons)
     set(h_sc2(1), 'FaceColor', sc_color, 'FaceAlpha', plot_alpha, 'EdgeColor', 'none');
     set(h_sc2(3), 'Color', sc_color);
 
+    % --- Get Plot Labels ---
+    % We can use either aggregated_sc_data or aggregated_snc_data, as the
+    % alignment event should be the same for a given comparison.
+    [title_str, xlabel_str] = get_plot_labels(comp_name, aggregated_sc_data);
+
     % Formatting for SC plots
-    title(h_axes(1, i_comp), comparisons(i_comp).title);
+    title(h_axes(1, i_comp), title_str, 'Interpreter', 'none');
     xlim([time_vector(1), time_vector(end)]);
     line(xlim, [0, 0], 'Color', 'k', 'LineStyle', '--');
     line([0, 0], ylim, 'Color', 'k', 'LineStyle', '--');
 
     % --- Plotting SNc Data (Bottom Row) ---
-    h_axes(2, i_comp) = mySubPlot([2, nCols(i_comp), plotIdx(2,i_comp)]);
+    h_axes(2, i_comp) = mySubPlot([2, n_comparisons, i_comp + n_comparisons]);
     hold on;
 
     % Plot SNc proportions
@@ -117,6 +113,7 @@ for i_comp = 1:length(comparisons)
     set(h_snc2(3), 'Color', snc_color);
 
     % Formatting for SNc plots
+    xlabel(h_axes(2, i_comp), xlabel_str);
     xlim([time_vector(1), time_vector(end)]);
     line(xlim, [0, 0], 'Color', 'k', 'LineStyle', '--');
     line([0, 0], ylim, 'Color', 'k', 'LineStyle', '--');
@@ -125,14 +122,13 @@ end
 %% Figure Cleanup and Final Touches
 % De-clutter axes per AGENTS.md instructions
 set(h_axes(1, :), 'XTickLabel', []); % Remove x-labels from top row
-set(h_axes(:, 2:3), 'YTickLabel', []); % Remove y-labels from middle and right columns
+if n_comparisons > 1
+    set(h_axes(:, 2:end), 'YTickLabel', []); % Remove y-labels from all but the first column
+end
 
 % Add axis labels to outer plots
 ylabel(h_axes(1, 1), 'Count of Neurons (SC)');
 ylabel(h_axes(2, 1), 'Count of Neurons (SNc)');
-for i = 1:3
-    xlabel(h_axes(2, i), comparisons(i).xlabel);
-end
 
 % set axes properties
 allAx = findall(fig, 'Type', 'Axes');
@@ -150,4 +146,36 @@ legend([h_sc_patch, h_snc_patch], {'SC', 'SNc'}, ...
 sgtitle('Aggregated Population Preference: SC vs. SNc', ...
     'FontSize', 16, 'FontWeight', 'bold', 'Interpreter', 'none');
 
+end
+
+%% Local Helper Functions
+function [title_str, xlabel_str] = get_plot_labels(comp_name, aggregated_data)
+    % GET_PLOT_LABELS - Generates plot titles and labels for a given comparison.
+    %
+    % INPUTS:
+    %   comp_name       - The name of the comparison (e.g., 'RPE_at_Outcome').
+    %   aggregated_data - The aggregated data struct for one population.
+    %
+    % OUTPUTS:
+    %   title_str       - A formatted string for the plot title.
+    %   xlabel_str      - A formatted string for the x-axis label.
+
+    % Generate title string based on comparison name
+    switch comp_name
+        case 'Dist_at_Cue'
+            title_str = 'Preference: Normal vs. Uniform at Cue Onset';
+        case 'RPE_at_Outcome'
+            title_str = 'Preference: Common vs. Rare High Reward at Outcome';
+        case 'RPE_at_Reward'
+            title_str = 'Preference: Common vs. Rare High Reward at Reward';
+        case 'SPE_at_Outcome'
+            title_str = 'Preference: Surprise vs. No Surprise at Outcome';
+        otherwise
+            % Default title format if no specific case matches
+            title_str = strrep(comp_name, '_', ' ');
+    end
+
+    % Generate xlabel string using the alignment event
+    align_event = aggregated_data.roc_comparison.(comp_name).alignEvent;
+    xlabel_str = sprintf('Time from %s Onset (s)', strrep(align_event, '_', ' '));
 end
