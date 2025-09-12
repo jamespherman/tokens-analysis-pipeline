@@ -50,7 +50,7 @@ for i_term = 1:n_terms
     field_name = anova_fields{i_term};
 
     % --- Select Subplot ---
-    h_axes(i_term) = subplot(n_rows, n_cols, i_term);
+    h_axes(i_term) = mySubPlot([n_rows, n_cols, i_term]);
     hold on;
 
     % --- Process and Plot SC Data ---
