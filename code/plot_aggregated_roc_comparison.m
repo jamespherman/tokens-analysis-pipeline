@@ -181,6 +181,6 @@ function [title_str, xlabel_str] = get_plot_labels(comp_name, aggregated_data)
 
 
     % Generate xlabel string using the alignment event
-    align_event = aggregated_data.roc_comparison.(comp_name).alignEvent;
+    align_event = matches{1}{1};
     xlabel_str = sprintf('Time from %s Onset (s)', strrep(align_event, '_', ' '));
 end
