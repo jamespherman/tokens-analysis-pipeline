@@ -166,9 +166,23 @@ For plotting Peristimulus Time Histograms (PSTHs), use the `barStairsFill.m` uti
 
 Example:
 ```matlab
-% Good: Using barStairsFill for a PSTH
+% Good: Using barStairsFill for a PSTH WITH ONE PLOT ON A SET OF AXES:
 mean_psth = mean(rates, 1);
-barStairsFill(time_vector, mean_psth, 'FaceColor', 'b', 'EdgeColor', 'none');
+hBS = barStairsFill(time_vector, zeros(size(mean_psth)), mean_psth);
+delete(hBS(2))
+set(hBS(1), 'FaceColor', 'k');
+set(hBS(3), 'Color', 'k')
+
+% Good: Using barStairsFill for a PSTH WITH MORE THAN ONE PLOT ON A SET OF AXES:
+mean_psth1 = mean(rates1, 1);
+mean_psth2 = mean(rates2, 1);
+hold on;
+hBS1 = barStairsFill(time_vector, zeros(size(mean_psth1)), mean_psth1);
+delete(hBS1(1:2))
+set(hBS1(3), 'Color', 'b');
+hBS2 = barStairsFill(time_vector, zeros(size(mean_psth2)), mean_psth2);
+delete(hBS2(1:2))
+set(hBS2(3), 'Color', 'r');
 ```
 
 ### 2. De-clutter Axes in Multi-Panel Figures
