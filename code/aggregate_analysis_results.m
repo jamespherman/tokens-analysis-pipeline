@@ -33,10 +33,9 @@ addpath(fullfile(script_dir, 'utils'));
 % through all completed session files to dynamically discover the full
 % superset of analysis results and key dimensions (e.g., n_time_bins).
 all_roc_fields = {};
-roc_time_bins = containers.Map('KeyType', 'char', 'ValueType', 'any');
 roc_time_vectors = containers.Map('KeyType', 'char', 'ValueType', 'any'); % To store time vectors
 discovered_anova_fields = struct();
-n_time_bins_canonical = NaN; % To store the canonical number of time bins for ANOVA
+nBins = struct(); % Initialize a single, nested struct to hold all bin counts
 
 complete_sessions = manifest(strcmp(manifest.analysis_status, 'complete'), :);
 
@@ -73,9 +72,9 @@ for i_session = 1:nSessions
                 all_roc_fields = [all_roc_fields; roc_fields];
                 for i_field = 1:length(roc_fields)
                     field = roc_fields{i_field};
-                    if ~isKey(roc_time_bins, field)
+                    if ~isfield(nBins, 'roc_comparison') || ~isfield(nBins.roc_comparison, field)
                         n_bins = size(session_data.analysis.roc_comparison.(field).sig, 2);
-                        roc_time_bins(field) = n_bins;
+                        nBins.roc_comparison.(field) = n_bins;
                         % Also store the time vector for this comparison
                         roc_time_vectors(field) = session_data.analysis.roc_comparison.(field).time_vector;
                     end
@@ -97,10 +96,15 @@ for i_session = 1:nSessions
                         end
                         discovered_anova_fields.(event_name) = [discovered_anova_fields.(event_name); p_value_fields];
 
-                        % Capture canonical n_time_bins from the first valid p-value matrix
-                        if isnan(n_time_bins_canonical) && ~isempty(p_value_fields)
-                            p_field = p_value_fields{1};
-                            n_time_bins_canonical = size(anova_results.(event_name).(p_field), 2);
+                        % Store n_time_bins for each analysis in the nested nBins struct
+                        for i_p_field = 1:length(p_value_fields)
+                            p_field = p_value_fields{i_p_field};
+                            if ~isfield(nBins, 'anova_results') || ...
+                               ~isfield(nBins.anova_results, event_name) || ...
+                               ~isfield(nBins.anova_results.(event_name), p_field)
+                                n_bins = size(anova_results.(event_name).(p_field), 2);
+                                nBins.anova_results.(event_name).(p_field) = n_bins;
+                            end
                         end
                     end
                 end
@@ -217,7 +221,7 @@ for i_area = 1:length(brain_areas)
                 data_to_append = session_data.analysis.roc_comparison.(field).sig;
             else
                 % Pad with NaNs of the correct size for the specific comparison
-                n_bins = roc_time_bins(field);
+                n_bins = nBins.roc_comparison.(field);
                 data_to_append = nan(n_neurons, n_bins);
             end
 
@@ -243,8 +247,9 @@ for i_area = 1:length(brain_areas)
                    isfield(session_data.analysis.anova_results.(event_name), p_field_name)
                     data_to_append = session_data.analysis.anova_results.(event_name).(p_field_name);
                 else
-                    % Pad with NaNs of the canonical size.
-                    data_to_append = nan(n_neurons, n_time_bins_canonical);
+                    % Pad with NaNs using the correct n_bins from the nBins struct
+                    n_bins = nBins.anova_results.(event_name).(p_field_name);
+                    data_to_append = nan(n_neurons, n_bins);
                 end
                 try
                 % Append data to the correct nested field
