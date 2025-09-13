@@ -56,11 +56,12 @@ for i_area = 1:length(brain_areas)
         end
     end
     % 3. ANOVA Results
-    if analysis_plan.anova_plan.run
-        for i_event = 1:length(analysis_plan.anova_plan.events)
-            event_name = analysis_plan.anova_plan.events{i_event};
-            for i_p = 1:length(analysis_plan.anova_plan.p_value_names)
-                p_name = analysis_plan.anova_plan.p_value_names{i_p};
+    for i_plan = 1:length(analysis_plan.anova_plan)
+        current_plan = analysis_plan.anova_plan(i_plan);
+        if current_plan.run
+            event_name = current_plan.event;
+            for i_p = 1:length(current_plan.p_value_names)
+                p_name = current_plan.p_value_names{i_p};
                 agg_data.anova_results.(event_name).(p_name) = [];
             end
         end
@@ -153,19 +154,22 @@ for i_session = 1:nSessions
     end
 
     % --- 3. Aggregate ANOVA Results ---
-    if analysis_plan.anova_plan.run && isfield(session_data.analysis, 'anova_results')
-        for i_event = 1:length(analysis_plan.anova_plan.events)
-            event = analysis_plan.anova_plan.events{i_event};
-            for i_p = 1:length(analysis_plan.anova_plan.p_value_names)
-                p_name = analysis_plan.anova_plan.p_value_names{i_p};
+    if isfield(session_data.analysis, 'anova_results')
+        for i_plan = 1:length(analysis_plan.anova_plan)
+            current_plan = analysis_plan.anova_plan(i_plan);
+            if current_plan.run
+                event = current_plan.event;
+                for i_p = 1:length(current_plan.p_value_names)
+                    p_name = current_plan.p_value_names{i_p};
 
-                data_to_append = nan(n_neurons, 1); % Default to NaN
-                if isfield(session_data.analysis.anova_results, event) && ...
-                   isfield(session_data.analysis.anova_results.(event), p_name)
-                    data_to_append = session_data.analysis.anova_results.(event).(p_name);
+                    data_to_append = nan(n_neurons, 1); % Default to NaN
+                    if isfield(session_data.analysis.anova_results, event) && ...
+                       isfield(session_data.analysis.anova_results.(event), p_name)
+                        data_to_append = session_data.analysis.anova_results.(event).(p_name);
+                    end
+                    agg_data.anova_results.(event).(p_name) = ...
+                        [agg_data.anova_results.(event).(p_name); data_to_append];
                 end
-                agg_data.anova_results.(event).(p_name) = ...
-                    [agg_data.anova_results.(event).(p_name); data_to_append];
             end
         end
     end
