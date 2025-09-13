@@ -16,7 +16,7 @@
 % Date: 2025-09-12
 %
 
-function [aggregated_sc_data, aggregated_snc_data] = aggregate_analysis_results(manifest)
+function [aggregated_sc_data, aggregated_snc_data] = aggregate_analysis_results
 
 % start timer and define in-line function to give user feedback:
 tic;
@@ -27,6 +27,14 @@ giveFeed = @(x)disp([num2str(round(toc, 1)) 's - ' x]);
 % found.
 [script_dir, ~, ~] = fileparts(mfilename('fullpath'));
 addpath(fullfile(script_dir, 'utils'));
+project_root = fileparts(script_dir); % Assumes script is in code/
+addpath(project_root); % Add project root to path
+
+%% Load Manifest
+giveFeed('Loading session manifest...');
+manifest_path = fullfile(project_root, 'config', 'session_manifest.csv');
+manifest = readtable(manifest_path);
+giveFeed('Manifest loaded.');
 
 %% Discover Superset of Analysis Fields and Dimensions
 % To decouple aggregation from a static analysis plan, we first iterate
@@ -269,5 +277,10 @@ for i_area = 1:length(brain_areas)
         aggregated_snc_data = aggregated_data;
     end
 end
+
+% save the data:
+saveFileName = fullfile(project_root, 'data', 'processed', ...
+    'aggregated_analysis_data.mat');
+save(saveFileName, 'aggregated_sc_data', 'aggregated_snc_data');
 
 end
