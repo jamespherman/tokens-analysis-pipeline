@@ -1,5 +1,11 @@
 # Agent Instructions
 
+## Execution Environment
+
+**The execution environment for this project does not have a functional MATLAB instance.** Any attempt to run or test MATLAB code will fail. Please proceed directly with generating the required code modifications and submit them for external testing.
+
+---
+
 ## IMPORTANT: Data Structures
 
 **Before writing or modifying any code that interacts with `session_data.mat` files, you MUST consult the data dictionary.**

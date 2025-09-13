@@ -36,43 +36,43 @@ manifest_path = fullfile(project_root, 'config', 'session_manifest.csv');
 manifest = readtable(manifest_path);
 giveFeed('Manifest loaded.');
 
-%% Discover Superset of Analysis Fields and Dimensions
-% To decouple aggregation from a static analysis plan, we first iterate
-% through all completed session files to dynamically discover the full
-% superset of analysis results and key dimensions (e.g., n_time_bins).
+%% Single Pass: Discover, Load, and Cache
+% To improve efficiency, we iterate through all completed session files
+% just once. In this single pass, we dynamically discover the superset of
+% analysis fields, load the data from disk, and cache it in memory.
 all_roc_fields = {};
-roc_time_vectors = containers.Map('KeyType', 'char', 'ValueType', 'any'); % To store time vectors
+roc_time_vectors = containers.Map('KeyType', 'char', 'ValueType', 'any');
 discovered_anova_fields = struct();
 nBins = struct(); % Initialize a single, nested struct to hold all bin counts
 
 complete_sessions = manifest(strcmp(manifest.analysis_status, 'complete'), :);
-
 nSessions = height(complete_sessions);
 
-% give user feedback:
-giveFeed('Initial data loop to discover analysis fields & dimensions.')
+% Initialize a cell array to cache the loaded session data
+session_data_cache = cell(nSessions, 1);
 
-% loop
+giveFeed('Starting single pass to discover, load, and cache session data.');
+
+% Loop through all completed sessions
 for i_session = 1:nSessions
-
-    % give user feedback:
-    giveFeed(['Loading session ' num2str(i_session) ' of ' ...
-        num2str(nSessions) '.'])
-
-    % load data:
     session_id = complete_sessions.unique_id{i_session};
+    giveFeed(['Processing session ' num2str(i_session) ' of ' ...
+        num2str(nSessions) ': ' session_id]);
+
+    % Construct path to session data
     session_data_path = fullfile(findOneDrive(), ...
         'Neuronal Data Analysis', session_id, ...
         [session_id '_session_data.mat']);
 
-    % 
-    giveFeed(['Session ' num2str(i_session) ' of ' ...
-        num2str(nSessions) ' loaded.'])
-
     if exist(session_data_path, 'file')
+        % Load data from disk
         data = load(session_data_path, 'session_data');
         session_data = data.session_data;
 
+        % --- Cache the loaded data ---
+        session_data_cache{i_session} = session_data;
+
+        % --- "Discovery" Logic: Dynamically find all analysis fields ---
         if isfield(session_data, 'analysis')
             % Discover ROC comparison fields and their time dimensions
             if isfield(session_data.analysis, 'roc_comparison')
@@ -104,7 +104,7 @@ for i_session = 1:nSessions
                         end
                         discovered_anova_fields.(event_name) = [discovered_anova_fields.(event_name); p_value_fields];
 
-                        % Store n_time_bins for each analysis in the nested nBins struct
+                        % Store n_time_bins for each analysis
                         for i_p_field = 1:length(p_value_fields)
                             p_field = p_value_fields{i_p_field};
                             if ~isfield(nBins, 'anova_results') || ...
@@ -118,6 +118,12 @@ for i_session = 1:nSessions
                 end
             end
         end
+    else
+        warning('aggregate_analysis_results:fileNotFound', ...
+                'Could not find session_data.mat for %s. Skipping.', ...
+                session_id);
+        % Store an empty value in the cache to maintain indexing
+        session_data_cache{i_session} = [];
     end
 end
 
@@ -131,37 +137,25 @@ for i_event = 1:length(alignment_events)
     discovered_anova_fields.(event_name) = unique(discovered_anova_fields.(event_name));
 end
 
-
-% The analysis plan is now discovered dynamically from the data,
-% so the static define_analysis_plan() is no longer needed.
-
 %% Initialize Aggregated Data Structures
 aggregated_sc_data = struct();
 aggregated_snc_data = struct();
 brain_areas = {'SC', 'SNc'};
 
-%% Main Loop
+%% Aggregation Pass (from cached data)
+giveFeed('Aggregating data from in-memory cache.');
 
-% give user feedback:
-giveFeed('Main data loop over ''brain areas'' to aggregate.')
-
-% loop
 for i_area = 1:length(brain_areas)
     current_area = brain_areas{i_area};
-
-    % Initialize a temporary struct for the current area's aggregated data
     aggregated_data = struct();
 
     % --- Dynamic Initialization from Discovered Fields ---
-    % Initialize fields for ROC comparisons based on the discovered superset
     for i_comp = 1:length(discovered_roc_fields)
         comp_name = discovered_roc_fields{i_comp};
         aggregated_data.roc_comparison.(comp_name).sig = [];
-        % Add the corresponding time vector, which is now self-contained
         aggregated_data.roc_comparison.(comp_name).time_vector = roc_time_vectors(comp_name);
     end
 
-    % Initialize fields for ANOVA results using the discovered nested structure
     alignment_events = fieldnames(discovered_anova_fields);
     for i_event = 1:length(alignment_events)
         event_name = alignment_events{i_event};
@@ -172,37 +166,29 @@ for i_area = 1:length(brain_areas)
         end
     end
 
+    % Find indices of sessions corresponding to the current brain area
+    area_session_indices = find(strcmp(complete_sessions.brain_area, current_area));
 
-    % Filter manifest for complete sessions in the current area
-    area_sessions = manifest(strcmp(manifest.brain_area, current_area) & ...
-                             strcmp(manifest.analysis_status, 'complete'), :);
+    giveFeed(['Aggregating ' num2str(length(area_session_indices)) ...
+        ' sessions for ' current_area]);
 
-    % give user feedback:
-    giveFeed(['Loop over ' brain_areas{i_area} ' sessions'])
+    % Loop through the sessions for the current brain area
+    for i_idx = 1:length(area_session_indices)
+        session_idx_in_cache = area_session_indices(i_idx);
 
-    % Session Loop
-    for i_session = 1:height(area_sessions)
-        session_id = area_sessions.unique_id{i_session};
+        % --- Retrieve session data from the cache ---
+        session_data = session_data_cache{session_idx_in_cache};
 
-        % Construct path and load session data
-        session_data_path = fullfile(findOneDrive(), ...
-            'Neuronal Data Analysis', session_id, ...
-            [session_id '_session_data.mat']);
-
-        if ~exist(session_data_path, 'file')
-            warning('aggregate_analysis_results:fileNotFound', ...
-                    'Could not find session_data.mat for %s. Skipping.', ...
-                    session_id);
+        % Skip if data was not loaded or is empty
+        if isempty(session_data)
             continue;
         end
 
-        data = load(session_data_path, 'session_data');
-        session_data = data.session_data;
+        session_id = complete_sessions.unique_id{session_idx_in_cache};
 
-        % Skip if analysis results are not present
         if ~isfield(session_data, 'analysis')
             warning('aggregate_analysis_results:noAnalysis', ...
-                'No analysis field in session_data for %s. Skipping.', ...
+                'No analysis field in cached data for %s. Skipping.', ...
                 session_id);
             continue;
         end
@@ -217,60 +203,39 @@ for i_area = 1:length(brain_areas)
             aggregated_data.session_id = [aggregated_data.session_id; session_ids_to_append];
         end
 
-        % give user feedback:
-        giveFeed('Loop over discovered ROC fields.')
-
         % --- Aggregate ROC Comparison Results ---
         for i_roc = 1:length(discovered_roc_fields)
             field = discovered_roc_fields{i_roc};
-
-            if isfield(session_data.analysis, 'roc_comparison') && ...
-               isfield(session_data.analysis.roc_comparison, field)
+            if isfield(session_data.analysis.roc_comparison, field)
                 data_to_append = session_data.analysis.roc_comparison.(field).sig;
             else
-                % Pad with NaNs of the correct size for the specific comparison
                 n_bins = nBins.roc_comparison.(field);
                 data_to_append = nan(n_neurons, n_bins);
             end
-
             aggregated_data.roc_comparison.(field).sig = ...
                 [aggregated_data.roc_comparison.(field).sig; data_to_append];
         end
 
-        % give user feedback:
-        giveFeed('Loop over nested ANOVA results.')
-
         % --- Aggregate Nested ANOVA Results ---
-        alignment_events = fieldnames(discovered_anova_fields);
         for i_event = 1:length(alignment_events)
             event_name = alignment_events{i_event};
             p_value_fields = discovered_anova_fields.(event_name);
-
             for i_p_field = 1:length(p_value_fields)
                 p_field_name = p_value_fields{i_p_field};
-
-                % Check if the specific p-value field exists for the session
-                if isfield(session_data.analysis, 'anova_results') && ...
-                   isfield(session_data.analysis.anova_results, event_name) && ...
+                if isfield(session_data.analysis.anova_results, event_name) && ...
                    isfield(session_data.analysis.anova_results.(event_name), p_field_name)
                     data_to_append = session_data.analysis.anova_results.(event_name).(p_field_name);
                 else
-                    % Pad with NaNs using the correct n_bins from the nBins struct
                     n_bins = nBins.anova_results.(event_name).(p_field_name);
                     data_to_append = nan(n_neurons, n_bins);
                 end
-                try
-                % Append data to the correct nested field
                 aggregated_data.anova_results.(event_name).(p_field_name) = ...
                     [aggregated_data.anova_results.(event_name).(p_field_name); data_to_append];
-                catch me
-                    keyboard
-                end
             end
         end
     end
 
-    % Assign the populated temporary struct to the correct output variable
+    % Assign the populated struct to the correct output variable
     if strcmp(current_area, 'SC')
         aggregated_sc_data = aggregated_data;
     else
@@ -279,8 +244,10 @@ for i_area = 1:length(brain_areas)
 end
 
 % save the data:
+giveFeed('Saving aggregated data to file...');
 saveFileName = fullfile(project_root, 'data', 'processed', ...
     'aggregated_analysis_data.mat');
 save(saveFileName, 'aggregated_sc_data', 'aggregated_snc_data');
+giveFeed('Aggregation complete.');
 
 end

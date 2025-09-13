@@ -15,6 +15,8 @@
 - [x] Phase 5.B: Plotting for ROC Comparison (`plot_roc_comparison.m`)
 - [x] Phase 6.A: Results Aggregation (`aggregate_analysis_results.m`)
 - [x] Phase 6.B: Aggregated Plotting Pipeline (`run_plotting_pipeline.m`, `plot_aggregated_roc_comparison.m`, `plot_aggregated_anova.m`)
+- [x] Phase 6: Optimize aggregation script to eliminate redundant file loading.
+- [x] Integrate `define_analysis_plan.m` into the main pipeline. **(Note: This file was made obsolete and removed in favor of a more robust dynamic discovery design.)**
 
 ## In Progress
 
@@ -22,6 +24,8 @@
 
 ## To-Do
 
-- [ ] Integrate `define_analysis_plan.m` into the main pipeline to allow for more flexible analysis configuration.
 - [ ] Develop a comprehensive test suite for all analysis and plotting functions.
+- ...
+
+## Agent-Suggested Improvements
 - ...
