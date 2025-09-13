@@ -32,20 +32,22 @@ condition_defs.condition_masks.SPE_comparison_pair = {'is_flicker_certain', 'is_
 % Each element defines a bin-by-bin ROC comparison.
 %   .name:        Unique name for the analysis (used for saving results).
 %   .event:       Alignment event (e.g., 'CUE_ON', 'outcomeOn').
-%   .conds:       Cell array of condition mask names to compare.
+%   .cond1:       Name of the first condition mask.
+%   .cond2:       Name of the second condition mask.
 %   .is_av_only:  Boolean, true if analysis is specific to AV sessions.
 roc_plan_def = { ...
-    'Dist_at_Cue',    'CUE_ON',    condition_defs.condition_masks.distribution,       false; ...
-    'RPE_at_Outcome', 'outcomeOn', condition_defs.condition_masks.RPE_comparison_pair,  false; ...
-    'RPE_at_Reward',  'reward',    condition_defs.condition_masks.RPE_comparison_pair,  false; ...
-    'SPE_at_Outcome', 'outcomeOn', condition_defs.condition_masks.SPE_comparison_pair,  true ...
+    'Dist_at_Cue',    'CUE_ON',    condition_defs.condition_masks.distribution{1},      condition_defs.condition_masks.distribution{2},      false; ...
+    'RPE_at_Outcome', 'outcomeOn', condition_defs.condition_masks.RPE_comparison_pair{1}, condition_defs.condition_masks.RPE_comparison_pair{2}, false; ...
+    'RPE_at_Reward',  'reward',    condition_defs.condition_masks.RPE_comparison_pair{1}, condition_defs.condition_masks.RPE_comparison_pair{2}, false; ...
+    'SPE_at_Outcome', 'outcomeOn', condition_defs.condition_masks.SPE_comparison_pair{1}, condition_defs.condition_masks.SPE_comparison_pair{2}, true ...
 };
-condition_defs.roc_plan = struct('name', {}, 'event', {}, 'conds', {}, 'is_av_only', {});
+condition_defs.roc_plan = struct('name', {}, 'event', {}, 'cond1', {}, 'cond2', {}, 'is_av_only', {});
 for i = 1:size(roc_plan_def, 1)
     condition_defs.roc_plan(i).name       = roc_plan_def{i, 1};
     condition_defs.roc_plan(i).event      = roc_plan_def{i, 2};
-    condition_defs.roc_plan(i).conds      = roc_plan_def{i, 3};
-    condition_defs.roc_plan(i).is_av_only = roc_plan_def{i, 4};
+    condition_defs.roc_plan(i).cond1      = roc_plan_def{i, 3};
+    condition_defs.roc_plan(i).cond2      = roc_plan_def{i, 4};
+    condition_defs.roc_plan(i).is_av_only = roc_plan_def{i, 5};
 end
 
 % C. Baseline Comparison Plan
