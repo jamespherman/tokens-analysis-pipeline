@@ -13,6 +13,8 @@
 - [x] Phase 4.D: N-way ANOVA Analysis (`analyze_anova.m`)
 - [x] Phase 5.A: Plotting for Baseline Comparison (`plot_baseline_comparison.m`)
 - [x] Phase 5.B: Plotting for ROC Comparison (`plot_roc_comparison.m`)
+- [x] Phase 6.A: Results Aggregation (`aggregate_analysis_results.m`)
+- [x] Phase 6.B: Aggregated Plotting Pipeline (`run_plotting_pipeline.m`, `plot_aggregated_roc_comparison.m`, `plot_aggregated_anova.m`)
 
 ## In Progress
 
