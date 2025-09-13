@@ -143,7 +143,7 @@ set(allAx, 'YLim', yLims, 'TickDir', 'Out', 'Color', 'none', ...
     'XColor', 'k', 'YColor', 'k', 'LineWidth', 1);
 
 % Save figure:
-fig_filename = fullfile(figures_dir, 'aggregated_roc_comparison.pdf'));
+fig_filename = fullfile(figures_dir, 'aggregated_roc_comparison.pdf');
 pdfSave(fig_filename, fig.Position(3:4)/72, fig);
 
 end
