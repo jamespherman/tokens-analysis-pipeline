@@ -48,6 +48,23 @@ giveFeed('Loading analysis plan...');
 [~, ~, analysis_plan] = define_task_conditions();
 giveFeed('Analysis plan loaded.');
 
+%% Dynamically Generate Required Alignment Events
+giveFeed('Generating required alignment events list from analysis plan...');
+all_events = {};
+plan_fields = fieldnames(analysis_plan);
+for i = 1:length(plan_fields)
+    sub_plan = analysis_plan.(plan_fields{i});
+    if isstruct(sub_plan)
+        for j = 1:length(sub_plan)
+            if isfield(sub_plan(j), 'event')
+                all_events{end+1} = sub_plan(j).event;
+            end
+        end
+    end
+end
+alignment_events = unique(all_events);
+giveFeed('Alignment events list generated.');
+
 %% Iterate Through Sessions
 for i = 1:height(manifest)
     session_id = manifest.unique_id{i};
@@ -196,7 +213,7 @@ for i = 1:height(manifest)
             step_counter, n_total_steps);
         giveFeed(['Data prep status is ''pending''. ' ...
             '            Running prepare_core_data...']);
-        core_data = prepare_core_data(session_data, selected_neurons);
+        core_data = prepare_core_data(session_data, selected_neurons, alignment_events);
         session_data.analysis.core_data = core_data;
 
         data_updated = true; % Mark data as updated
