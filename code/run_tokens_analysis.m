@@ -102,19 +102,21 @@ for i = 1:height(manifest)
     % Count planned analyses
     for j = 1:length(analysis_plan.baseline_plan)
         comp = analysis_plan.baseline_plan(j);
-        if (~isfield(session_data, 'analysis') || ...
-           ~isfield(session_data.analysis, 'baseline_comparison') || ...
-           ~isfield(session_data.analysis.baseline_comparison, ...
-           comp.name)) || force_rerun.analyses
+        path_to_check = fullfile('analysis', 'baseline_comparison', 'CUE_ON', comp.name);
+        S = substruct('.', strsplit(path_to_check, '/'));
+        try
+            subsref(session_data, S);
+        catch
             n_total_steps = n_total_steps + 1;
         end
     end
     for j = 1:length(analysis_plan.roc_plan)
         comp = analysis_plan.roc_plan(j);
-        if (~isfield(session_data, 'analysis') || ...
-           ~isfield(session_data.analysis, 'roc_comparison') || ...
-           ~isfield(session_data.analysis.roc_comparison, comp.name)) ...
-           || force_rerun.analyses
+        path_to_check = fullfile('analysis', 'roc_comparison', comp.event, comp.name);
+        S = substruct('.', strsplit(path_to_check, '/'));
+        try
+            subsref(session_data, S);
+        catch
             n_total_steps = n_total_steps + 1;
         end
     end
@@ -213,19 +215,38 @@ for i = 1:height(manifest)
         comp = analysis_plan.baseline_plan(j);
         if comp.is_av_only && ~is_av_session, continue; end
 
-        if (~isfield(session_data, 'analysis') || ...
-           ~isfield(session_data.analysis, 'baseline_comparison') || ...
-           ~isfield(session_data.analysis.baseline_comparison, ...
-           comp.name)) || force_rerun.analyses
+        % Check for existence of the new, nested structure. We check for
+        % the first event ('CUE_ON') as a proxy for the whole analysis.
+        run_this_analysis = force_rerun.analyses;
+        if ~run_this_analysis
+            path_to_check = fullfile('analysis', 'baseline_comparison', 'CUE_ON', comp.name);
+            S = substruct('.', strsplit(path_to_check, '/'));
+            try
+                subsref(session_data, S);
+            catch
+                run_this_analysis = true;
+            end
+        end
+
+        if run_this_analysis
             step_counter = step_counter + 1;
             fprintf(['\n--- Session %s: Step %d/%d: Baseline ' ...
                 'Comparison for %s ---\n'], unique_id, step_counter, ...
                 n_total_steps, comp.name);
             giveFeed(sprintf('--> Running Baseline Comparison: %s', ...
                 comp.name));
-            result = analyze_baseline_comparison(core_data, conditions, ...
-                is_av_session, 'condition', comp.name);
-            session_data.analysis.baseline_comparison.(comp.name) = result;
+
+            % This function returns a struct with event names as fields
+            result_by_event = analyze_baseline_comparison(core_data, ...
+                conditions, is_av_session, 'condition', comp.name);
+
+            % Merge the results into the new standardized structure
+            event_names = fieldnames(result_by_event);
+            for k = 1:length(event_names)
+                event_name = event_names{k};
+                session_data.analysis.baseline_comparison.(event_name).(comp.name) = ...
+                    result_by_event.(event_name);
+            end
             data_updated = true;
         end
     end
@@ -235,19 +256,32 @@ for i = 1:height(manifest)
         comp = analysis_plan.roc_plan(j);
         if comp.is_av_only && ~is_av_session, continue; end
 
-        if (~isfield(session_data, 'analysis') || ...
-           ~isfield(session_data.analysis, 'roc_comparison') || ...
-           ~isfield(session_data.analysis.roc_comparison, comp.name)) ...
-           || force_rerun.analyses
+        % Check for the existence of the new, nested structure.
+        run_this_analysis = force_rerun.analyses;
+        if ~run_this_analysis
+            path_to_check = fullfile('analysis', 'roc_comparison', comp.event, comp.name);
+            S = substruct('.', strsplit(path_to_check, '/'));
+            try
+                subsref(session_data, S);
+            catch
+                run_this_analysis = true;
+            end
+        end
+
+        if run_this_analysis
             step_counter = step_counter + 1;
             fprintf(['\n--- Session %s: Step %d/%d: ROC Comparison ' ...
                 'for %s ---\n'], unique_id, step_counter, ...
                 n_total_steps, comp.name);
             giveFeed(sprintf('--> Running ROC Comparison: %s', comp.name));
+
+            % This function now returns a result nested by event name
             result = analyze_roc_comparison(core_data, conditions, ...
                 is_av_session, 'comparison', comp);
-            session_data.analysis.roc_comparison.(comp.name) = ...
-                result.(comp.name);
+
+            % Store the result in the new standardized structure
+            session_data.analysis.roc_comparison.(comp.event).(comp.name) = ...
+                result.(comp.event).(comp.name);
             data_updated = true;
         end
     end
@@ -279,20 +313,27 @@ for i = 1:height(manifest)
 
     % --- Verify Analysis Completion & Update Manifest ---
     is_analysis_complete = true;
+    % Check baseline comparisons
     for j = 1:length(analysis_plan.baseline_plan)
         comp = analysis_plan.baseline_plan(j);
-        if ~isfield(session_data, 'analysis') || ...
-           ~isfield(session_data.analysis, 'baseline_comparison') || ...
-           ~isfield(session_data.analysis.baseline_comparison, comp.name)
+        % Check for the first event as a proxy
+        path_to_check = fullfile('analysis', 'baseline_comparison', 'CUE_ON', comp.name);
+        S = substruct('.', strsplit(path_to_check, '/'));
+        try
+            subsref(session_data, S);
+        catch
             is_analysis_complete = false; break;
         end
     end
+    % Check ROC comparisons
     if is_analysis_complete
         for j = 1:length(analysis_plan.roc_plan)
             comp = analysis_plan.roc_plan(j);
-            if ~isfield(session_data, 'analysis') || ...
-               ~isfield(session_data.analysis, 'roc_comparison') || ...
-               ~isfield(session_data.analysis.roc_comparison, comp.name)
+            path_to_check = fullfile('analysis', 'roc_comparison', comp.event, comp.name);
+            S = substruct('.', strsplit(path_to_check, '/'));
+            try
+                subsref(session_data, S);
+            catch
                 is_analysis_complete = false; break;
             end
         end

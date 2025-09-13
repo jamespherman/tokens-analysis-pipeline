@@ -153,10 +153,11 @@ for i_comp = 1:numel(comparisons_to_run)
             clusters_processed, total_clusters_in_session, etc_minutes, etc_rem_seconds);
     end
 
-    % Store the results
-    analysis_results.(result_name).sig = sig_results;
-    analysis_results.(result_name).time_vector = time_vector;
-    analysis_results.(result_name).cond_names = {cond1_name, cond2_name};
+    % Store the results in the new nested structure
+    analysis_results.(align_name).(result_name).sig = sig_results;
+    analysis_results.(align_name).(result_name).time_vector = time_vector;
+    analysis_results.(align_name).(result_name).cond_names = ...
+        {cond1_name, cond2_name};
 end
 
 if total_clusters_in_session > 0

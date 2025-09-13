@@ -168,9 +168,9 @@ for i_align = 1:numel(align_events)
                 clusters_processed, total_clusters_in_session, etc_minutes, etc_rem_seconds);
         end
 
-        % Store the results
+        % Store the results for the specific condition
         analysis_results.(align_name).(cond_name).sig = sig_results;
-        analysis_results.(align_name).time_vector = ...
+        analysis_results.(align_name).(cond_name).time_vector = ...
             time_vector(post_event_bins);
     end
 end
