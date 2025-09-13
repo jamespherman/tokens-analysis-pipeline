@@ -130,7 +130,8 @@ allAx = findall(fig, 'Type', 'Axes');
 
 % set common y-limits:
 [~, yLims] = outerLims(allAx);
-set(allAx, 'YLim', yLims, 'TickDir', 'Out');
+set(allAx, 'YLim', yLims, 'TickDir', 'Out', 'Color', 'none', ...
+    'XColor', 'k', 'YColor', 'k', 'LineWidth', 1);
 
 % Create a single legend for the entire figure
 % h_sc_patch = patch(NaN, NaN, sc_color, 'FaceAlpha', plot_alpha);

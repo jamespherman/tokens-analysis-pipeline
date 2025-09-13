@@ -15,9 +15,16 @@
 tic;
 disp('Starting the plotting pipeline...');
 
+%% Setup Paths
+[script_dir, ~, ~] = fileparts(mfilename('fullpath'));
+addpath(fullfile(script_dir, 'utils'));
+project_root = fileparts(script_dir);
+aggFileName = fullfile(project_root, 'data', 'processed', ...
+    'aggregated_analysis_data.mat');
+
 % Load aggregated data
 disp('Loading aggregated analysis data...');
-load('D:\OneDrive - University of Pittsburgh\Code\tokens-analysis-pipeline\data\processed\aggregated_analysis_data.mat', 'aggregated_sc_data', 'aggregated_snc_data');
+load(aggFileName);
 disp('Data loaded successfully.');
 
 % Call plotting functions
