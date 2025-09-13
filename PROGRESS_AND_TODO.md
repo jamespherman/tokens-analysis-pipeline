@@ -17,6 +17,7 @@
 - [x] Phase 6.B: Aggregated Plotting Pipeline (`run_plotting_pipeline.m`, `plot_aggregated_roc_comparison.m`, `plot_aggregated_anova.m`)
 - [x] Phase 6: Optimize aggregation script to eliminate redundant file loading.
 - [x] Integrate `define_analysis_plan.m` into the main pipeline. **(Note: This file was made obsolete and removed in favor of a more robust dynamic discovery design.)**
+- [x] Phase 7: Implement aggregation and plotting for baseline vs. post-event analysis.
 
 ## In Progress
 

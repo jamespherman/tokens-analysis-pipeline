@@ -34,6 +34,9 @@ plot_aggregated_roc_comparison(aggregated_sc_data, aggregated_snc_data);
 disp('Generating aggregated ANOVA plot...');
 plot_aggregated_anova(aggregated_sc_data, aggregated_snc_data);
 
+disp('Generating aggregated baseline comparison plot...');
+plot_aggregated_baseline_comparison(aggregated_sc_data, aggregated_snc_data);
+
 % End timer and provide user feedback
 toc;
 disp('Plotting pipeline finished.');

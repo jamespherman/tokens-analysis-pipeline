@@ -42,6 +42,8 @@ giveFeed('Manifest loaded.');
 % analysis fields, load the data from disk, and cache it in memory.
 all_roc_fields = {};
 roc_time_vectors = containers.Map('KeyType', 'char', 'ValueType', 'any');
+all_baseline_comparison_fields = {};
+baseline_comparison_time_vectors = containers.Map('KeyType', 'char', 'ValueType', 'any');
 discovered_anova_fields = struct();
 nBins = struct(); % Initialize a single, nested struct to hold all bin counts
 
@@ -89,6 +91,21 @@ for i_session = 1:nSessions
                 end
             end
 
+            % Discover baseline_comparison fields and their time dimensions
+            if isfield(session_data.analysis, 'baseline_comparison')
+                baseline_comp_fields = fieldnames(session_data.analysis.baseline_comparison);
+                all_baseline_comparison_fields = [all_baseline_comparison_fields; baseline_comp_fields];
+                for i_field = 1:length(baseline_comp_fields)
+                    field = baseline_comp_fields{i_field};
+                    if ~isfield(nBins, 'baseline_comparison') || ~isfield(nBins.baseline_comparison, field)
+                        n_bins = size(session_data.analysis.baseline_comparison.(field).sig, 2);
+                        nBins.baseline_comparison.(field) = n_bins;
+                        % Also store the time vector for this comparison
+                        baseline_comparison_time_vectors(field) = session_data.analysis.baseline_comparison.(field).time_vector;
+                    end
+                end
+            end
+
             % Discover nested ANOVA fields (alignment_event -> p_value_field)
             if isfield(session_data.analysis, 'anova_results')
                 anova_results = session_data.analysis.anova_results;
@@ -129,6 +146,7 @@ end
 
 % Get the unique field names for each analysis type
 discovered_roc_fields = unique(all_roc_fields);
+discovered_baseline_comparison_fields = unique(all_baseline_comparison_fields);
 
 % Make the list of p-value fields for each ANOVA event unique
 alignment_events = fieldnames(discovered_anova_fields);
@@ -154,6 +172,12 @@ for i_area = 1:length(brain_areas)
         comp_name = discovered_roc_fields{i_comp};
         aggregated_data.roc_comparison.(comp_name).sig = [];
         aggregated_data.roc_comparison.(comp_name).time_vector = roc_time_vectors(comp_name);
+    end
+
+    for i_comp = 1:length(discovered_baseline_comparison_fields)
+        comp_name = discovered_baseline_comparison_fields{i_comp};
+        aggregated_data.baseline_comparison.(comp_name).sig = [];
+        aggregated_data.baseline_comparison.(comp_name).time_vector = baseline_comparison_time_vectors(comp_name);
     end
 
     alignment_events = fieldnames(discovered_anova_fields);
@@ -214,6 +238,19 @@ for i_area = 1:length(brain_areas)
             end
             aggregated_data.roc_comparison.(field).sig = ...
                 [aggregated_data.roc_comparison.(field).sig; data_to_append];
+        end
+
+        % --- Aggregate Baseline Comparison Results ---
+        for i_bc = 1:length(discovered_baseline_comparison_fields)
+            field = discovered_baseline_comparison_fields{i_bc};
+            if isfield(session_data.analysis, 'baseline_comparison') && isfield(session_data.analysis.baseline_comparison, field)
+                data_to_append = session_data.analysis.baseline_comparison.(field).sig;
+            else
+                n_bins = nBins.baseline_comparison.(field);
+                data_to_append = nan(n_neurons, n_bins);
+            end
+            aggregated_data.baseline_comparison.(field).sig = ...
+                [aggregated_data.baseline_comparison.(field).sig; data_to_append];
         end
 
         % --- Aggregate Nested ANOVA Results ---
