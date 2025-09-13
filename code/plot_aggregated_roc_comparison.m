@@ -14,17 +14,19 @@
 function plot_aggregated_roc_comparison(aggregated_sc_data, aggregated_snc_data)
 
 %% Setup Paths
-% Add the 'utils' directory to the path so that helper functions can be
-% found.
-[script_dir, ~, ~] = fileparts(mfilename('fullpath'));
-addpath(fullfile(script_dir, 'utils'));
+% Define the project root, ensure the figures directory exists, and add the
+% 'utils' directory to the path so that helper functions can be found.
+project_root = fullfile(findOneDrive, 'Code', 'tokens-analysis-pipeline');
+figures_dir = fullfile(project_root, 'figures');
+addpath(fullfile(project_root, 'code', 'utils'));
 
 %% Figure and Plotting Setup
 % Dynamically get the list of comparisons from the data structure
 comparison_names = fieldnames(aggregated_sc_data.roc_comparison);
 n_comparisons = length(comparison_names);
 
-fig = figure('Position', [100, 100, 400 * n_comparisons, 800], 'Color', 'w');
+fig = figure('Position', [100, 100, 400 * n_comparisons, 800], ...
+    'Color', 'w');
 h_axes = gobjects(2, n_comparisons);
 
 % Define colors for the two preferences (a > b and a < b)
@@ -37,12 +39,16 @@ for i_comp = 1:n_comparisons
     comp_name = comparison_names{i_comp};
 
     % --- Data Validation ---
-    if ~isfield(aggregated_sc_data, 'roc_comparison') || ~isfield(aggregated_sc_data.roc_comparison, comp_name)
-        warning('plot_aggregated_roc_comparison:no_sc_data', 'No data for %s in SC struct.', comp_name);
+    if ~isfield(aggregated_sc_data, 'roc_comparison') ...
+            || ~isfield(aggregated_sc_data.roc_comparison, comp_name)
+        warning('plot_aggregated_roc_comparison:no_sc_data', ...
+            'No data for %s in SC struct.', comp_name);
         continue;
     end
-    if ~isfield(aggregated_snc_data, 'roc_comparison') || ~isfield(aggregated_snc_data.roc_comparison, comp_name)
-        warning('plot_aggregated_roc_comparison:no_snc_data', 'No data for %s in SNc struct.', comp_name);
+    if ~isfield(aggregated_snc_data, 'roc_comparison') ...
+            || ~isfield(aggregated_snc_data.roc_comparison, comp_name)
+        warning('plot_aggregated_roc_comparison:no_snc_data', ...
+            'No data for %s in SNc struct.', comp_name);
         continue;
     end
 
@@ -90,17 +96,20 @@ for i_comp = 1:n_comparisons
     line([0, 0], ylim, 'Color', 'k', 'LineStyle', '--');
 
     % --- Plotting SNc Data (Bottom Row) ---
-    h_axes(2, i_comp) = mySubPlot([2, n_comparisons, i_comp + n_comparisons]);
+    h_axes(2, i_comp) = mySubPlot([2, n_comparisons, i_comp + ...
+        n_comparisons]);
     hold on;
 
     % Plot SNc proportions, positive first
-    h_snc1 = barStairsFill(time_vector, zeros(size(prop_snc_cond2)), prop_snc_cond2);
+    h_snc1 = barStairsFill(time_vector, zeros(size(prop_snc_cond2)), ...
+        prop_snc_cond2);
     delete(h_snc1(2));
     set(h_snc1(1), 'FaceColor', posColor, 'EdgeColor', 'none');
     set(h_snc1(3), 'Color', posColor);
 
     % negaitve next:
-    h_snc2 = barStairsFill(time_vector, zeros(size(prop_snc_cond1)), prop_snc_cond1);
+    h_snc2 = barStairsFill(time_vector, zeros(size(prop_snc_cond1)), ...
+        prop_snc_cond1);
     delete(h_snc2(2));
     set(h_snc2(1), 'FaceColor', negColor, 'EdgeColor', 'none');
     set(h_snc2(3), 'Color', negColor);
@@ -133,11 +142,9 @@ allAx = findall(fig, 'Type', 'Axes');
 set(allAx, 'YLim', yLims, 'TickDir', 'Out', 'Color', 'none', ...
     'XColor', 'k', 'YColor', 'k', 'LineWidth', 1);
 
-% Create a single legend for the entire figure
-% h_sc_patch = patch(NaN, NaN, sc_color, 'FaceAlpha', plot_alpha);
-% h_snc_patch = patch(NaN, NaN, snc_color, 'FaceAlpha', plot_alpha);
-% legend([h_sc_patch, h_snc_patch], {'SC', 'SNc'}, ...
-%     'location', 'best', 'Box', 'off');
+% Save figure:
+fig_filename = fullfile(figures_dir, 'aggregated_roc_comparison.pdf'));
+pdfSave(fig_filename, fig.Position(3:4)/72, fig);
 
 end
 

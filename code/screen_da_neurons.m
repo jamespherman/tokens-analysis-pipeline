@@ -54,7 +54,7 @@ if ~exist(figures_dir, 'dir')
     mkdir(figures_dir);
 end
 
-fig_handle = figure('Visible', 'off');
+fig_handle = figure('Color', 'w');
 scatter(waveform_durations_ms, baseline_frs, 36, 'filled', ...
     'MarkerFaceAlpha', 0.6);
 hold on;
@@ -75,9 +75,9 @@ legend({'All Neurons', 'Selected (Putative DA)'}, 'Location', 'northeast');
 grid on;
 
 % Save the figure
-fig_filename = fullfile(figures_dir, sprintf('da_screening_%s.png', ...
+fig_filename = fullfile(figures_dir, sprintf('da_screening_%s.pdf', ...
     session_id));
-saveas(fig_handle, fig_filename);
+pdfSave(fig_filename, fig_handle)
 fprintf('... diagnostic plot saved to %s\n', fig_filename);
 close(fig_handle);
 

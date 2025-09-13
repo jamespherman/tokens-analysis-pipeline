@@ -51,15 +51,18 @@ giveFeed('Analysis plan loaded.');
 %% Iterate Through Sessions
 for i = 1:height(manifest)
     session_id = manifest.unique_id{i};
-    giveFeed(sprintf('--- Starting processing for session: %s ---', session_id));
+    giveFeed(sprintf('--- Starting processing for session: %s ---', ...
+        session_id));
 
     one_drive_path = findOneDrive;
     session_data_path = fullfile(one_drive_path, ...
-        'Neuronal Data Analysis', session_id, [session_id '_session_data.mat']);
+        'Neuronal Data Analysis', session_id, [session_id ...
+        '_session_data.mat']);
 
     if ~exist(session_data_path, 'file')
         warning('run_tokens_analysis:sessionDataNotFound', ...
-            'session_data.mat not found for %s. Skipping.', session_id);
+            'session_data.mat not found for %s. Skipping.', ...
+            session_id);
         continue;
     end
 
@@ -82,7 +85,8 @@ for i = 1:height(manifest)
     if ~isfield(session_data, 'metrics') || force_rerun.screening
         n_total_steps = n_total_steps + 1;
     end
-    if ~strcmp(manifest.screening_status{i}, 'complete') || force_rerun.screening
+    if ~strcmp(manifest.screening_status{i}, 'complete') || ...
+            force_rerun.screening
         n_total_steps = n_total_steps + 1;
     end
     diag_output_dir_dry_run = fullfile(project_root, 'figures', unique_id);
@@ -90,7 +94,8 @@ for i = 1:height(manifest)
             isempty(dir(fullfile(diag_output_dir_dry_run, '*.pdf'))))
         n_total_steps = n_total_steps + 1;
     end
-    if ~strcmp(manifest.dataprep_status{i}, 'complete') || force_rerun.dataprep
+    if ~strcmp(manifest.dataprep_status{i}, 'complete') || ...
+            force_rerun.dataprep
         n_total_steps = n_total_steps + 1;
     end
 
@@ -99,8 +104,8 @@ for i = 1:height(manifest)
         comp = analysis_plan.baseline_plan(j);
         if (~isfield(session_data, 'analysis') || ...
            ~isfield(session_data.analysis, 'baseline_comparison') || ...
-           ~isfield(session_data.analysis.baseline_comparison, comp.name)) ...
-           || force_rerun.analyses
+           ~isfield(session_data.analysis.baseline_comparison, ...
+           comp.name)) || force_rerun.analyses
             n_total_steps = n_total_steps + 1;
         end
     end
@@ -115,7 +120,8 @@ for i = 1:height(manifest)
     end
     if analysis_plan.anova_plan.run
         if (~isfield(session_data, 'analysis') || ...
-           ~isfield(session_data.analysis, 'anova_results')) || force_rerun.analyses
+           ~isfield(session_data.analysis, 'anova_results')) || ...
+            force_rerun.analyses
             n_total_steps = n_total_steps + 1;
         end
     end
@@ -124,9 +130,12 @@ for i = 1:height(manifest)
     % --- Pipeline Stages ---
     % ... (screening, PDF gen, data prep stages are unchanged) ...
         % --- 1. Neuron Screening ---
-    if ~strcmp(manifest.screening_status{i}, 'complete') || force_rerun.screening
+    if ~strcmp(manifest.screening_status{i}, 'complete') || ...
+        force_rerun.screening
         step_counter = step_counter + 1;
-        fprintf('\n--- Session %s: Starting Step %d of %d: Neuron Screening ---\n', unique_id, step_counter, n_total_steps);
+        fprintf(['\n--- Session %s: Starting Step %d of %d: ' ...
+            '        Neuron Screening ---\n'], unique_id, ...
+            step_counter, n_total_steps);
         giveFeed('Screening status is ''pending''. Running screening...');
 
         session_data.metadata.unique_id = session_id;
@@ -160,11 +169,11 @@ for i = 1:height(manifest)
 
     % Check if the directory exists and contains any PDF files
     if (~exist(diag_output_dir, 'dir') || isempty(dir(fullfile( ...
-            diag_output_dir, '*.pdf')))) || force_rerun.diag_pdfs
+            diag_output_dir, '*.pdf')))) || force_rerun.diag_pdfs 
         step_counter = step_counter + 1;
         fprintf(['\n--- Session %s: Starting Step %d of %d: ' ...
-            'Diagnostic PDF Generation ---\n'], unique_id, step_counter, ...
-            n_total_steps);
+            'Diagnostic PDF Generation ---\n'], unique_id, ...
+            step_counter, n_total_steps);
         giveFeed('Generating diagnostic PDF...');
         if ~exist(diag_output_dir, 'dir')
             mkdir(diag_output_dir);
@@ -177,7 +186,8 @@ for i = 1:height(manifest)
     end
 
     % --- 2. Core Data Preparation ---
-    if ~strcmp(manifest.dataprep_status{i}, 'complete') || force_rerun.dataprep
+    if ~strcmp(manifest.dataprep_status{i}, 'complete') || ...
+        force_rerun.dataprep
         step_counter = step_counter + 1;
         fprintf(['\n--- Session %s: Starting Step %d of %d: ' ...
             'Core Data Preparation ---\n'], unique_id, ...
@@ -205,11 +215,14 @@ for i = 1:height(manifest)
 
         if (~isfield(session_data, 'analysis') || ...
            ~isfield(session_data.analysis, 'baseline_comparison') || ...
-           ~isfield(session_data.analysis.baseline_comparison, comp.name)) ...
-           || force_rerun.analyses
+           ~isfield(session_data.analysis.baseline_comparison, ...
+           comp.name)) || force_rerun.analyses
             step_counter = step_counter + 1;
-            fprintf('\n--- Session %s: Step %d/%d: Baseline Comparison for %s ---\n', unique_id, step_counter, n_total_steps, comp.name);
-            giveFeed(sprintf('--> Running Baseline Comparison: %s', comp.name));
+            fprintf(['\n--- Session %s: Step %d/%d: Baseline ' ...
+                'Comparison for %s ---\n'], unique_id, step_counter, ...
+                n_total_steps, comp.name);
+            giveFeed(sprintf('--> Running Baseline Comparison: %s', ...
+                comp.name));
             result = analyze_baseline_comparison(core_data, conditions, ...
                 is_av_session, 'condition', comp.name);
             session_data.analysis.baseline_comparison.(comp.name) = result;
@@ -227,11 +240,14 @@ for i = 1:height(manifest)
            ~isfield(session_data.analysis.roc_comparison, comp.name)) ...
            || force_rerun.analyses
             step_counter = step_counter + 1;
-            fprintf('\n--- Session %s: Step %d/%d: ROC Comparison for %s ---\n', unique_id, step_counter, n_total_steps, comp.name);
+            fprintf(['\n--- Session %s: Step %d/%d: ROC Comparison ' ...
+                'for %s ---\n'], unique_id, step_counter, ...
+                n_total_steps, comp.name);
             giveFeed(sprintf('--> Running ROC Comparison: %s', comp.name));
             result = analyze_roc_comparison(core_data, conditions, ...
                 is_av_session, 'comparison', comp);
-            session_data.analysis.roc_comparison.(comp.name) = result.(comp.name);
+            session_data.analysis.roc_comparison.(comp.name) = ...
+                result.(comp.name);
             data_updated = true;
         end
     end
@@ -242,9 +258,11 @@ for i = 1:height(manifest)
            ~isfield(session_data.analysis, 'anova_results')) ...
            || force_rerun.analyses
             step_counter = step_counter + 1;
-            fprintf('\n--- Session %s: Step %d/%d: N-way ANOVA ---\n', unique_id, step_counter, n_total_steps);
+            fprintf('\n--- Session %s: Step %d/%d: N-way ANOVA ---\n', ...
+                unique_id, step_counter, n_total_steps);
             giveFeed('--> Running N-way ANOVA');
-            session_data = analyze_anova(session_data, core_data, conditions);
+            session_data = analyze_anova(session_data, core_data, ...
+                conditions);
             data_updated = true;
         end
     end
@@ -255,7 +273,8 @@ for i = 1:height(manifest)
         save(session_data_path, 'session_data', '-v7.3');
         giveFeed('Save complete.');
     else
-        giveFeed('No new analyses or processing were required for this session.');
+        giveFeed(['No new analyses or processing were required for ' ...
+            '                this session.']);
     end
 
     % --- Verify Analysis Completion & Update Manifest ---
@@ -289,7 +308,8 @@ for i = 1:height(manifest)
         manifest.analysis_status{i} = 'complete';
     end
 
-    giveFeed(sprintf('--- Finished processing for session: %s ---\n', session_id));
+    giveFeed(sprintf('--- Finished processing for session: %s ---\n', ...
+        session_id));
 end
 
 %% Finalize

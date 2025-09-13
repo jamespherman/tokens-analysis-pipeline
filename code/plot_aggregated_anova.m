@@ -18,10 +18,11 @@
 function plot_aggregated_anova(aggregated_sc_data, aggregated_snc_data)
 
 %% Setup Paths
-% Add the 'utils' directory to the path so that helper functions can be
-% found.
-[script_dir, ~, ~] = fileparts(mfilename('fullpath'));
-addpath(fullfile(script_dir, 'utils'));
+% Define the project root, ensure the figures directory exists, and add the
+% 'utils' directory to the path so that helper functions can be found.
+project_root = fullfile(findOneDrive, 'Code', 'tokens-analysis-pipeline');
+figures_dir = fullfile(project_root, 'figures');
+addpath(fullfile(project_root, 'code', 'utils'));
 
 %% Dynamically Discover Alignment Events and ANOVA Terms
 % The function discovers the structure of the analysis from the data itself,
@@ -70,21 +71,26 @@ for i_row = 1:n_rows
 
         % --- Data Processing and Plotting ---
         % Check if this specific p-value exists for this event
-        if isfield(aggregated_sc_data.anova_results.(event_name), p_value_name)
+        if isfield(aggregated_sc_data.anova_results.(event_name), ...
+                p_value_name)
             
             % Process and Plot SC Data
-            p_values_sc = aggregated_sc_data.anova_results.(event_name).(p_value_name);
+            p_values_sc = aggregated_sc_data.anova_results.( ...
+                event_name).(p_value_name);
             prop_sig_sc = mean(p_values_sc < 0.05, 1, 'omitnan');
             n_time_bins = size(prop_sig_sc, 2);
             time_vector = 1:n_time_bins; % Generic time bins
             
-            plot(time_vector, prop_sig_sc, 'Color', sc_color, 'LineWidth', 2);
+            plot(time_vector, prop_sig_sc, 'Color', sc_color, ...
+                'LineWidth', 2);
 
             % Process and Plot SNc Data
-            p_values_snc = aggregated_snc_data.anova_results.(event_name).(p_value_name);
+            p_values_snc = aggregated_snc_data.anova_results.( ...
+                event_name).(p_value_name);
             prop_sig_snc = mean(p_values_snc < 0.05, 1, 'omitnan');
 
-            plot(time_vector, prop_sig_snc, 'Color', snc_color, 'LineWidth', 2);
+            plot(time_vector, prop_sig_snc, 'Color', snc_color, ...
+                'LineWidth', 2);
         else
             % If data doesn't exist, display a note on the plot
             text(0.5, 0.5, 'N/A', 'HorizontalAlignment', 'center');
@@ -102,7 +108,8 @@ for i_row = 1:n_rows
         
         % Add Column Titles (Alignment Events) to the top row
         if i_row == 1
-            title(ax, strrep(alignment_events{i_col}, '_', ' '), 'FontWeight', 'normal');
+            title(ax, strrep(alignment_events{i_col}, '_', ' '), ...
+                'FontWeight', 'normal');
         end
 
         % Add Row Labels (ANOVA Terms) to the first column
@@ -136,6 +143,11 @@ lgd = legend(h_axes(1,1), {'SC', 'SNc'}, 'Location', 'northeast');
 lgd.Box = 'off';
 
 % Add an overarching title for the entire figure
-sgtitle('Proportion of Significant Neurons by ANOVA Term and Alignment Event', 'FontWeight', 'bold');
+sgtitle(['Proportion of Significant Neurons by ANOVA Term and ' ...
+    '    Alignment Event'], 'FontWeight', 'bold');
+
+% Save figure:
+fig_filename = fullfile(figures_dir, 'aggregated_anova.pdf');
+pdfSave(fig_filename, fig.Position(3:4)/72, fig);
 
 end
