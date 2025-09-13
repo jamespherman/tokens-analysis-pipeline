@@ -15,7 +15,7 @@
 % Author: Jules
 % Date: 2025-09-08
 
-function core_data = prepare_core_data(session_data, selected_neurons)
+function core_data = prepare_core_data(session_data, selected_neurons, alignment_events)
 
 %% Setup Paths
 % Add the 'utils' directory to the path so that helper functions can be
@@ -23,9 +23,8 @@ function core_data = prepare_core_data(session_data, selected_neurons)
 [script_dir, ~, ~] = fileparts(mfilename('fullpath'));
 addpath(fullfile(script_dir, 'utils'));
 
-%% Define Alignment Events and Trial Indices
-% Define the list of events to align the data to
-alignment_events = {'CUE_ON', 'outcomeOn', 'reward'};
+%% Define Trial Indices
+% The list of events to align to is now passed in as an argument.
 
 % Load the structure containing all task codes
 codes = initCodes();
