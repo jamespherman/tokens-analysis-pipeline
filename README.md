@@ -82,7 +82,7 @@ This section provides a concise overview of the main `.m` files in the `/code` d
 *   `generate_neuron_summary_pdf.m`: Generates a PDF of diagnostic plots for each neuron.
 *   `plot_aggregated_roc_comparison.m`: Creates a summary figure from the aggregated ROC analysis results.
 *   `plot_aggregated_anova.m`: Creates a summary figure from the aggregated ANOVA results.
-*   `define_analysis_plan.m`: A configuration file that defines which analyses to run (currently unused).
+*   `define_analysis_plan.m`: **Obsolete and removed**. This file was previously a static configuration for analyses but has been replaced by a dynamic discovery process within the aggregation script.
 
 ## Usage
 
