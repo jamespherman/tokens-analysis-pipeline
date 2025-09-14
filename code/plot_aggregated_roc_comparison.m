@@ -54,7 +54,7 @@ for i_comp = 1:n_comparisons
 
     % --- Time Vector Loading ---
     % The time vector is now self-contained in the aggregated data structure.
-    time_vector = aggregated_sc_data.roc_comparison.(comp_name).time_vector;
+    time_vector = aggregated_sc_data.roc_comparison.(comp_name).time_vectors.sig;
 
     % --- Data Extraction and Count Calculation ---
     sig_sc = aggregated_sc_data.roc_comparison.(comp_name).sig;
