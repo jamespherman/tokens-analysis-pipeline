@@ -1,82 +1,66 @@
 %% aggregate_analysis_results.m
 %
-% Systematically gathers all pre-computed single-session analysis results
-% and pools them by brain area. This script now relies on a predefined
-% analysis plan, leveraging the standardized data structure.
+% Refactored to use a three-phase approach:
+% 1. Single-pass load, discovery of dimensions, and caching.
+% 2. Aggregation from the in-memory cache, with correct NaN-padding.
+% 3. Saving the final aggregated data.
 %
-% OUTPUT:
-%   aggregated_sc_data  - A struct containing aggregated data for SC.
-%   aggregated_snc_data - A struct containing aggregated data for SNc.
+% This approach is robust to missing or heterogeneous analysis results
+% across sessions.
 %
 % Author: Jules
-% Date: 2025-09-13 (Refactored)
+% Date: 2025-09-14
 %
 
-function [aggregated_sc_data, aggregated_snc_data] = aggregate_analysis_results
+function [aggregated_sc_data, aggregated_snc_data] = ...
+    aggregate_analysis_results()
 
 % Start timer and define in-line function to give user feedback:
 tic;
 giveFeed = @(x)disp([num2str(round(toc, 1)) 's - ' x]);
 
-%% Setup Paths
+%% Phase 1: Initialization
+giveFeed('Phase 1: Initializing...');
+
+% Setup Paths
 [script_dir, ~, ~] = fileparts(mfilename('fullpath'));
 addpath(fullfile(script_dir, 'utils'));
 project_root = fileparts(script_dir);
 addpath(project_root);
 
-%% Load Manifest and Analysis Plan
-giveFeed('Loading session manifest and analysis plan...');
+% Load Manifest
 manifest_path = fullfile(project_root, 'config', 'session_manifest.csv');
 manifest = readtable(manifest_path);
-[~, ~, analysis_plan] = define_task_conditions(); % Get the canonical plan
-baseline_events = {'CUE_ON', 'outcomeOn', 'reward'}; % This is hard-coded in the analysis fn
-giveFeed('Manifest and plan loaded.');
 
-%% Initialize Aggregated Data Structures
+% Initialize Caching and Discovery Structures
+session_data_cache = containers.Map('KeyType', 'char', 'ValueType', 'any');
+dim_info = struct();
+
+% Initialize Final Aggregated Data Structures
 brain_areas = {'SC', 'SNc'};
-aggregated_data_by_area = containers.Map('KeyType', 'char', 'ValueType', 'any');
+aggregated_data_by_area = ...
+    containers.Map('KeyType', 'char', 'ValueType', 'any');
 
 for i_area = 1:length(brain_areas)
     area = brain_areas{i_area};
     agg_data = struct();
     agg_data.session_id = {};
-
-    % Initialize based on the known analysis plan
-    % 1. ROC Comparisons
-    for j = 1:length(analysis_plan.roc_plan)
-        comp = analysis_plan.roc_plan(j);
-        agg_data.roc_comparison.(comp.event).(comp.name).sig = [];
-    end
-    % 2. Baseline Comparisons
-    for j = 1:length(analysis_plan.baseline_plan)
-        comp = analysis_plan.baseline_plan(j);
-        for i_event = 1:length(baseline_events)
-            event_name = baseline_events{i_event};
-            agg_data.baseline_comparison.(event_name).(comp.name).sig = [];
-        end
-    end
-    % 3. ANOVA Results
-    for i_plan = 1:length(analysis_plan.anova_plan)
-        current_plan = analysis_plan.anova_plan(i_plan);
-        if current_plan.run
-            event_name = current_plan.event;
-            for i_p = 1:length(current_plan.p_value_names)
-                p_name = current_plan.p_value_names{i_p};
-                agg_data.anova_results.(event_name).(p_name) = [];
-            end
-        end
-    end
+    % Note: Analysis-specific fields are NOT initialized here.
+    % They will be created dynamically during the aggregation phase based
+    % on the discovered dimensions.
     aggregated_data_by_area(area) = agg_data;
 end
 
-%% Aggregation Loop
+giveFeed('Initialization complete.');
+
+%% Phase 2: Single-Pass Data Loading, Discovery, and Caching
+giveFeed('Phase 2: Loading, discovering, and caching session data...');
 complete_sessions = manifest(strcmp(manifest.analysis_status, 'complete'), :);
 nSessions = height(complete_sessions);
-giveFeed(sprintf('Starting aggregation for %d completed sessions.', nSessions));
+giveFeed(sprintf('Found %d completed sessions to process.', nSessions));
 
 for i_session = 1:nSessions
     session_id = complete_sessions.unique_id{i_session};
-    brain_area = complete_sessions.brain_area{i_session};
     giveFeed(sprintf('Processing session %d/%d: %s', i_session, nSessions, session_id));
 
     session_data_path = fullfile(findOneDrive(), 'Neuronal Data Analysis', ...
@@ -88,95 +72,68 @@ for i_session = 1:nSessions
         continue;
     end
 
+    % Load the data
     data = load(session_data_path, 'session_data');
     session_data = data.session_data;
 
-    if ~isfield(session_data, 'analysis')
-        warning('aggregate_analysis_results:noAnalysis', ...
-            'No analysis field in data for %s. Skipping.', session_id);
-        continue;
-    end
+    % Cache the entire session_data struct
+    session_data_cache(session_id) = session_data;
 
-    n_neurons = size(session_data.analysis.selected_neurons, 1);
+    % Discover dimensions if analysis data exists
+    if isfield(session_data, 'analysis')
+        dim_info = discover_dimensions_recursive(session_data.analysis, dim_info);
+    else
+        warning('aggregate_analysis_results:noAnalysis', ...
+            'No analysis field in data for %s. Skipping discovery.', session_id);
+    end
+end
+giveFeed('Data loading, discovery, and caching complete.');
+
+%% Phase 3: Aggregation from Cache
+giveFeed('Phase 3: Aggregating data from cache...');
+
+for i_session = 1:nSessions
+    session_id = complete_sessions.unique_id{i_session};
+    brain_area = complete_sessions.brain_area{i_session};
+    giveFeed(sprintf('Aggregating session %d/%d: %s', ...
+        i_session, nSessions, session_id));
+
+    % Retrieve data from cache
+    session_data = session_data_cache(session_id);
 
     % Get the correct aggregated struct for the current brain area
     agg_data = aggregated_data_by_area(brain_area);
 
+    % Determine the number of neurons for NaN padding
+    n_neurons = 0;
+    if isfield(session_data, 'analysis') && ...
+       isfield(session_data.analysis, 'selected_neurons')
+        n_neurons = size(session_data.analysis.selected_neurons, 1);
+    end
+
+    if n_neurons == 0
+        giveFeed(sprintf('Skipping session %s: no selected neurons.', ...
+            session_id));
+        continue;
+    end
+
     % Append session ID
-    agg_data.session_id = [agg_data.session_id; repmat({session_id}, n_neurons, 1)];
+    agg_data.session_id = [agg_data.session_id; ...
+        repmat({session_id}, n_neurons, 1)];
 
-    % --- 1. Aggregate ROC Comparison Results ---
-    for j = 1:length(analysis_plan.roc_plan)
-        comp = analysis_plan.roc_plan(j);
-        event = comp.event;
-        name = comp.name;
-
-        data_to_append = nan(n_neurons, 1); % Default to NaN
-        if isfield(session_data.analysis, 'roc_comparison') && ...
-           isfield(session_data.analysis.roc_comparison, event) && ...
-           isfield(session_data.analysis.roc_comparison.(event), name) && ...
-           isfield(session_data.analysis.roc_comparison.(event).(name), 'sig')
-
-            data_to_append = session_data.analysis.roc_comparison.(event).(name).sig;
-            if ~isempty(data_to_append) && ...
-               ~isfield(agg_data.roc_comparison.(event).(name), 'time_vector')
-                agg_data.roc_comparison.(event).(name).time_vector = ...
-                    session_data.analysis.roc_comparison.(event).(name).time_vector;
-            end
-        end
-        agg_data.roc_comparison.(event).(name).sig = ...
-            [agg_data.roc_comparison.(event).(name).sig; data_to_append];
+    % Recursively aggregate all fields based on the dim_info template
+    session_analysis_data = struct();
+    if isfield(session_data, 'analysis')
+        session_analysis_data = session_data.analysis;
     end
 
-    % --- 2. Aggregate Baseline Comparison Results ---
-    for j = 1:length(analysis_plan.baseline_plan)
-        comp = analysis_plan.baseline_plan(j);
-        name = comp.name;
-        for i_event = 1:length(baseline_events)
-            event = baseline_events{i_event};
-
-            data_to_append = nan(n_neurons, 1); % Default to NaN
-            if isfield(session_data.analysis, 'baseline_comparison') && ...
-               isfield(session_data.analysis.baseline_comparison, event) && ...
-               isfield(session_data.analysis.baseline_comparison.(event), name) && ...
-               isfield(session_data.analysis.baseline_comparison.(event).(name), 'sig')
-
-                data_to_append = session_data.analysis.baseline_comparison.(event).(name).sig;
-                if ~isempty(data_to_append) && ...
-                   ~isfield(agg_data.baseline_comparison.(event).(name), 'time_vector')
-                    agg_data.baseline_comparison.(event).(name).time_vector = ...
-                        session_data.analysis.baseline_comparison.(event).(name).time_vector;
-                end
-            end
-            agg_data.baseline_comparison.(event).(name).sig = ...
-                [agg_data.baseline_comparison.(event).(name).sig; data_to_append];
-        end
-    end
-
-    % --- 3. Aggregate ANOVA Results ---
-    if isfield(session_data.analysis, 'anova_results')
-        for i_plan = 1:length(analysis_plan.anova_plan)
-            current_plan = analysis_plan.anova_plan(i_plan);
-            if current_plan.run
-                event = current_plan.event;
-                for i_p = 1:length(current_plan.p_value_names)
-                    p_name = current_plan.p_value_names{i_p};
-
-                    data_to_append = nan(n_neurons, 1); % Default to NaN
-                    if isfield(session_data.analysis.anova_results, event) && ...
-                       isfield(session_data.analysis.anova_results.(event), p_name)
-                        data_to_append = session_data.analysis.anova_results.(event).(p_name);
-                    end
-                    agg_data.anova_results.(event).(p_name) = ...
-                        [agg_data.anova_results.(event).(p_name); data_to_append];
-                end
-            end
-        end
-    end
+    agg_data = aggregate_recursive(dim_info, session_analysis_data, ...
+        agg_data, n_neurons);
 
     % Update the map with the modified struct
     aggregated_data_by_area(brain_area) = agg_data;
 end
+giveFeed('Aggregation from cache complete.');
 
 %% Finalize and Save
 giveFeed('Saving aggregated data to file...');
@@ -188,4 +145,98 @@ saveFileName = fullfile(project_root, 'data', 'processed', ...
 save(saveFileName, 'aggregated_sc_data', 'aggregated_snc_data', '-v7.3');
 giveFeed('Aggregation complete.');
 
+end
+
+% =========================================================================
+% Helper function to recursively discover dimensions
+% =========================================================================
+function dim_info = discover_dimensions_recursive(current_data, dim_info)
+    fields = fieldnames(current_data);
+    for i = 1:length(fields)
+        field_name = fields{i};
+
+        % Skip metadata fields that are not analysis results
+        if ismember(field_name, ...
+           {'selected_neurons', 'scSide', 'sig_epoch_comparison'})
+            continue;
+        end
+
+        if isstruct(current_data.(field_name))
+            if ~isfield(dim_info, field_name)
+                dim_info.(field_name) = struct();
+            end
+            dim_info.(field_name) = discover_dimensions_recursive(...
+                current_data.(field_name), dim_info.(field_name));
+        else
+            % This is a leaf node (a data matrix). Record its size.
+            dims = size(current_data.(field_name));
+            if ~isfield(dim_info, field_name)
+                 % Store dimensions beyond the first (neuron) dimension
+                 dim_info.(field_name).size = dims(2:end);
+                 % Also store time vectors if they exist
+                 if isfield(current_data, 'time_vector')
+                     dim_info.(field_name).time_vector = ...
+                         current_data.time_vector;
+                 end
+            end
+        end
+    end
+end
+
+% =========================================================================
+% Helper function to recursively aggregate data
+% =========================================================================
+function agg_data = aggregate_recursive(dim_info_sub, ...
+    session_analysis_sub, agg_data, n_neurons)
+
+    dim_fields = fieldnames(dim_info_sub);
+    for i = 1:length(dim_fields)
+        field_name = dim_fields{i};
+        current_dim_info = dim_info_sub.(field_name);
+
+        % Check if this is a leaf node (an analysis result matrix)
+        if isfield(current_dim_info, 'size')
+            if ~isfield(agg_data, field_name)
+                agg_data.(field_name) = [];
+            end
+
+            % Check if data exists in the current session
+            if isfield(session_analysis_sub, field_name) && ...
+               ~isempty(session_analysis_sub.(field_name))
+                data_to_append = session_analysis_sub.(field_name);
+
+                if isfield(current_dim_info, 'time_vector')
+                    if ~isfield(agg_data, 'time_vectors') || ...
+                       ~isfield(agg_data.time_vectors, field_name)
+                        agg_data.time_vectors.(field_name) = ...
+                            current_dim_info.time_vector;
+                    end
+                end
+            else
+                % Data is missing, so create a NaN matrix for padding
+                pad_size = current_dim_info.size;
+                if isempty(pad_size)
+                    pad_size = [1]; % Handle scalar values
+                end
+                data_to_append = nan([n_neurons, pad_size]);
+            end
+            agg_data.(field_name) = [agg_data.(field_name); data_to_append];
+
+        else % This is a struct, so we recurse deeper
+            if ~isfield(agg_data, field_name)
+                agg_data.(field_name) = struct();
+            end
+
+            next_session_sub = struct();
+            if isfield(session_analysis_sub, field_name)
+                next_session_sub = session_analysis_sub.(field_name);
+            end
+
+            agg_data.(field_name) = aggregate_recursive(...
+                current_dim_info, ...
+                next_session_sub, ...
+                agg_data.(field_name), ...
+                n_neurons);
+        end
+    end
 end
