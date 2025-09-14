@@ -26,6 +26,8 @@
 ## To-Do
 
 - [ ] Develop a comprehensive test suite for all analysis and plotting functions.
+- [ ] The `define_task_conditions.m` function now generates a `reward_distributions.pdf` for each session. This is a side effect that is not currently tracked or managed by the main `run_tokens_analysis.m` pipeline. Consider integrating this into the manifest or a similar tracking system.
+- [ ] For consistency, consider adding an `is_av_only` flag to the `anova_plan` within `define_task_conditions.m`, similar to the `roc_plan` and `baseline_plan`. This would make the entire analysis plan more uniform and easier to manage programmatically.
 - ...
 
 ## Agent-Suggested Improvements
