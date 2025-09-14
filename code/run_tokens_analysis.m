@@ -343,43 +343,70 @@ for i = 1:height(manifest)
 
     % --- Verify Analysis Completion & Update Manifest ---
     is_analysis_complete = true;
+
     % Check baseline comparisons
     for j = 1:length(analysis_plan.baseline_plan)
         comp = analysis_plan.baseline_plan(j);
-        % Check for the first event as a proxy
-        path_to_check = fullfile('analysis', 'baseline_comparison', 'CUE_ON', comp.name);
-        S = substruct('.', strsplit(path_to_check, '/'));
-        try
-            subsref(session_data, S);
-        catch
-            is_analysis_complete = false; break;
+        if comp.is_av_only && ~is_av_session
+            continue; % Skip AV-only analysis for non-AV session
         end
+        % This analysis type runs for all alignment events. We must
+        % ensure the results exist for all of them.
+        for k = 1:length(alignment_events)
+            event_name = alignment_events{k};
+            path_to_check = fullfile('analysis', 'baseline_comparison', event_name, comp.name);
+            S = substruct('.', strsplit(path_to_check, '/'));
+            try
+                subsref(session_data, S);
+            catch
+                is_analysis_complete = false;
+                break;
+            end
+        end
+        if ~is_analysis_complete, break; end
     end
+
     % Check ROC comparisons
     if is_analysis_complete
         for j = 1:length(analysis_plan.roc_plan)
             comp = analysis_plan.roc_plan(j);
+            if comp.is_av_only && ~is_av_session
+                continue; % Skip AV-only analysis for non-AV session
+            end
+
             path_to_check = fullfile('analysis', 'roc_comparison', comp.event, comp.name);
             S = substruct('.', strsplit(path_to_check, '/'));
             try
                 subsref(session_data, S);
             catch
-                is_analysis_complete = false; break;
+                is_analysis_complete = false;
+                break;
             end
         end
     end
+
+    % Check N-way ANOVA
     if is_analysis_complete
-        anova_should_have_run = any(arrayfun(@(x) x.run, analysis_plan.anova_plan));
-        if anova_should_have_run
-            if ~isfield(session_data, 'analysis') || ...
-               ~isfield(session_data.analysis, 'anova_results')
-                is_analysis_complete = false;
+        for j = 1:length(analysis_plan.anova_plan)
+            plan = analysis_plan.anova_plan(j);
+            if plan.run
+                % Results are nested by event, e.g., anova_results.CUE_ON
+                path_to_check = fullfile('analysis', 'anova_results', plan.event);
+                S = substruct('.', strsplit(path_to_check, '/'));
+                try
+                    subsref(session_data, S);
+                catch
+                    is_analysis_complete = false;
+                    break;
+                end
             end
         end
     end
 
     if is_analysis_complete
         manifest.analysis_status{i} = 'complete';
+    else
+        manifest.analysis_status{i} = 'pending';
     end
 
     giveFeed(sprintf('--- Finished processing for session: %s ---\n', ...
