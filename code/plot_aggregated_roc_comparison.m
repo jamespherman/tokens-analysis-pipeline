@@ -20,11 +20,41 @@ project_root = fullfile(findOneDrive, 'Code', 'tokens-analysis-pipeline');
 figures_dir = fullfile(project_root, 'figures');
 addpath(fullfile(project_root, 'code', 'utils'));
 
-%% Figure and Plotting Setup
-% Dynamically get the list of comparisons from the data structure
-comparison_names = fieldnames(aggregated_sc_data.roc_comparison);
-n_comparisons = length(comparison_names);
+%% Data Un-nesting and Setup
+% The aggregated data is nested by event, then by comparison. We need to
+% flatten this structure to make it easier to loop through for plotting.
 
+event_names = fieldnames(aggregated_sc_data.roc_comparison);
+all_comp_names = {};
+all_comps_data_sc = {};
+all_comps_data_snc = {};
+
+for i_event = 1:length(event_names)
+    event_name = event_names{i_event};
+
+    % Check if the event exists in both SC and SNc data to avoid errors
+    if ~isfield(aggregated_snc_data.roc_comparison, event_name)
+        continue;
+    end
+
+    comps_for_event = fieldnames(aggregated_sc_data.roc_comparison.(event_name));
+    for i_comp_inner = 1:length(comps_for_event)
+        comp_name_inner = comps_for_event{i_comp_inner};
+
+        % Check if the comparison exists in both SC and SNc data
+        if ~isfield(aggregated_snc_data.roc_comparison.(event_name), comp_name_inner)
+            continue;
+        end
+
+        all_comp_names{end+1} = comp_name_inner;
+        all_comps_data_sc{end+1} = aggregated_sc_data.roc_comparison.(event_name).(comp_name_inner);
+        all_comps_data_snc{end+1} = aggregated_snc_data.roc_comparison.(event_name).(comp_name_inner);
+    end
+end
+
+n_comparisons = length(all_comp_names);
+
+%% Figure and Plotting Setup
 fig = figure('Position', [100, 100, 400 * n_comparisons, 800], ...
     'Color', 'w');
 h_axes = gobjects(2, n_comparisons);
@@ -36,33 +66,35 @@ negColor = colors(10,:);
 
 %% Main Plotting Loop
 for i_comp = 1:n_comparisons
-    comp_name = comparison_names{i_comp};
+    comp_name = all_comp_names{i_comp};
+    sc_comp_data = all_comps_data_sc{i_comp};
+    snc_comp_data = all_comps_data_snc{i_comp};
 
     % --- Data Validation ---
-    if ~isfield(aggregated_sc_data, 'roc_comparison') ...
-            || ~isfield(aggregated_sc_data.roc_comparison, comp_name)
-        warning('plot_aggregated_roc_comparison:no_sc_data', ...
-            'No data for %s in SC struct.', comp_name);
+    % This is now implicitly handled by the un-nesting logic above,
+    % but we check for the key fields we need to plot.
+    if ~isfield(sc_comp_data, 'sig') || ~isfield(snc_comp_data, 'sig')
+        warning('plot_aggregated_roc_comparison:no_sig_data', ...
+            'Missing "sig" data for %s. Skipping.', comp_name);
         continue;
     end
-    if ~isfield(aggregated_snc_data, 'roc_comparison') ...
-            || ~isfield(aggregated_snc_data.roc_comparison, comp_name)
-        warning('plot_aggregated_roc_comparison:no_snc_data', ...
-            'No data for %s in SNc struct.', comp_name);
+     if ~isfield(sc_comp_data, 'time_vectors') || ~isfield(sc_comp_data.time_vectors, 'sig')
+        warning('plot_aggregated_roc_comparison:no_time_vector', ...
+            'Missing "time_vector" for %s. Skipping.', comp_name);
         continue;
     end
 
     % --- Time Vector Loading ---
     % The time vector is now self-contained in the aggregated data structure.
-    time_vector = aggregated_sc_data.roc_comparison.(comp_name).time_vectors.sig;
+    time_vector = sc_comp_data.time_vectors.sig;
 
     % --- Data Extraction and Count Calculation ---
-    sig_sc = aggregated_sc_data.roc_comparison.(comp_name).sig;
+    sig_sc = sc_comp_data.sig;
     n_total_sc = size(sig_sc, 1);
     prop_sc_cond2 = sum(sig_sc == 1, 1);
     prop_sc_cond1 = -sum(sig_sc == -1, 1);
 
-    sig_snc = aggregated_snc_data.roc_comparison.(comp_name).sig;
+    sig_snc = snc_comp_data.sig;
     n_total_snc = size(sig_snc, 1);
     prop_snc_cond2 = sum(sig_snc == 1, 1);
     prop_snc_cond1 = -sum(sig_snc == -1, 1);
