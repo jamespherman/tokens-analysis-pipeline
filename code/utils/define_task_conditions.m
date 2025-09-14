@@ -67,12 +67,21 @@ for i = 1:length(baseline_conditions)
 end
 
 % D. N-way ANOVA Plan
-% Defines the parameters for the N-way ANOVA analysis.
-condition_defs.anova_plan.run = true;
-condition_defs.anova_plan.fields_to_aggregate = { ...
+% Each element defines an N-way ANOVA to be run.
+%   .event:           Alignment event (e.g., 'CUE_ON', 'outcomeOn').
+%   .p_value_names:   Name of the p-value fields to aggregate.
+%   .run:             Boolean, true to run the analysis.
+condition_defs.anova_plan = struct('event', {}, 'p_value_names', {}, 'run', {});
+events_for_anova = {'CUE_ON', 'outcomeOn', 'reward'};
+p_value_fields = { ...
     'p_value_reward', 'p_value_stim_id', 'p_value_interaction', ...
     'p_value_flicker', 'p_value_flicker_x_reward' ...
-    };
+};
+for i = 1:length(events_for_anova)
+    condition_defs.anova_plan(i).event = events_for_anova{i};
+    condition_defs.anova_plan(i).p_value_names = p_value_fields;
+    condition_defs.anova_plan(i).run = true;
+end
 
 
 %% --- II. Mode Dispatch ---
