@@ -55,6 +55,11 @@ giveFeed('Initialization complete.');
 
 %% Phase 2: Single-Pass Data Loading, Discovery, and Caching
 giveFeed('Phase 2: Loading, discovering, and caching session data...');
+
+% Get the analysis plan which defines what to aggregate
+[~, ~, analysis_plan] = define_task_conditions();
+fields_to_aggregate = get_fields_to_aggregate(analysis_plan);
+
 complete_sessions = manifest(strcmp(manifest.analysis_status, 'complete'), :);
 nSessions = height(complete_sessions);
 giveFeed(sprintf('Found %d completed sessions to process.', nSessions));
@@ -81,7 +86,8 @@ for i_session = 1:nSessions
 
     % Discover dimensions if analysis data exists
     if isfield(session_data, 'analysis')
-        dim_info = discover_dimensions_recursive(session_data.analysis, dim_info);
+        dim_info = discover_dimensions_recursive(session_data.analysis, ...
+            dim_info, fields_to_aggregate);
     else
         warning('aggregate_analysis_results:noAnalysis', ...
             'No analysis field in data for %s. Skipping discovery.', session_id);
@@ -148,27 +154,29 @@ giveFeed('Aggregation complete.');
 end
 
 % =========================================================================
-% Helper function to recursively discover dimensions
+% Helper function to recursively discover dimensions based on a plan
 % =========================================================================
-function dim_info = discover_dimensions_recursive(current_data, dim_info)
+function dim_info = discover_dimensions_recursive(current_data, ...
+    dim_info, fields_to_aggregate)
+
     fields = fieldnames(current_data);
     for i = 1:length(fields)
         field_name = fields{i};
 
-        % Skip metadata fields that are not analysis results
-        if ismember(field_name, ...
-           {'selected_neurons', 'scSide', 'sig_epoch_comparison'})
-            continue;
-        end
-
+        % If it's a struct, recurse deeper
         if isstruct(current_data.(field_name))
             if ~isfield(dim_info, field_name)
                 dim_info.(field_name) = struct();
             end
             dim_info.(field_name) = discover_dimensions_recursive(...
-                current_data.(field_name), dim_info.(field_name));
+                current_data.(field_name), dim_info.(field_name), ...
+                fields_to_aggregate);
         else
-            % This is a leaf node (a data matrix). Record its size.
+            % It's a leaf node. Only discover it if it's in our list.
+            if ~ismember(field_name, fields_to_aggregate)
+                continue;
+            end
+
             dims = size(current_data.(field_name));
             if ~isfield(dim_info, field_name)
                  % Store dimensions beyond the first (neuron) dimension
@@ -181,6 +189,25 @@ function dim_info = discover_dimensions_recursive(current_data, dim_info)
             end
         end
     end
+end
+
+% =========================================================================
+% Helper function to extract all unique fields to aggregate from the plan
+% =========================================================================
+function fields = get_fields_to_aggregate(analysis_plan)
+    fields = {};
+    plan_types = fieldnames(analysis_plan);
+    for i = 1:length(plan_types)
+        sub_plan = analysis_plan.(plan_types{i});
+        if isstruct(sub_plan)
+            for j = 1:length(sub_plan)
+                if isfield(sub_plan(j), 'fields_to_aggregate')
+                    fields = [fields; sub_plan(j).fields_to_aggregate(:)];
+                end
+            end
+        end
+    end
+    fields = unique(fields);
 end
 
 % =========================================================================

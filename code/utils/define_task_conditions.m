@@ -35,51 +35,57 @@ condition_defs.condition_masks.SPE_comparison_pair = {'is_flicker_certain', 'is_
 %   .cond1:       Name of the first condition mask.
 %   .cond2:       Name of the second condition mask.
 %   .is_av_only:  Boolean, true if analysis is specific to AV sessions.
+%   .fields_to_aggregate: Cell array of leaf-node data fields to aggregate.
 roc_plan_def = { ...
     'Dist_at_Cue',    'CUE_ON',    condition_defs.condition_masks.distribution{1},      condition_defs.condition_masks.distribution{2},      false; ...
     'RPE_at_Outcome', 'outcomeOn', condition_defs.condition_masks.RPE_comparison_pair{1}, condition_defs.condition_masks.RPE_comparison_pair{2}, false; ...
     'RPE_at_Reward',  'reward',    condition_defs.condition_masks.RPE_comparison_pair{1}, condition_defs.condition_masks.RPE_comparison_pair{2}, false; ...
     'SPE_at_Outcome', 'outcomeOn', condition_defs.condition_masks.SPE_comparison_pair{1}, condition_defs.condition_masks.SPE_comparison_pair{2}, true ...
 };
-condition_defs.roc_plan = struct('name', {}, 'event', {}, 'cond1', {}, 'cond2', {}, 'is_av_only', {});
+condition_defs.roc_plan = struct('name', {}, 'event', {}, 'cond1', {}, ...
+    'cond2', {}, 'is_av_only', {}, 'fields_to_aggregate', {});
 for i = 1:size(roc_plan_def, 1)
     condition_defs.roc_plan(i).name       = roc_plan_def{i, 1};
     condition_defs.roc_plan(i).event      = roc_plan_def{i, 2};
     condition_defs.roc_plan(i).cond1      = roc_plan_def{i, 3};
     condition_defs.roc_plan(i).cond2      = roc_plan_def{i, 4};
     condition_defs.roc_plan(i).is_av_only = roc_plan_def{i, 5};
+    condition_defs.roc_plan(i).fields_to_aggregate = {'sig', 'time_vector'};
 end
 
 % C. Baseline Comparison Plan
 % Each element defines a "Baseline vs. Post-Event Activity" analysis.
 %   .name:        The name of the condition mask to use.
 %   .is_av_only:  Boolean, true if analysis is specific to AV sessions.
+%   .fields_to_aggregate: Cell array of leaf-node data fields to aggregate.
 baseline_conditions = [ ...
     condition_defs.condition_masks.RPE_normal, ...
     condition_defs.condition_masks.SPE ...
 ];
 is_av_flags = [false, false, false, true, true, true, true];
 
-condition_defs.baseline_plan = struct('name', {}, 'is_av_only', {});
+condition_defs.baseline_plan = struct('name', {}, 'is_av_only', {}, ...
+    'fields_to_aggregate', {});
 for i = 1:length(baseline_conditions)
     condition_defs.baseline_plan(i).name       = baseline_conditions{i};
     condition_defs.baseline_plan(i).is_av_only = is_av_flags(i);
+    condition_defs.baseline_plan(i).fields_to_aggregate = {'sig', 'time_vector'};
 end
 
 % D. N-way ANOVA Plan
 % Each element defines an N-way ANOVA to be run.
 %   .event:           Alignment event (e.g., 'CUE_ON', 'outcomeOn').
-%   .p_value_names:   Name of the p-value fields to aggregate.
+%   .fields_to_aggregate: Name of the p-value fields to aggregate.
 %   .run:             Boolean, true to run the analysis.
-condition_defs.anova_plan = struct('event', {}, 'p_value_names', {}, 'run', {});
+condition_defs.anova_plan = struct('event', {}, 'fields_to_aggregate', {}, 'run', {});
 events_for_anova = {'CUE_ON', 'outcomeOn', 'reward'};
 p_value_fields = { ...
-    'p_value_reward', 'p_value_stim_id', 'p_value_interaction', ...
-    'p_value_flicker', 'p_value_flicker_x_reward' ...
+    'p_rpe', 'p_dist', 'p_flicker', 'p_rpe_dist', ...
+    'p_rpe_flicker', 'p_dist_flicker' ...
 };
 for i = 1:length(events_for_anova)
     condition_defs.anova_plan(i).event = events_for_anova{i};
-    condition_defs.anova_plan(i).p_value_names = p_value_fields;
+    condition_defs.anova_plan(i).fields_to_aggregate = p_value_fields;
     condition_defs.anova_plan(i).run = true;
 end
 
