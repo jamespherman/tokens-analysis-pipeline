@@ -137,11 +137,16 @@ for i = 1:height(manifest)
             n_total_steps = n_total_steps + 1;
         end
     end
-    if analysis_plan.anova_plan.run
-        if (~isfield(session_data, 'analysis') || ...
-           ~isfield(session_data.analysis, 'anova_results')) || ...
-            force_rerun.analyses
-            n_total_steps = n_total_steps + 1;
+    anova_step_counted = false;
+    for j = 1:length(analysis_plan.anova_plan)
+        plan = analysis_plan.anova_plan(j);
+        if plan.run && ~anova_step_counted
+            if (~isfield(session_data, 'analysis') || ...
+               ~isfield(session_data.analysis, 'anova_results')) || ...
+                force_rerun.analyses
+                n_total_steps = n_total_steps + 1;
+                anova_step_counted = true; % Count only once
+            end
         end
     end
     step_counter = 0;
@@ -304,17 +309,25 @@ for i = 1:height(manifest)
     end
 
     % C. N-way ANOVA Analysis
-    if analysis_plan.anova_plan.run
-        if (~isfield(session_data, 'analysis') || ...
-           ~isfield(session_data.analysis, 'anova_results')) ...
-           || force_rerun.analyses
-            step_counter = step_counter + 1;
-            fprintf('\n--- Session %s: Step %d/%d: N-way ANOVA ---\n', ...
-                unique_id, step_counter, n_total_steps);
-            giveFeed('--> Running N-way ANOVA');
-            session_data = analyze_anova(session_data, core_data, ...
-                conditions);
-            data_updated = true;
+    anova_run_for_session = false;
+    for j = 1:length(analysis_plan.anova_plan)
+        plan = analysis_plan.anova_plan(j);
+        if plan.run && ~anova_run_for_session
+            % Check if analysis is missing or a rerun is forced
+            analysis_needed = ~isfield(session_data, 'analysis') || ...
+                              ~isfield(session_data.analysis, 'anova_results') || ...
+                              force_rerun.analyses;
+
+            if analysis_needed
+                step_counter = step_counter + 1;
+                fprintf('\n--- Session %s: Step %d/%d: N-way ANOVA ---\n', ...
+                    unique_id, step_counter, n_total_steps);
+                giveFeed('--> Running N-way ANOVA');
+                session_data = analyze_anova(session_data, core_data, ...
+                    conditions);
+                data_updated = true;
+                anova_run_for_session = true; % Ensure it only runs once
+            end
         end
     end
 
@@ -355,10 +368,13 @@ for i = 1:height(manifest)
             end
         end
     end
-    if is_analysis_complete && analysis_plan.anova_plan.run
-        if ~isfield(session_data, 'analysis') || ...
-           ~isfield(session_data.analysis, 'anova_results')
-            is_analysis_complete = false;
+    if is_analysis_complete
+        anova_should_have_run = any(arrayfun(@(x) x.run, analysis_plan.anova_plan));
+        if anova_should_have_run
+            if ~isfield(session_data, 'analysis') || ...
+               ~isfield(session_data.analysis, 'anova_results')
+                is_analysis_complete = false;
+            end
         end
     end
 
