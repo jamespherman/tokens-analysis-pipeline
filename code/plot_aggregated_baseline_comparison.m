@@ -1,42 +1,41 @@
 %% plot_aggregated_baseline_comparison.m
 %
 %   Generates a publication-quality summary figure that directly compares
-%   SC and SNc population results from the baseline comparison analysis.
+%   SC and SNc population results from the baseline comparison analysis,
+%   with each subplot representing a different alignment event.
 %
 % INPUTS:
 %   aggregated_sc_data  - A struct containing aggregated data for SC.
 %   aggregated_snc_data - A struct containing aggregated data for SNc.
 %
 % Author: Jules
-% Date: 2025-09-13
+% Date: 2025-09-14
 %
 
 function plot_aggregated_baseline_comparison(aggregated_sc_data, aggregated_snc_data)
 
 %% Setup Paths
-% Define the project root, ensure the figures directory exists, and add the
-% 'utils' directory to the path so that helper functions can be found.
+% Define the project root and add the 'utils' directory to the path.
 project_root = fullfile(findOneDrive, 'Code', 'tokens-analysis-pipeline');
 figures_dir = fullfile(project_root, 'figures');
 addpath(fullfile(project_root, 'code', 'utils'));
 
 %% Figure and Plotting Setup
-% Dynamically get the list of conditions from the data structure
+% Get the list of alignment events from the data structure.
 if isfield(aggregated_sc_data, 'baseline_comparison')
-    condition_names = fieldnames(aggregated_sc_data.baseline_comparison);
+    event_names = fieldnames(aggregated_sc_data.baseline_comparison);
 else
-    condition_names = {};
+    event_names = {};
 end
-n_conditions = length(condition_names);
+n_events = length(event_names);
 
-if n_conditions == 0
+if n_events == 0
     disp('No baseline_comparison data found to plot.');
     return;
 end
 
-fig = figure('Position', [100, 100, 400 * n_conditions, 600], ...
-    'Color', 'w');
-h_axes = gobjects(1, n_conditions);
+fig = figure('Position', [100, 100, 400 * n_events, 600], 'Color', 'w');
+h_axes = gobjects(1, n_events);
 
 % Define colors for SC and SNc
 colors = richColors();
@@ -46,62 +45,51 @@ pos_alpha = 0.6; % Face alpha for positive modulation
 neg_alpha = 0.3; % Face alpha for negative modulation
 
 %% Main Plotting Loop
-for i_cond = 1:n_conditions
-    cond_name = condition_names{i_cond};
+for i_event = 1:n_events
+    event_name = event_names{i_event};
 
     % --- Data Validation ---
-    if ~isfield(aggregated_sc_data, 'baseline_comparison') ...
-            || ~isfield(aggregated_sc_data.baseline_comparison, cond_name)
-        warning('plot_aggregated_baseline_comparison:no_sc_data', ...
-            'No data for %s in SC struct.', cond_name);
-        continue;
-    end
-    if ~isfield(aggregated_snc_data, 'baseline_comparison') ...
-            || ~isfield(aggregated_snc_data.baseline_comparison, cond_name)
+    if ~isfield(aggregated_snc_data.baseline_comparison, event_name)
         warning('plot_aggregated_baseline_comparison:no_snc_data', ...
-            'No data for %s in SNc struct.', cond_name);
+            'No data for event %s in SNc struct. Skipping.', event_name);
         continue;
     end
 
-    % --- Time Vector Loading ---
-    time_vector = aggregated_sc_data.baseline_comparison.(cond_name).time_vector;
+    sc_event_data = aggregated_sc_data.baseline_comparison.(event_name);
+    snc_event_data = aggregated_snc_data.baseline_comparison.(event_name);
 
-    % --- Data Extraction and Proportion Calculation ---
-    sig_sc = aggregated_sc_data.baseline_comparison.(cond_name).sig;
+    % --- Time Vector and Data Extraction ---
+    time_vector = sc_event_data.time_vector;
+
+    sig_sc = sc_event_data.sig;
     n_total_sc = size(sig_sc, 1);
     prop_sc_increase = sum(sig_sc == 1, 1) / n_total_sc;
-    prop_sc_decrease = -sum(sig_sc == -1, 1) / n_total_sc; % Negative for plotting
+    prop_sc_decrease = -sum(sig_sc == -1, 1) / n_total_sc; % Negative
 
-    sig_snc = aggregated_snc_data.baseline_comparison.(cond_name).sig;
+    sig_snc = snc_event_data.sig;
     n_total_snc = size(sig_snc, 1);
     prop_snc_increase = sum(sig_snc == 1, 1) / n_total_snc;
-    prop_snc_decrease = -sum(sig_snc == -1, 1) / n_total_snc; % Negative for plotting
+    prop_snc_decrease = -sum(sig_snc == -1, 1) / n_total_snc; % Negative
 
     % --- Plotting (SC and SNc on same axes) ---
-    h_axes(1, i_cond) = mySubPlot([1, n_conditions, i_cond]);
+    h_axes(1, i_event) = mySubPlot([1, n_events, i_event]);
     hold on;
 
     % Plot SC proportions
     h_sc_inc = barStairsFill(time_vector, zeros(size(prop_sc_increase)), prop_sc_increase);
     set(h_sc_inc(1), 'FaceColor', sc_color, 'EdgeColor', 'none', 'FaceAlpha', pos_alpha);
     delete(h_sc_inc(2:3));
-
     h_sc_dec = barStairsFill(time_vector, zeros(size(prop_sc_decrease)), prop_sc_decrease);
     set(h_sc_dec(1), 'FaceColor', sc_color, 'EdgeColor', 'none', 'FaceAlpha', neg_alpha);
     delete(h_sc_dec(2:3));
 
-    % Plot SNc proportions
-    h_snc_inc = barStairsFill(time_vector, zeros(size(prop_snc_increase)), prop_snc_increase);
-    set(h_snc_inc(1), 'FaceColor', snc_color, 'EdgeColor', 'none', 'FaceAlpha', pos_alpha);
-    delete(h_snc_inc(2:3));
-
-    h_snc_dec = barStairsFill(time_vector, zeros(size(prop_snc_decrease)), prop_snc_decrease);
-    set(h_snc_dec(1), 'FaceColor', snc_color, 'EdgeColor', 'none', 'FaceAlpha', neg_alpha);
-    delete(h_snc_dec(2:3));
+    % Plot SNc proportions as lines
+    plot(time_vector, prop_snc_increase, 'Color', snc_color, 'LineWidth', 2);
+    plot(time_vector, prop_snc_decrease, 'Color', snc_color, 'LineWidth', 2);
 
     % --- Formatting ---
-    title_str = get_plot_title(cond_name);
-    title(h_axes(1, i_cond), title_str, 'Interpreter', 'none');
+    title_str = sprintf('Modulation vs Baseline during %s', strrep(event_name, '_', ' '));
+    title(h_axes(1, i_event), title_str, 'Interpreter', 'none');
     xlim([time_vector(1), time_vector(end)]);
     line(xlim, [0, 0], 'Color', 'k', 'LineStyle', '--');
     line([0, 0], ylim, 'Color', 'k', 'LineStyle', '--');
@@ -110,31 +98,26 @@ end
 
 %% Figure Cleanup and Final Touches
 % De-clutter axes
-if n_conditions > 1
+if n_events > 1
     set(h_axes(1, 2:end), 'YTickLabel', []);
 end
 
-% Add axis labels to outer plots
 ylabel(h_axes(1, 1), 'Proportion of Neurons');
 
-% Create a legend
+% Create a custom legend
 h_leg_sc = patch(NaN, NaN, sc_color, 'FaceAlpha', pos_alpha);
-h_leg_snc = patch(NaN, NaN, snc_color, 'FaceAlpha', pos_alpha);
-legend([h_leg_sc, h_leg_snc], {'SC', 'SNc'}, 'Location', 'northeast', 'Box', 'off');
+h_leg_snc_line = line(NaN, NaN, 'Color', snc_color, 'LineWidth', 2);
+legend([h_leg_sc, h_leg_snc_line], {'SC', 'SNc'}, 'Location', 'northeast', 'Box', 'off');
 
-% set axes properties
-allAx = findall(fig, 'Type', 'Axes');
-set(allAx, 'TickDir', 'Out', 'Color', 'none', ...
+% Set axes properties
+all_valid_axes = h_axes(isgraphics(h_axes));
+set(all_valid_axes, 'TickDir', 'Out', 'Color', 'none', ...
     'XColor', 'k', 'YColor', 'k', 'LineWidth', 1);
+
+sgtitle('Aggregated Modulation vs. Baseline', 'Interpreter', 'none');
 
 % Save figure:
 fig_filename = fullfile(figures_dir, 'aggregated_baseline_comparison.pdf');
 pdfSave(fig_filename, fig.Position(3:4)/72, fig);
 
-end
-
-%% Local Helper Function
-function title_str = get_plot_title(cond_name)
-    % GET_PLOT_TITLE - Generates a plot title for a given condition.
-    title_str = sprintf('Modulation during: %s', strrep(cond_name, '_', ' '));
 end
