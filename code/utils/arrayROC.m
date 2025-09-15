@@ -132,9 +132,14 @@ else
             spacer*[-1; ones(n1+n2, 1)]; Z(end,1) + 1]);
         nfb = length(linCrits);
     else
-        linCrits = [[Z(1,1); Z(:,1)] + ...
-            spacer*[-1; ones(n1+n2, 1)]; Z(end,1) + 1];
-        nfb = n1 + n2 + 2;
+        linCrits = [Z(1,1); Z(:,1)] + ...
+            spacer*[-1; ones(n1+n2, 1)];
+        nfb = n1 + n2 + 1;
+        if (Z(end,1) + 1) > linCrits(end)
+            linCrits(end + 1) = Z(end,1) + 1;
+            nfb = nfb + 1;
+        end
+        
     end
     try
         tpfp        = [cumsum(flipud(histc(x1, linCrits)))/n1, ...
