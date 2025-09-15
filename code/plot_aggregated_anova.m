@@ -123,6 +123,8 @@ end
 % Link all Y-axes to ensure consistent scaling for comparison
 linkaxes(h_axes(:), 'y');
 ylim(h_axes(1,1), [0, 0.5]); % Set a consistent y-limit for all plots
+set(h_axes(:), 'TickDir', 'Out', 'Color', 'none', ...
+        'XColor', 'k', 'YColor', 'k', 'LineWidth', 1);
 
 % Add an overarching title for the entire figure
 title_str = sprintf('ANOVA Results for %s: Proportion of Significant Neurons', ...
