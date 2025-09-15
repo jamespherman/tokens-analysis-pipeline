@@ -162,30 +162,40 @@ function dim_info = discover_dimensions_recursive(current_data, ...
     fields = fieldnames(current_data);
     for i = 1:length(fields)
         field_name = fields{i};
+        current_field_data = current_data.(field_name);
 
         % If it's a struct, recurse deeper
-        if isstruct(current_data.(field_name))
+        if isstruct(current_field_data)
             if ~isfield(dim_info, field_name)
                 dim_info.(field_name) = struct();
             end
             dim_info.(field_name) = discover_dimensions_recursive(...
-                current_data.(field_name), dim_info.(field_name), ...
+                current_field_data, dim_info.(field_name), ...
                 fields_to_aggregate);
         else
-            % It's a leaf node. Only discover it if it's in our list.
-            if ~ismember(field_name, fields_to_aggregate)
+            % It's a leaf node.
+            is_data_field = ismember(field_name, fields_to_aggregate);
+            is_time_vector = strcmp(field_name, 'time_vector');
+
+            if ~is_data_field && ~is_time_vector
                 continue;
             end
 
-            dims = size(current_data.(field_name));
-            if ~isfield(dim_info, field_name)
+            % Don't rediscover fields that are already in the template
+            if isfield(dim_info, field_name)
+                continue;
+            end
+
+            if is_data_field
                  % Store dimensions beyond the first (neuron) dimension
+                 dims = size(current_field_data);
                  dim_info.(field_name).size = dims(2:end);
-                 % Also store time vectors if they exist
-                 if isfield(current_data, 'time_vector')
-                     dim_info.(field_name).time_vector = ...
-                         current_data.time_vector;
-                 end
+            end
+
+            if is_time_vector
+                % Store the time_vector itself. This makes the
+                % first-encountered version canonical for this analysis.
+                dim_info.(field_name) = current_field_data;
             end
         end
     end
@@ -221,7 +231,7 @@ function agg_data = aggregate_recursive(dim_info_sub, ...
         field_name = dim_fields{i};
         current_dim_info = dim_info_sub.(field_name);
 
-        % Check if this is a leaf node (an analysis result matrix)
+        % Check if this is a leaf node for a data matrix
         if isfield(current_dim_info, 'size')
             if ~isfield(agg_data, field_name)
                 agg_data.(field_name) = [];
@@ -231,14 +241,6 @@ function agg_data = aggregate_recursive(dim_info_sub, ...
             if isfield(session_analysis_sub, field_name) && ...
                ~isempty(session_analysis_sub.(field_name))
                 data_to_append = session_analysis_sub.(field_name);
-
-                if isfield(current_dim_info, 'time_vector')
-                    if ~isfield(agg_data, 'time_vectors') || ...
-                       ~isfield(agg_data.time_vectors, field_name)
-                        agg_data.time_vectors.(field_name) = ...
-                            current_dim_info.time_vector;
-                    end
-                end
             else
                 % Data is missing, so create a NaN matrix for padding
                 pad_size = current_dim_info.size;
@@ -248,6 +250,14 @@ function agg_data = aggregate_recursive(dim_info_sub, ...
                 data_to_append = nan([n_neurons, pad_size]);
             end
             agg_data.(field_name) = [agg_data.(field_name); data_to_append];
+
+        % Check if this is a time vector or other metadata leaf
+        elseif ~isstruct(current_dim_info)
+            % This is a non-structure leaf, like a time_vector.
+            % It should be copied once from the canonical template.
+            if ~isfield(agg_data, field_name)
+                agg_data.(field_name) = current_dim_info;
+            end
 
         else % This is a struct, so we recurse deeper
             if ~isfield(agg_data, field_name)
