@@ -46,12 +46,13 @@ fprintf('... found %d putative DA neurons (FR < 20 sp/s).\n', ...
 
 % --- 3. Generate and Save Diagnostic Plot ---
 
-% Define the project root and ensure the figures directory exists
+% Define the project root and create a session-specific figures directory
 project_root = fullfile(findOneDrive, 'Code', 'tokens-analysis-pipeline');
 figures_dir = fullfile(project_root, 'figures');
+session_figures_dir = fullfile(figures_dir, session_id);
 
-if ~exist(figures_dir, 'dir')
-    mkdir(figures_dir);
+if ~exist(session_figures_dir, 'dir')
+    mkdir(session_figures_dir);
 end
 
 fig_handle = figure('Color', 'w');
@@ -75,7 +76,7 @@ legend({'All Neurons', 'Selected (Putative DA)'}, 'Location', 'northeast');
 grid on;
 
 % Save the figure
-fig_filename = fullfile(figures_dir, sprintf('da_screening_%s.pdf', ...
+fig_filename = fullfile(session_figures_dir, sprintf('da_screening_%s.pdf', ...
     session_id));
 pdfSave(fig_filename, fig_handle.Position(3:4)/72, fig_handle);
 fprintf('... diagnostic plot saved to %s\n', fig_filename);
