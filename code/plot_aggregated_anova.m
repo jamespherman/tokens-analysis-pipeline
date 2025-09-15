@@ -9,13 +9,13 @@
 % aggregated_data.anova_results.(alignment_event).(p_value_field)
 %
 % INPUTS:
-%   aggregated_sc_data  - A struct containing aggregated data for SC.
-%   aggregated_snc_data - A struct containing aggregated data for SNc.
+%   aggregated_data     - A struct containing aggregated data for a brain area.
+%   brain_area_name     - A char string (e.g., 'SC' or 'SNc') for labeling.
 %
 % Author: Jules
-% Date: 2025-09-12
+% Date: 2025-09-15
 %
-function plot_aggregated_anova(aggregated_sc_data, aggregated_snc_data)
+function plot_aggregated_anova(aggregated_data, brain_area_name)
 
 %% Setup Paths
 % Define the project root, ensure the figures directory exists, and add the
@@ -29,14 +29,14 @@ addpath(fullfile(project_root, 'code', 'utils'));
 % making it robust to different analysis plans.
 
 % Get alignment events (columns of the plot)
-alignment_events = fieldnames(aggregated_sc_data.anova_results);
+alignment_events = fieldnames(aggregated_data.anova_results);
 n_cols = numel(alignment_events);
 
 % Get a unique superset of all p-value fields (rows of the plot)
 all_p_fields = {};
 for i_event = 1:n_cols
     event_name = alignment_events{i_event};
-    field_names = fieldnames(aggregated_sc_data.anova_results.(event_name));
+    field_names = fieldnames(aggregated_data.anova_results.(event_name));
     % Exclude the 'time_vector' field from being treated as a plottable term
     is_p_field = ~strcmp(field_names, 'time_vector');
     all_p_fields = [all_p_fields; field_names(is_p_field)];
@@ -51,8 +51,7 @@ end
 
 %% Setup Figure
 fig = figure('Position', [100, 100, 1200, 900], 'Color', 'w');
-sc_color = [0, 0.4470, 0.7410];  % Blue
-snc_color = [0.8500, 0.3250, 0.0980]; % Orange
+plot_color = [0, 0.4470, 0.7410]; % Blue for SC, adaptable for others
 h_axes = gobjects(n_rows, n_cols); % Use a 2D array for axes handles
 
 %% Nested Plotting Loop (Row = ANOVA term, Col = Alignment Event)
@@ -69,19 +68,14 @@ for i_row = 1:n_rows
 
         % --- Data Processing and Plotting ---
         % A single time vector is shared for all subplots in a column.
-        time_vector = aggregated_sc_data.anova_results.(event_name).time_vector;
+        time_vector = aggregated_data.anova_results.(event_name).time_vector;
 
         % Check if this specific p-value exists for this event
-        if isfield(aggregated_sc_data.anova_results.(event_name), p_value_name)
-            % Process and Plot SC Data
-            p_values_sc = aggregated_sc_data.anova_results.(event_name).(p_value_name);
-            prop_sig_sc = mean(p_values_sc < 0.05, 1, 'omitnan');
-            plot(time_vector, prop_sig_sc, 'Color', sc_color, 'LineWidth', 2);
-
-            % Process and Plot SNc Data
-            p_values_snc = aggregated_snc_data.anova_results.(event_name).(p_value_name);
-            prop_sig_snc = mean(p_values_snc < 0.05, 1, 'omitnan');
-            plot(time_vector, prop_sig_snc, 'Color', snc_color, 'LineWidth', 2);
+        if isfield(aggregated_data.anova_results.(event_name), p_value_name)
+            % Process and Plot Data
+            p_values = aggregated_data.anova_results.(event_name).(p_value_name);
+            prop_sig = mean(p_values < 0.05, 1, 'omitnan');
+            plot(time_vector, prop_sig, 'Color', plot_color, 'LineWidth', 2);
         else
             % If data doesn't exist, display a note on the plot
             text(0.5, 0.5, 'N/A', 'HorizontalAlignment', 'center');
@@ -130,16 +124,14 @@ end
 linkaxes(h_axes(:), 'y');
 ylim(h_axes(1,1), [0, 0.5]); % Set a consistent y-limit for all plots
 
-% Create a single, clear legend for the entire figure
-lgd = legend(h_axes(1,1), {'SC', 'SNc'}, 'Location', 'northeast');
-lgd.Box = 'off';
-
 % Add an overarching title for the entire figure
-sgtitle(['Proportion of Significant Neurons by ANOVA Term and ' ...
-    '    Alignment Event'], 'FontWeight', 'bold');
+title_str = sprintf('ANOVA Results for %s: Proportion of Significant Neurons', ...
+    brain_area_name);
+sgtitle(title_str, 'FontWeight', 'bold', 'Interpreter', 'none');
 
 % Save figure:
-fig_filename = fullfile(figures_dir, 'aggregated_anova.pdf');
+fig_filename = fullfile(figures_dir, ...
+    sprintf('aggregated_anova_%s.pdf', brain_area_name));
 pdfSave(fig_filename, fig.Position(3:4)/72, fig);
 
 end
