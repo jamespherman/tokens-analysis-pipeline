@@ -199,11 +199,13 @@ xline(unif_p75, '--r', 'LineWidth', 2);
 hold off;
 
 sgtitle(sprintf('Reward Distributions for Session: %s', unique_id), 'Interpreter', 'none');
-figures_dir = '../figures';
-if ~exist(figures_dir, 'dir')
-    mkdir(figures_dir);
+project_root = fullfile(findOneDrive, 'Code', 'tokens-analysis-pipeline');
+figures_dir = fullfile(project_root, 'figures');
+session_figures_dir = fullfile(figures_dir, unique_id);
+if ~exist(session_figures_dir, 'dir')
+    mkdir(session_figures_dir);
 end
-file_name = fullfile(figures_dir, sprintf('%s_reward_distributions.pdf', unique_id));
+file_name = fullfile(session_figures_dir, sprintf('%s_reward_distributions.pdf', unique_id));
 pdfSave(file_name, [11 8.5], fig);
 close(fig);
 

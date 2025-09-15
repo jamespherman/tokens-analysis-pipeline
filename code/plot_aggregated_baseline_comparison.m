@@ -77,17 +77,16 @@ for i_row = 1:n_rows
         event_data = aggregated_data.baseline_comparison.(event_name).(condition_name);
         time_vector = event_data.time_vector;
         sig_data = event_data.sig;
-        n_total = size(sig_data, 1);
 
-        prop_increase = sum(sig_data == 1, 1) / n_total;
-        prop_decrease = -sum(sig_data == -1, 1) / n_total; % Negative
+        count_increase = sum(sig_data == 1, 1);
+        count_decrease = -sum(sig_data == -1, 1); % Negative
 
         % --- Plotting ---
-        h_inc = barStairsFill(time_vector, zeros(size(prop_increase)), prop_increase);
+        h_inc = barStairsFill(time_vector, zeros(size(count_increase)), count_increase);
         set(h_inc(1), 'FaceColor', plot_color, 'EdgeColor', 'none', 'FaceAlpha', pos_alpha);
         delete(h_inc(2:3));
 
-        h_dec = barStairsFill(time_vector, zeros(size(prop_decrease)), prop_decrease);
+        h_dec = barStairsFill(time_vector, zeros(size(count_decrease)), count_decrease);
         set(h_dec(1), 'FaceColor', plot_color, 'EdgeColor', 'none', 'FaceAlpha', neg_alpha);
         delete(h_dec(2:3));
 
@@ -137,7 +136,7 @@ if ~isempty(all_valid_axes)
 end
 
 % Add an overarching title
-title_str = sprintf('Proportion of Modulated Neurons (vs. Baseline) for %s', brain_area_name);
+title_str = sprintf('Count of Modulated Neurons (vs. Baseline) for %s', brain_area_name);
 sgtitle(title_str, 'Interpreter', 'none', 'FontWeight', 'bold');
 
 % Save figure:
