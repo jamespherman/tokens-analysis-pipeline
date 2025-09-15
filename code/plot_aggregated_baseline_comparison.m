@@ -55,12 +55,26 @@ for i_event = 1:n_events
         continue;
     end
 
-    sc_event_data = aggregated_sc_data.baseline_comparison.(event_name);
-    snc_event_data = aggregated_snc_data.baseline_comparison.(event_name);
+    % Data is nested by condition; select one representative condition
+    sc_conditions = fieldnames(aggregated_sc_data.baseline_comparison.(event_name));
+    snc_conditions = fieldnames(aggregated_snc_data.baseline_comparison.(event_name));
+
+    if isempty(sc_conditions) || isempty(snc_conditions)
+        warning('plot_aggregated_baseline_comparison:no_conditions', ...
+            'No conditions found for event %s. Skipping.', event_name);
+        continue;
+    end
+
+    % For simplicity, use the first condition found
+    sc_condition_name = sc_conditions{1};
+    snc_condition_name = snc_conditions{1};
+
+    sc_event_data = aggregated_sc_data.baseline_comparison.(event_name).(sc_condition_name);
+    snc_event_data = aggregated_snc_data.baseline_comparison.(event_name).(snc_condition_name);
 
     % --- Time Vector and Data Extraction ---
-    % Correctly access the time vector from the dedicated struct
-    time_vector = aggregated_sc_data.time_vectors.baseline_comparison.(event_name);
+    % The time vector is stored within the condition's data struct
+    time_vector = sc_event_data.time_vector;
 
     sig_sc = sc_event_data.sig;
     n_total_sc = size(sig_sc, 1);
