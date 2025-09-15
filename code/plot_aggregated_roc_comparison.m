@@ -25,14 +25,8 @@ addpath(fullfile(project_root, 'code', 'utils'));
 event_names = fieldnames(aggregated_data.roc_comparison);
 n_cols = length(event_names);
 
-% Get all unique comparison names for rows.
-all_comp_names = {};
-for i_event = 1:n_cols
-    event_name = event_names{i_event};
-    comps_for_event = fieldnames(aggregated_data.roc_comparison.(event_name));
-    all_comp_names = [all_comp_names; comps_for_event];
-end
-comp_names = unique(all_comp_names, 'stable');
+% Define the three core comparison types for the rows.
+comp_names = {'Dist'; 'RPE'; 'SPE'};
 n_rows = length(comp_names);
 
 % Create figure and axes handles for a grid.
@@ -46,7 +40,7 @@ negColor = colors(10,:);
 
 %% Main Plotting Loop (Events as columns, Comparisons as rows)
 for i_row = 1:n_rows
-    comp_name = comp_names{i_row};
+    row_type = comp_names{i_row};
 
     for i_col = 1:n_cols
         event_name = event_names{i_col};
@@ -57,17 +51,23 @@ for i_row = 1:n_rows
         hold on;
 
         % --- Data Validation and Extraction ---
-        if ~isfield(aggregated_data.roc_comparison.(event_name), comp_name)
+        % Find the specific comparison name (e.g., 'Dist_at_Cue') that
+        % corresponds to the current row type ('Dist') and event.
+        available_comps = fieldnames(aggregated_data.roc_comparison.(event_name));
+        actual_comp_name_cell = available_comps(startsWith(available_comps, row_type));
+
+        if isempty(actual_comp_name_cell)
             text(0.5, 0.5, 'N/A', 'HorizontalAlignment', 'center');
             axis off;
             continue;
         end
 
-        comp_data = aggregated_data.roc_comparison.(event_name).(comp_name);
+        actual_comp_name = actual_comp_name_cell{1};
+        comp_data = aggregated_data.roc_comparison.(event_name).(actual_comp_name);
 
         if ~isfield(comp_data, 'sig')
              warning('plot_aggregated_roc_comparison:missing_data', ...
-                'Missing sig data for %s/%s.', event_name, comp_name);
+                'Missing sig data for %s/%s.', event_name, actual_comp_name);
             continue;
         end
 
