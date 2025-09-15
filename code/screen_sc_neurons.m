@@ -30,7 +30,11 @@ fprintf('screen_sc_neurons: Identifying task-modulated neurons...\n');
 % Define output directory and filename
 project_root = fullfile(findOneDrive, 'Code', ...
     'tokens-analysis-pipeline');
-output_dir = fullfile(project_root, 'figures');
+figures_dir = fullfile(project_root, 'figures');
+session_figures_dir = fullfile(figures_dir, session_data.metadata.unique_id);
+if ~exist(session_figures_dir, 'dir')
+    mkdir(session_figures_dir);
+end
 
 % --- Setup and Data Extraction ---
 cluster_info = session_data.spikes.cluster_info;
@@ -380,7 +384,7 @@ if n_groups > 0
     end
 
     % Save the figure
-    figFileName = fullfile(output_dir, [session_data.metadata.unique_id, ...
+    figFileName = fullfile(session_figures_dir, [session_data.metadata.unique_id, ...
         '_sc_epoch_frs.pdf']);
     pdfSave(figFileName, fig.Position(3:4)/72, fig);
 end

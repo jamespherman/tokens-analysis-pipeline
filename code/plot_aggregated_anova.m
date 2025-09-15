@@ -74,8 +74,11 @@ for i_row = 1:n_rows
         if isfield(aggregated_data.anova_results.(event_name), p_value_name)
             % Process and Plot Data
             p_values = aggregated_data.anova_results.(event_name).(p_value_name);
-            prop_sig = mean(p_values < 0.05, 1, 'omitnan');
-            plot(time_vector, prop_sig, 'Color', plot_color, 'LineWidth', 2);
+            count_sig = sum(p_values < 0.05, 1, 'omitnan');
+            h = barStairsFill(time_vector, zeros(size(count_sig)), count_sig);
+            delete(h(2)); % No baseline
+            set(h(1), 'FaceColor', plot_color, 'EdgeColor', 'none');
+            set(h(3), 'Color', plot_color);
         else
             % If data doesn't exist, display a note on the plot
             text(0.5, 0.5, 'N/A', 'HorizontalAlignment', 'center');
@@ -120,14 +123,16 @@ for i_row = 1:n_rows
 end
 
 %% Final Figure Touches
-% Link all Y-axes to ensure consistent scaling for comparison
-linkaxes(h_axes(:), 'y');
-ylim(h_axes(1,1), [0, 0.5]); % Set a consistent y-limit for all plots
-set(h_axes(:), 'TickDir', 'Out', 'Color', 'none', ...
+% Set common y-limits and styles for all valid axes
+all_valid_axes = h_axes(isgraphics(h_axes));
+if ~isempty(all_valid_axes)
+    [~, yLims] = outerLims(all_valid_axes);
+    set(all_valid_axes, 'YLim', yLims, 'TickDir', 'Out', 'Color', 'none', ...
         'XColor', 'k', 'YColor', 'k', 'LineWidth', 1);
+end
 
 % Add an overarching title for the entire figure
-title_str = sprintf('ANOVA Results for %s: Proportion of Significant Neurons', ...
+title_str = sprintf('ANOVA Results for %s: Count of Significant Neurons', ...
     brain_area_name);
 sgtitle(title_str, 'FontWeight', 'bold', 'Interpreter', 'none');
 
