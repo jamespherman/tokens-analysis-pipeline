@@ -226,4 +226,13 @@ Example:
 ```matlab
 unique_id = 'My_Session_2025_09_09';
 sgtitle(sprintf('Data Verification for: %s', unique_id), 'Interpreter', 'none');
+
+```
+
+### 6. Save figures using 'pdfSave.m'
+Example:
+With a figure handle ('fig_handle') and a filename defined for saving the pdf (fig_filename):
+```matlab
+pdfSave(fig_filename, fig_handle.Position(3:4)/72, fig_handle);
+
 ```
