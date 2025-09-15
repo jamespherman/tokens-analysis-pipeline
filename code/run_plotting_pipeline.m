@@ -27,15 +27,23 @@ disp('Loading aggregated analysis data...');
 load(aggFileName);
 disp('Data loaded successfully.');
 
-% Call plotting functions
-disp('Generating aggregated ROC comparison plot...');
-plot_aggregated_roc_comparison(aggregated_sc_data, aggregated_snc_data);
+% Call plotting functions for SC data
+disp('--- Generating SC Plots ---');
+disp('Generating aggregated ROC comparison plot for SC...');
+plot_aggregated_roc_comparison(aggregated_sc_data, 'SC');
+disp('Generating aggregated ANOVA plot for SC...');
+plot_aggregated_anova(aggregated_sc_data, 'SC');
+disp('Generating aggregated baseline comparison plot for SC...');
+plot_aggregated_baseline_comparison(aggregated_sc_data, 'SC');
 
-disp('Generating aggregated ANOVA plot...');
-plot_aggregated_anova(aggregated_sc_data, aggregated_snc_data);
-
-disp('Generating aggregated baseline comparison plot...');
-plot_aggregated_baseline_comparison(aggregated_sc_data, aggregated_snc_data);
+% Call plotting functions for SNc data
+disp('--- Generating SNc Plots ---');
+disp('Generating aggregated ROC comparison plot for SNc...');
+plot_aggregated_roc_comparison(aggregated_snc_data, 'SNc');
+disp('Generating aggregated ANOVA plot for SNc...');
+plot_aggregated_anova(aggregated_snc_data, 'SNc');
+disp('Generating aggregated baseline comparison plot for SNc...');
+plot_aggregated_baseline_comparison(aggregated_snc_data, 'SNc');
 
 % End timer and provide user feedback
 toc;
