@@ -20,10 +20,11 @@ Do not make assumptions about the fields or layout of this structure. The docume
 
 Consulting the documentation first will prevent bugs and ensure your code is compatible with the project's data standards.
 
-**Before writing or modifying any code that uses the `aggregated_analysis_data.mat` file, you MUST consult its data dictionary.**
+**Before writing or modifying any code that uses the `aggregated_analysis_data.mat` file or the `condition_defs` analysis plan, you MUST consult the data dictionary.**
 
-The canonical definition for the aggregated data structure is located in:
-`docs/aggregated_data_dictionary.md`
+The canonical definitions for the aggregated data structure and the overarching analysis plan are located in:
+- `docs/aggregated_data_dictionary.md`
+- `docs/analysis_data_dictionary.md`
 ---
 
 When creating new MATLAB scripts in this directory, please ensure you add the `utils` directory to the MATLAB path. This is necessary for helper functions to be found.
