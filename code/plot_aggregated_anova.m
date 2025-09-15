@@ -33,16 +33,14 @@ alignment_events = fieldnames(aggregated_sc_data.anova_results);
 n_cols = numel(alignment_events);
 
 % Get a unique superset of all p-value fields (rows of the plot)
-try
 all_p_fields = {};
 for i_event = 1:n_cols
     event_name = alignment_events{i_event};
-    all_p_fields = [all_p_fields; fieldnames(aggregated_sc_data.anova_results.(event_name))];
+    field_names = fieldnames(aggregated_sc_data.anova_results.(event_name));
+    % Exclude the 'time_vector' field from being treated as a plottable term
+    is_p_field = ~strcmp(field_names, 'time_vector');
+    all_p_fields = [all_p_fields; field_names(is_p_field)];
 end
-catch me
-    keyboard
-end
-
 p_value_fields = unique(all_p_fields);
 n_rows = numel(p_value_fields);
 
@@ -70,28 +68,20 @@ for i_row = 1:n_rows
         hold on;
 
         % --- Data Processing and Plotting ---
-        % Check if this specific p-value exists for this event
-        if isfield(aggregated_sc_data.anova_results.(event_name), p_value_name) && ...
-           isfield(aggregated_sc_data.time_vectors.anova_results.(event_name), p_value_name)
-            
-            % Process and Plot SC Data
-            p_values_sc = aggregated_sc_data.anova_results.( ...
-                event_name).(p_value_name);
-            prop_sig_sc = mean(p_values_sc < 0.05, 1, 'omitnan');
+        % A single time vector is shared for all subplots in a column.
+        time_vector = aggregated_sc_data.anova_results.(event_name).time_vector;
 
-            % Correctly access the time vector from the dedicated struct
-            time_vector = aggregated_sc_data.time_vectors.anova_results.(event_name).(p_value_name);
-            
-            plot(time_vector, prop_sig_sc, 'Color', sc_color, ...
-                'LineWidth', 2);
+        % Check if this specific p-value exists for this event
+        if isfield(aggregated_sc_data.anova_results.(event_name), p_value_name)
+            % Process and Plot SC Data
+            p_values_sc = aggregated_sc_data.anova_results.(event_name).(p_value_name);
+            prop_sig_sc = mean(p_values_sc < 0.05, 1, 'omitnan');
+            plot(time_vector, prop_sig_sc, 'Color', sc_color, 'LineWidth', 2);
 
             % Process and Plot SNc Data
-            p_values_snc = aggregated_snc_data.anova_results.( ...
-                event_name).(p_value_name);
+            p_values_snc = aggregated_snc_data.anova_results.(event_name).(p_value_name);
             prop_sig_snc = mean(p_values_snc < 0.05, 1, 'omitnan');
-
-            plot(time_vector, prop_sig_snc, 'Color', snc_color, ...
-                'LineWidth', 2);
+            plot(time_vector, prop_sig_snc, 'Color', snc_color, 'LineWidth', 2);
         else
             % If data doesn't exist, display a note on the plot
             text(0.5, 0.5, 'N/A', 'HorizontalAlignment', 'center');
