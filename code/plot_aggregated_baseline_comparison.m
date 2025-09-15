@@ -59,7 +59,8 @@ for i_event = 1:n_events
     snc_event_data = aggregated_snc_data.baseline_comparison.(event_name);
 
     % --- Time Vector and Data Extraction ---
-    time_vector = sc_event_data.time_vector;
+    % Correctly access the time vector from the dedicated struct
+    time_vector = aggregated_sc_data.time_vectors.baseline_comparison.(event_name);
 
     sig_sc = sc_event_data.sig;
     n_total_sc = size(sig_sc, 1);
@@ -88,12 +89,14 @@ for i_event = 1:n_events
     plot(time_vector, prop_snc_decrease, 'Color', snc_color, 'LineWidth', 2);
 
     % --- Formatting ---
-    title_str = sprintf('Modulation vs Baseline during %s', strrep(event_name, '_', ' '));
+    title_str = sprintf('Alignment: %s', strrep(event_name, '_', ' '));
     title(h_axes(1, i_event), title_str, 'Interpreter', 'none');
     xlim([time_vector(1), time_vector(end)]);
     line(xlim, [0, 0], 'Color', 'k', 'LineStyle', '--');
     line([0, 0], ylim, 'Color', 'k', 'LineStyle', '--');
-    xlabel('Time from Event Onset (s)');
+
+    xlabel_str = sprintf('Time from %s (s)', strrep(event_name, '_', ' '));
+    xlabel(xlabel_str);
 end
 
 %% Figure Cleanup and Final Touches
@@ -114,7 +117,7 @@ all_valid_axes = h_axes(isgraphics(h_axes));
 set(all_valid_axes, 'TickDir', 'Out', 'Color', 'none', ...
     'XColor', 'k', 'YColor', 'k', 'LineWidth', 1);
 
-sgtitle('Aggregated Modulation vs. Baseline', 'Interpreter', 'none');
+sgtitle('Proportion of Modulated Neurons (vs. Baseline)', 'Interpreter', 'none');
 
 % Save figure:
 fig_filename = fullfile(figures_dir, 'aggregated_baseline_comparison.pdf');

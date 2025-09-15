@@ -63,14 +63,14 @@ for i_event = 1:n_events
         sc_comp_data = aggregated_sc_data.roc_comparison.(event_name).(comp_name);
         snc_comp_data = aggregated_snc_data.roc_comparison.(event_name).(comp_name);
 
-        if ~isfield(sc_comp_data, 'sig') || ~isfield(snc_comp_data, 'sig') || ...
-           ~isfield(sc_comp_data, 'time_vectors') || ~isfield(sc_comp_data.time_vectors, 'sig')
+        if ~isfield(sc_comp_data, 'sig') || ~isfield(snc_comp_data, 'sig')
             warning('plot_aggregated_roc_comparison:missing_data', ...
-                'Missing sig/time_vector for %s/%s.', event_name, comp_name);
+                'Missing sig data for %s/%s.', event_name, comp_name);
             continue;
         end
 
-        time_vector = sc_comp_data.time_vectors.sig;
+        % Correctly access the time vector from the dedicated top-level struct
+        time_vector = aggregated_sc_data.time_vectors.roc_comparison.(event_name).(comp_name).sig;
         sig_sc = sc_comp_data.sig;
         count_sc_cond2 = sum(sig_sc == 1, 1);
         count_sc_cond1 = -sum(sig_sc == -1, 1);

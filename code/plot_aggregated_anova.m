@@ -71,15 +71,16 @@ for i_row = 1:n_rows
 
         % --- Data Processing and Plotting ---
         % Check if this specific p-value exists for this event
-        if isfield(aggregated_sc_data.anova_results.(event_name), ...
-                p_value_name)
+        if isfield(aggregated_sc_data.anova_results.(event_name), p_value_name) && ...
+           isfield(aggregated_sc_data.time_vectors.anova_results.(event_name), p_value_name)
             
             % Process and Plot SC Data
             p_values_sc = aggregated_sc_data.anova_results.( ...
                 event_name).(p_value_name);
             prop_sig_sc = mean(p_values_sc < 0.05, 1, 'omitnan');
-            n_time_bins = size(prop_sig_sc, 2);
-            time_vector = 1:n_time_bins; % Generic time bins
+
+            % Correctly access the time vector from the dedicated struct
+            time_vector = aggregated_sc_data.time_vectors.anova_results.(event_name).(p_value_name);
             
             plot(time_vector, prop_sig_sc, 'Color', sc_color, ...
                 'LineWidth', 2);
@@ -123,7 +124,8 @@ for i_row = 1:n_rows
         if i_row < n_rows
            set(ax, 'XTickLabel', []);
         else
-           xlabel(ax, 'Time Bins');
+           xlabel_str = sprintf('Time from %s (s)', strrep(event_name, '_', ' '));
+           xlabel(ax, xlabel_str);
         end
         
         % Remove Y-tick labels from all but the first column
