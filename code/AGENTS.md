@@ -20,6 +20,13 @@ Do not make assumptions about the fields or layout of this structure. The docume
 
 Consulting the documentation first will prevent bugs and ensure your code is compatible with the project's data standards.
 
+**Additionally, before writing or modifying any code that uses the `aggregated_analysis_data.mat` file, you MUST consult its data dictionary.**
+
+The canonical definition for the aggregated data structure is located in:
+`docs/aggregated_data_dictionary.md`
+
+This is especially important for handling time-series data, as time vectors are stored in a special `time_vectors` sub-struct. Refer to the dictionary to understand how to correctly access time vectors for plotting.
+
 ---
 
 When creating new MATLAB scripts in this directory, please ensure you add the `utils` directory to the MATLAB path. This is necessary for helper functions to be found.
