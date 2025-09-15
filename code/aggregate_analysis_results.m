@@ -1,4 +1,4 @@
-%% aggregate_analysis_results.m
+% [aggregated_sc_data, aggregated_snc_data] = aggregate_analysis_results()
 %
 % Refactored to use a three-phase approach:
 % 1. Single-pass load, discovery of dimensions, and caching.

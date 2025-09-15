@@ -111,7 +111,8 @@ for i_row = 1:n_rows
         if i_row < n_rows
            set(ax, 'XTickLabel', []);
         else
-           xlabel_str = sprintf('Time from %s (s)', strrep(event_name, '_', ' '));
+           xlabel_str = sprintf('Time from %s (s)', ...
+               strrep(alignment_events{i_col}, '_', ' '));
            xlabel(ax, xlabel_str);
         end
         
