@@ -198,6 +198,9 @@ for i_event = 1:numel(alignment_events)
 
         end % End of time bin loop
     end % End of neuron loop
+
+    % Store the time vector for this event
+    results.(event_name).time_vector = core_data.spikes.(event_name).time_vector;
 end % End of event loop
 
 %% Finalize Output

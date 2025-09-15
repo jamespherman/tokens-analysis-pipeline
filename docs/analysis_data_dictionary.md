@@ -58,7 +58,8 @@ Results from the N-way ANOVA analysis.
 
 ### Fields
 
-The fields under `(p_value_name)` are typically `[nNeurons x nTimeBins]` double matrices containing the p-values for that factor over time.
+-   The fields under `(p_value_name)` are typically `[nNeurons x nTimeBins]` double matrices containing the p-values for that factor over time.
+-   `.time_vector`: `[1 x nTimeBins] double` - The time vector corresponding to the time base of the p-value matrices.
 
 ---
 
