@@ -269,8 +269,12 @@ for i = 1:height(manifest)
             event_names = fieldnames(result_by_event);
             for k = 1:length(event_names)
                 event_name = event_names{k};
+                % Correct the assignment to prevent redundant nesting.
+                % The result from the analysis function is already nested
+                % by event and condition, so we need to extract the
+                % specific condition's data.
                 session_data.analysis.baseline_comparison.(event_name).(comp_plan.name) = ...
-                    result_by_event.(event_name);
+                    result_by_event.(event_name).(comp_plan.name);
             end
             data_updated = true;
         end
