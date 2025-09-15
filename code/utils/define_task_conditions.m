@@ -10,9 +10,12 @@ function [conditions, is_av_session, condition_defs] = define_task_conditions(tr
 %     of truth for all analyses run in the main pipeline.
 %
 % OUTPUTS:
-%   conditions:     struct of logical masks for trial conditions, specific to a single session's data.
+%   conditions:     Struct of logical masks for trial conditions.
 %   is_av_session:  Boolean, true if the session contains AV trials.
-%   condition_defs: struct containing the full, session-agnostic analysis_plan.
+%   condition_defs: A struct containing both the canonical names for condition
+%                   masks and the full, structured analysis plan. The
+%                   canonical documentation for this variable can be found
+%                   in `docs/analysis_data_dictionary.md`.
 
 %% --- I. Define the Comprehensive Analysis Plan ---
 % This section defines the entire analysis plan. It is used by the main

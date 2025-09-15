@@ -4,30 +4,6 @@ This document defines the canonical data structure for the `session_data.analysi
 
 The guiding principle is to organize data by **Analysis Type -> Alignment Event -> Condition/Comparison Name**.
 
-## Session-Specific Condition Masks (conditions)
-
-The `conditions` struct contains logical vectors (masks) for different experimental conditions, filtered for valid trials.
-
--   `is_familiar`: Trials where a familiar cue was presented.
--   `is_novel`: Trials where a novel cue was presented.
--   `is_normal_dist`: Trials where rewards were drawn from a normal distribution.
--   `is_uniform_dist`: Trials where rewards were drawn from a uniform distribution.
--   `is_rewarded`: Trials where a reward was delivered.
--   `is_norm_rare_low`: Trials from the normal distribution where the reward was in the bottom 25th percentile.
--   `is_norm_common`: Trials from the normal distribution where the reward was between the 25th and 75th percentiles.
--   `is_norm_rare_high`: Trials from the normal distribution where the reward was in the top 25th percentile.
--   `is_unif_low`: Trials from the uniform distribution where the reward was in the bottom 25th percentile.
--   `is_unif_mid`: Trials from the uniform distribution where the reward was between the 25th and 75th percentiles.
--   `is_unif_high`: Trials from the uniform distribution where the reward was in the top 25th percentile.
--   `is_flicker_certain`: AV trials where a flicker was expected and occurred.
--   `is_flicker_surprising`: AV trials where a flicker was not expected but occurred.
--   `is_flicker_omitted`: AV trials where a flicker was expected but did not occur.
--   `is_noflicker_certain`: Trials where no flicker was expected and none occurred.
--   `is_common_reward_no_spe`: Trials with a common reward and no sensory prediction error.
--   `is_rare_high_reward_no_spe`: Trials with a rare, high reward and no sensory prediction error.
--   `is_common_reward_with_spe`: Trials with a common reward and a sensory prediction error.
--   `is_rare_high_reward_with_spe`: Trials with a rare, high reward and a sensory prediction error.
-
 ## Top-Level Structure
 
 -   `session_data.analysis`
