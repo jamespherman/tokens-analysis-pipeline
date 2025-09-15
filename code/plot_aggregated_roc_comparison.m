@@ -69,8 +69,8 @@ for i_event = 1:n_events
             continue;
         end
 
-        % Correctly access the time vector from the dedicated top-level struct
-        time_vector = aggregated_sc_data.time_vectors.roc_comparison.(event_name).(comp_name).sig;
+        % Correctly access the time vector from within the roc_comparison struct
+        time_vector = sc_comp_data.time_vectors.sig;
         sig_sc = sc_comp_data.sig;
         count_sc_cond2 = sum(sig_sc == 1, 1);
         count_sc_cond1 = -sum(sig_sc == -1, 1);
