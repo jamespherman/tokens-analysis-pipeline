@@ -14,19 +14,16 @@ The canonical definition for the main data structure, `session_data`, is located
 `docs/preprocessing_docs/session_data_dictionary.md`
 
 Do not make assumptions about the fields or layout of this structure. The documentation is the single source of truth. For example:
-- The number of clusters/neurons should be derived from `session_data.spikes.cluster_info`, not a field like `nClusters`.
-- Trial-related event times are in the `session_data.eventTimes` struct, not a `trials` struct.
-- Spike times are stored as a single vector (`spikes.times`) and mapped to clusters via `spikes.clusters`, not as a cell array per neuron.
+- The number of clusters/neurons should be derived from `session_data.spikes.cluster_info`
+- Trial-related event times are in the `session_data.eventTimes` struct
+- Spike times are stored as a single vector (`spikes.times`) and mapped to clusters via `spikes.clusters`
 
 Consulting the documentation first will prevent bugs and ensure your code is compatible with the project's data standards.
 
-**Additionally, before writing or modifying any code that uses the `aggregated_analysis_data.mat` file, you MUST consult its data dictionary.**
+**Before writing or modifying any code that uses the `aggregated_analysis_data.mat` file, you MUST consult its data dictionary.**
 
 The canonical definition for the aggregated data structure is located in:
 `docs/aggregated_data_dictionary.md`
-
-This is especially important for handling time-series data, as time vectors are stored in a special `time_vectors` sub-struct. Refer to the dictionary to understand how to correctly access time vectors for plotting.
-
 ---
 
 When creating new MATLAB scripts in this directory, please ensure you add the `utils` directory to the MATLAB path. This is necessary for helper functions to be found.
