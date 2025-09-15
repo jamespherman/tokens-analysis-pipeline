@@ -40,7 +40,8 @@ all_conds = {
 
 % If it's an AV session, add the SPE-related conditions
 if is_av_session
-    all_conds = [all_conds, {'is_common_reward_with_spe', 'is_rare_high_reward_with_spe'}];
+    all_conds = [all_conds, {'is_common_reward_with_spe', ...
+        'is_rare_high_reward_with_spe'}];
 end
 
 % Determine which conditions to run for this call
@@ -76,8 +77,10 @@ for i_align_dry = 1:numel(align_events)
         % should not include it in the workload calculation.
         if n_rows >= 5 && (n_rows * sum(baseline_bins_dry)) > 0
             workload_per_neuron = n_rows * n_cols;
-            total_workload = total_workload + (workload_per_neuron * n_neurons);
-            total_clusters_in_session = total_clusters_in_session + n_neurons;
+            total_workload = total_workload + (workload_per_neuron * ...
+                n_neurons);
+            total_clusters_in_session = total_clusters_in_session + ...
+            n_neurons;
         end
     end
 end
@@ -87,7 +90,8 @@ workload_completed = 0;
 clusters_processed = 0;
 master_timer = tic;
 if total_clusters_in_session > 0
-    fprintf('Starting analysis for %d clusters...\n', total_clusters_in_session);
+    fprintf('Starting analysis for %d clusters...\n', ...
+        total_clusters_in_session);
 end
 
 %% Main Analysis Loop
@@ -124,9 +128,11 @@ for i_align = 1:numel(align_events)
             neuron_rates_all_bins = squeeze(neuron_rates_all_bins);
 
             % Filter out silent trials (all zeros or NaNs)
-            is_silent_trial = all(neuron_rates_all_bins == 0 | isnan(neuron_rates_all_bins), 2);
+            is_silent_trial = all(neuron_rates_all_bins == 0 | ...
+                isnan(neuron_rates_all_bins), 2);
             active_trials = ~is_silent_trial;
-            neuron_rates_all_bins = neuron_rates_all_bins(active_trials, :);
+            neuron_rates_all_bins = neuron_rates_all_bins(...
+                active_trials, :);
 
             % If no active trials, skip to the next neuron
             if isempty(neuron_rates_all_bins)
@@ -154,7 +160,8 @@ for i_align = 1:numel(align_events)
             sig_results(i_neuron, :) = sig;
 
             % Update completed workload and cluster count
-            workload_completed = workload_completed + (size(Y, 1) * size(Y, 2));
+            workload_completed = workload_completed + (size(Y, 1) * ...
+                size(Y, 2));
             clusters_processed = clusters_processed + 1;
 
             % --- Progress Reporting ---
@@ -164,8 +171,10 @@ for i_align = 1:numel(align_events)
             etc_minutes = floor(etc_seconds / 60);
             etc_rem_seconds = rem(etc_seconds, 60);
 
-            fprintf('Analysis completed for %d/%d clusters. Approximately %d minutes and %.0f seconds remaining.\r', ...
-                clusters_processed, total_clusters_in_session, etc_minutes, etc_rem_seconds);
+            fprintf(['Analysis completed for %d/%d clusters. ' ...
+                'Approximately %d minutes and %.0f seconds remaining.\r'], ...
+                clusters_processed, total_clusters_in_session, ...
+                etc_minutes, etc_rem_seconds);
         end
 
         % Store the results for the specific condition

@@ -20,8 +20,8 @@ function aligned_spikes = prepare_neuronal_data(session_data, ...
     selected_neurons, tokens_trial_indices, alignment_events)
 
 %% Define Alignment Parameters
-bin_width = 0.2; % 200ms bin size
-step_size = 0.1; % 100ms step size
+bin_width = 0.05; % 200ms bin size
+step_size = 0.05; % 100ms step size
 
 % Get basic info
 neuron_cluster_ids = find(selected_neurons);
