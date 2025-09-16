@@ -8,7 +8,7 @@
 % step in the manifest and skips steps that are already marked 'complete'.
 %
 % Author: Jules
-% Date: 2025-09-12 (Refactored)
+% Date: 2025-09-15 (Refactored)
 %
 
 %% Setup
@@ -131,6 +131,16 @@ for i = 1:height(manifest)
     for j = 1:length(analysis_plan.roc_plan)
         comp = analysis_plan.roc_plan(j);
         path_to_check = fullfile('analysis', 'roc_comparison', comp.event, comp.name);
+        S = substruct('.', strsplit(path_to_check, '/'));
+        try
+            subsref(session_data, S);
+        catch
+            n_total_steps = n_total_steps + 1;
+        end
+    end
+    for j = 1:length(analysis_plan.svm_plan)
+        comp = analysis_plan.svm_plan(j);
+        path_to_check = fullfile('analysis', 'svm_results', comp.event, comp.name);
         S = substruct('.', strsplit(path_to_check, '/'));
         try
             subsref(session_data, S);
@@ -325,7 +335,40 @@ for i = 1:height(manifest)
         end
     end
 
-    % C. N-way ANOVA Analysis
+    % C. SVM Analyses
+    % Iterate through each comparison defined in the plan.
+    for j = 1:length(analysis_plan.svm_plan)
+        comp_plan = analysis_plan.svm_plan(j);
+        if comp_plan.is_av_only && ~is_av_session, continue; end
+
+        % Check if this specific analysis needs to be run.
+        analysis_needed = force_rerun.analyses;
+        if ~analysis_needed
+            try
+                subsref(session_data, substruct('.', 'analysis', ...
+                    '.', 'svm_results', '.', comp_plan.event, ...
+                    '.', comp_plan.name));
+            catch
+                analysis_needed = true;
+            end
+        end
+
+        if analysis_needed
+            step_counter = step_counter + 1;
+            fprintf(['\n--- Session %s: Step %d/%d: SVM Classification ' ...
+                'for %s ---\n'], unique_id, step_counter, ...
+                n_total_steps, comp_plan.name);
+            giveFeed(sprintf('--> Running analyze_svm for: %s', ...
+                comp_plan.name));
+
+            result = analyze_svm(core_data, conditions, comp_plan);
+
+            session_data.analysis.svm_results.(comp_plan.event).(comp_plan.name) = result;
+            data_updated = true;
+        end
+    end
+
+    % D. N-way ANOVA Analysis
     % This analysis runs once for all events defined internally.
     % Check if it's needed.
     analysis_needed = force_rerun.analyses;
@@ -407,7 +450,26 @@ for i = 1:height(manifest)
         end
     end
 
-    % 3. Verify N-way ANOVA Results
+    % 3. Verify SVM Results
+    if is_analysis_complete
+        for j = 1:length(analysis_plan.svm_plan)
+            plan = analysis_plan.svm_plan(j);
+            if plan.is_av_only && ~is_av_session, continue; end
+
+            try
+                subsref(session_data, substruct('.', 'analysis', ...
+                    '.', 'svm_results', '.', plan.event, ...
+                    '.', plan.name));
+            catch
+                is_analysis_complete = false;
+                fprintf('Manifest Check Failed: Missing SVM -> Event: %s, Comp: %s\n', ...
+                    plan.event, plan.name);
+                break;
+            end
+        end
+    end
+
+    % 4. Verify N-way ANOVA Results
     if is_analysis_complete
         for j = 1:length(analysis_plan.anova_plan)
             plan = analysis_plan.anova_plan(j);

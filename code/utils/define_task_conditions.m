@@ -65,7 +65,27 @@ for i = 1:size(roc_plan_def, 1)
     condition_defs.roc_plan(i).fields_to_aggregate = {'sig', 'time_vector'};
 end
 
-% C. Baseline Comparison Plan
+% C. SVM Analysis Plan
+% Each element defines a bin-by-bin, cross-validated SVM classification.
+%   .name:        Unique name for the analysis (used for saving results).
+%   .event:       Alignment event (e.g., 'CUE_ON', 'outcomeOn').
+%   .cond1:       Name of the first condition mask.
+%   .cond2:       Name of the second condition mask.
+%   .is_av_only:  Boolean, true if analysis is specific to AV sessions.
+%   .fields_to_aggregate: Cell array of leaf-node data fields to aggregate.
+svm_plan_def = roc_plan_def; % The comparisons are identical to ROC
+condition_defs.svm_plan = struct('name', {}, 'event', {}, 'cond1', {}, ...
+    'cond2', {}, 'is_av_only', {}, 'fields_to_aggregate', {});
+for i = 1:size(svm_plan_def, 1)
+    condition_defs.svm_plan(i).name       = svm_plan_def{i, 1};
+    condition_defs.svm_plan(i).event      = svm_plan_def{i, 2};
+    condition_defs.svm_plan(i).cond1      = svm_plan_def{i, 3};
+    condition_defs.svm_plan(i).cond2      = svm_plan_def{i, 4};
+    condition_defs.svm_plan(i).is_av_only = svm_plan_def{i, 5};
+    condition_defs.svm_plan(i).fields_to_aggregate = {'accuracy', 'accuracy_ci'};
+end
+
+% E. Baseline Comparison Plan
 % Each element defines a "Baseline vs. Post-Event Activity" analysis.
 %   .name:        The name of the condition mask to use.
 %   .is_av_only:  Boolean, true if analysis is specific to AV sessions.
@@ -84,7 +104,7 @@ for i = 1:length(baseline_conditions)
     condition_defs.baseline_plan(i).fields_to_aggregate = {'sig', 'time_vector'};
 end
 
-% D. N-way ANOVA Plan
+% E. N-way ANOVA Plan
 % Each element defines an N-way ANOVA to be run.
 %   .event:           Alignment event (e.g., 'CUE_ON', 'outcomeOn').
 %   .fields_to_aggregate: Name of the p-value fields to aggregate.
