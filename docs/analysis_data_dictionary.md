@@ -8,6 +8,7 @@ The guiding principle is to organize data by **Analysis Type -> Alignment Event 
 
 -   `session_data.analysis`
     -   `.roc_comparison`: Results from `analyze_roc_comparison.m`
+    -   `.svm_results`: Results from `analyze_svm.m`
     -   `.baseline_comparison`: Results from `analyze_baseline_comparison.m`
     -   `.anova_results`: Results from `analyze_anova.m`
     -   `.selected_neurons`: List of neurons selected for analysis.
@@ -33,7 +34,23 @@ Compares firing rates between two conditions.
 
 ---
 
-## 2. Baseline Comparison
+## 2. SVM Classification Results
+
+Results from the time-resolved, cross-validated SVM classification.
+
+-   **Path:** `session_data.analysis.svm_results.(eventName).(compName)`
+-   **`eventName`**: `char` - The name of the alignment event (e.g., `'CUE_ON'`, `'outcomeOn'`).
+-   **`compName`**: `char` - The name of the specific comparison (e.g., `'Dist_at_Cue'`, `'RPE_at_Outcome'`).
+
+### Fields
+
+-   `.accuracy`: `[1 x nTimeBins] double` - The classification accuracy at each time bin.
+-   `.accuracy_ci`: `[2 x nTimeBins] double` - The 95% confidence interval for the accuracy at each time bin.
+-   `.time_vector`: `[1 x nTimeBins] double` - The time vector corresponding to the columns of the accuracy data.
+
+---
+
+## 3. Baseline Comparison
 
 Compares post-event firing rates to a pre-event baseline period.
 
@@ -48,7 +65,7 @@ Compares post-event firing rates to a pre-event baseline period.
 
 ---
 
-## 3. ANOVA Results
+## 4. ANOVA Results
 
 Results from the N-way ANOVA analysis.
 
@@ -91,7 +108,22 @@ This field defines a series of bin-by-bin Receiver Operating Characteristic (ROC
 -   `.is_av_only`: `logical` - If `true`, this analysis will only be run for sessions that include audio-visual (AV) trials.
 -   `.fields_to_aggregate`: `cell` - A cell array of leaf-node data fields from the analysis results that should be aggregated across all sessions (e.g., `{'sig', 'time_vector'}`).
 
-### 3. Baseline Comparison Plan
+### 3. SVM Analysis Plan
+
+This field defines a series of bin-by-bin, cross-validated SVM classifications. Its structure is identical to the `roc_plan`.
+
+-   **Path:** `condition_defs.svm_plan`
+
+#### Sub-fields for each element:
+
+-   `.name`: `char` - A unique name for the analysis (e.g., `'Dist_at_Cue'`).
+-   `.event`: `char` - The event to align the analysis to (e.g., `'CUE_ON'`).
+-   `.cond1`: `char` - The name of the first condition mask.
+-   `.cond2`: `char` - The name of the second condition mask.
+-   `.is_av_only`: `logical` - If `true`, the analysis is specific to AV sessions.
+-   `.fields_to_aggregate`: `cell` - Fields to be aggregated, typically `{'accuracy', 'accuracy_ci'}`.
+
+### 4. Baseline Comparison Plan
 
 This field defines a series of analyses comparing post-event neuronal activity to a pre-event baseline period.
 
@@ -103,7 +135,7 @@ This field defines a series of analyses comparing post-event neuronal activity t
 -   `.is_av_only`: `logical` - If `true`, this analysis is specific to AV sessions.
 -   `.fields_to_aggregate`: `cell` - Data fields from the results to be aggregated.
 
-### 4. N-way ANOVA Plan
+### 5. N-way ANOVA Plan
 
 This field defines the parameters for running N-way ANOVAs.
 
