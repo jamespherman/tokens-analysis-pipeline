@@ -14,18 +14,21 @@ function svm_results = analyze_svm(core_data, conditions, svm_plan)
 % ANALYZE_SVM Time-resolved SVM classification
 %
 % INPUTS:
-%   core_data:  Struct containing the binned firing rates and time vectors.
-%               - .binned_spikes: [n_trials x n_neurons x n_time_bins]
-%               - .time_vector:   [1 x n_time_bins]
+%   core_data:  Struct containing processed data. It is expected to have
+%               the following substructure:
+%               - .spikes.(eventName).rates: [n_neurons x n_trials x n_time_bins]
+%               - .spikes.(eventName).time_vector: [1 x n_time_bins]
 %   conditions: Struct of logical masks for different trial conditions.
 %   svm_plan:   A single element from the svm_plan struct, defining the
-%               specific comparison to be made.
+%               specific comparison to be made. Must contain an `.event`
+%               field specifying which eventName to use from core_data.
 %
 % OUTPUTS:
 %   svm_results: Struct containing the analysis results.
 %                - .accuracy:     [1 x n_time_bins] classification accuracy
 %                - .accuracy_ci:  [2 x n_time_bins] 95% CI for accuracy
-%                - .time_vector:  [1 x n_time_bins] copied from core_data
+%                - .time_vector:  [1 x n_time_bins] copied from core_data's
+%                                 event-specific time vector.
 
 %% Setup Paths
 [script_dir, ~, ~] = fileparts(mfilename('fullpath'));
@@ -39,8 +42,14 @@ cond2_mask = conditions.(svm_plan.cond2);
 % Combine masks to select all relevant trials
 combined_mask = cond1_mask | cond2_mask;
 
+% Get the correct binned firing rates using the event from the plan
+% The raw data is [n_neurons x n_trials x n_time_bins], so we need to
+% permute it to [n_trials x n_neurons x n_time_bins] for the analysis.
+event_rates = core_data.spikes.(svm_plan.event).rates;
+event_rates_permuted = permute(event_rates, [2, 1, 3]);
+
 % Filter the spike data to include only the trials for this comparison
-binned_spikes = core_data.binned_spikes(combined_mask, :, :);
+binned_spikes = event_rates_permuted(combined_mask, :, :);
 
 % Create the label vector Y
 % '1' for cond1, '2' for cond2
@@ -52,7 +61,8 @@ Y = cond2_mask(combined_mask) + 1;
 % Pre-allocate results structure
 svm_results.accuracy = nan(1, n_time_bins);
 svm_results.accuracy_ci = nan(2, n_time_bins);
-svm_results.time_vector = core_data.time_vector;
+% Get the time vector for the specific event alignment
+svm_results.time_vector = core_data.spikes.(svm_plan.event).time_vector;
 
 %% --- 2. Time-Resolved SVM Analysis ---
 % Loop over each time bin to perform the classification
