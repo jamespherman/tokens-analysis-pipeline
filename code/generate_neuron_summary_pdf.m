@@ -149,7 +149,7 @@ for i_cluster = 1:nClusters
     set(ax_isi, 'Tag', 'ISI_Axis');
     if numel(spike_times) > 1
         isi = diff(spike_times) * 1000; % ms
-        histogram(ax_isi, isi, 'EdgeColor', 'k', ...
+        histogram(ax_isi, isi, 'EdgeColor', 'none', ...
             'FaceColor', [0.5 0.5 0.5]);
         set(ax_isi, 'XScale', 'log');
         title(ax_isi, 'ISI Histogram');

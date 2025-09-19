@@ -85,8 +85,12 @@ for t = 1:n_time_bins
     predictions = kfoldPredict(SVMModel);
 
     % Calculate accuracy
+    try
     n_correct = sum(predictions == Y);
     n_total = numel(Y);
+    catch me
+        keyboard
+    end
 
     % Use binofit to get accuracy and 95% confidence intervals
     [acc, acc_ci] = binofit(n_correct, n_total);
