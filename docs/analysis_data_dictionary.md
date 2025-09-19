@@ -52,7 +52,7 @@ Results from the time-resolved, cross-validated SVM classification.
 
 ## 3. Baseline Comparison
 
-Compares post-event firing rates to a pre-event baseline period.
+Compares post-event firing rates to a pre-event baseline period. The generating function, `analyze_baseline_comparison.m`, requires a specific `'condition'` name-value pair to be provided.
 
 -   **Path:** `session_data.analysis.baseline_comparison.(eventName).(condName)`
 -   **`eventName`**: `char` - The name of the alignment event (e.g., `'CUE_ON'`, `'outcomeOn'`).
