@@ -129,23 +129,65 @@ for i_cluster = 1:nClusters
     % block to avoid code duplication. It uses the pre-calculated indices
     % to place plots in a complex, multi-grid layout.
 
-    % Waveform Plot (Position 1)
-    ax_wf = mySubPlot([N_ROWS, N_COLS1, left_plot_indices(1,1)]);
+    % Waveform Plot (Top-Left, Tall)
+    % Manual positioning to span 3 rows and 2 columns for a taller plot.
+    % This provides a clearer view of multi-channel waveform data.
+    w = 0.85; h = 0.85; iwo = 0.07; iho = 0.07;
+    iaws = 0.015; iahs = 0.035;
+
+    % width and height of a single subplot cell
+    iaw = (w - (N_COLS - 1) * iaws) / N_COLS;
+    iah = (h - (N_ROWS - 1) * iahs) / N_ROWS;
+
+    % Position: [left, bottom, width, height]
+    wf_width = 2 * iaw + iaws;
+    wf_height = 3 * iah + 2 * iahs;
+    wf_left = iwo;
+    wf_bottom = iho + (N_ROWS - 3) * (iah + iahs);
+
+    ax_wf = axes('Position', [wf_left, wf_bottom, wf_width, wf_height]);
     set(ax_wf, 'Tag', 'Waveform_Axis');
+
     if isfield(session_data.spikes, 'wfMeans') && ...
             numel(session_data.spikes.wfMeans) >= i_cluster
-        plot(ax_wf, session_data.spikes.wfMeans{i_cluster}');
-        title(ax_wf, 'Mean Waveform');
+
+        waveforms = session_data.spikes.wfMeans{i_cluster}';
+
+        % Calculate vertical offset for plotting multi-channel waveforms
+        peak_to_trough = max(waveforms) - min(waveforms);
+        offset = max(peak_to_trough);
+
+        cla(ax_wf);
+        hold(ax_wf, 'on');
+
+        for i_ch = 1:size(waveforms, 2)
+            % Add cumulative offset to each channel for clear visibility
+            vertical_shift = (i_ch - 1) * offset;
+            plot(ax_wf, waveforms(:, i_ch) + vertical_shift, 'k');
+        end
+
+        hold(ax_wf, 'off');
+
+        title(ax_wf, 'Mean Waveform (All Channels)');
         xlabel(ax_wf, 'Samples');
-        ylabel(ax_wf, 'Amplitude (uV)');
+        ylabel(ax_wf, 'Amplitude (Offset)');
         axis(ax_wf, 'tight');
+        % Y-ticks are removed as the offset makes them arbitrary
+        set(ax_wf, 'YTickLabel', []);
+
     else
         text(0.5, 0.5, 'No waveform', 'Parent', ax_wf, ...
             'HorizontalAlignment', 'center');
     end
 
-    % ISI Histogram (Position 2)
-    ax_isi = mySubPlot([N_ROWS, N_COLS1, left_plot_indices(1,2)]);
+    % ISI Histogram (Below Waveform)
+    % Positioned dynamically below the taller waveform plot.
+    isi_width = wf_width; % Match width of waveform plot
+    isi_height = iah * 2 + iahs; % Span 2 rows
+    isi_left = iwo;
+    isi_bottom = wf_bottom - iahs - isi_height;
+
+    ax_isi = axes('Position', [isi_left, isi_bottom, isi_width, isi_height]);
     set(ax_isi, 'Tag', 'ISI_Axis');
     if numel(spike_times) > 1
         isi = diff(spike_times) * 1000; % ms
@@ -286,7 +328,13 @@ for i_cluster = 1:nClusters
     end
 
     %% --- Summary Information ---
-    ax_summary = mySubPlot([top_panel_grid, N_COLS * (N_ROWS - 1) + 1]);
+    % Positioned dynamically below the ISI histogram.
+    summary_width = wf_width; % Match width of plots above
+    summary_height = iah * 2 + iahs; % Span 2 rows
+    summary_left = iwo;
+    summary_bottom = isi_bottom - iahs - summary_height;
+
+    ax_summary = axes('Position', [summary_left, summary_bottom, summary_width, summary_height]);
     set(ax_summary, 'Tag', 'Summary_Axis');
     axis(ax_summary, 'off')
 
