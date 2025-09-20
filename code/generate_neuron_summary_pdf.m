@@ -104,7 +104,8 @@ tokens_trials = session_data.trialInfo.taskCode == ...
 for i_cluster = 1:nClusters
 
     % Create a new figure for the PDF
-    fig = figure('Color', 'w', 'MenuBar', 'None', 'ToolBar', 'None');
+    fig = figure('Color', 'w', 'MenuBar', 'None', 'ToolBar', 'None', ...
+        'Visible', 'off');
 
     % --- Layout Configuration ---
     top_panel_grid = [N_ROWS, N_COLS];
@@ -130,64 +131,35 @@ for i_cluster = 1:nClusters
     % to place plots in a complex, multi-grid layout.
 
     % Waveform Plot (Top-Left, Tall)
-    % Manual positioning to span 3 rows and 2 columns for a taller plot.
-    % This provides a clearer view of multi-channel waveform data.
-    w = 0.85; h = 0.85; iwo = 0.07; iho = 0.07;
-    iaws = 0.015; iahs = 0.035;
-
-    % width and height of a single subplot cell
-    iaw = (w - (N_COLS - 1) * iaws) / N_COLS;
-    iah = (h - (N_ROWS - 1) * iahs) / N_ROWS;
-
-    % Position: [left, bottom, width, height]
-    wf_width = 2 * iaw + iaws;
-    wf_height = 3 * iah + 2 * iahs;
-    wf_left = iwo;
-    wf_bottom = iho + (N_ROWS - 3) * (iah + iahs);
-
-    ax_wf = axes('Position', [wf_left, wf_bottom, wf_width, wf_height]);
+    ax_wf = mySubPlot([1,4,1]);
     set(ax_wf, 'Tag', 'Waveform_Axis');
 
     if isfield(session_data.spikes, 'wfMeans') && ...
             numel(session_data.spikes.wfMeans) >= i_cluster
 
-        waveforms = session_data.spikes.wfMeans{i_cluster}';
+        % find a good range for the 'offset' waveform provided by 
+        % 'offsetArrayWaveform.m'
+        ow = offsetArrayWaveform(...
+            session_data.spikes.wfMeans{i_cluster}, 0.025);
+        or = range(ow(:)); 
+        om = mean(ow(:)); 
+        yLim = om + [-1 1]*(1.1*or)/2;
 
-        % Calculate vertical offset for plotting multi-channel waveforms
-        peak_to_trough = max(waveforms) - min(waveforms);
-        offset = max(peak_to_trough);
+        % plot waveform
+        plot(ax_wf, ow');
 
-        cla(ax_wf);
-        hold(ax_wf, 'on');
-
-        for i_ch = 1:size(waveforms, 2)
-            % Add cumulative offset to each channel for clear visibility
-            vertical_shift = (i_ch - 1) * offset;
-            plot(ax_wf, waveforms(:, i_ch) + vertical_shift, 'k');
-        end
-
-        hold(ax_wf, 'off');
-
-        title(ax_wf, 'Mean Waveform (All Channels)');
+        % add title and other labels, set y-limit
+        title(ax_wf, 'Mean Waveform');
         xlabel(ax_wf, 'Samples');
-        ylabel(ax_wf, 'Amplitude (Offset)');
-        axis(ax_wf, 'tight');
-        % Y-ticks are removed as the offset makes them arbitrary
-        set(ax_wf, 'YTickLabel', []);
-
+        set(ax_wf, 'YLim', yLim, 'Box', 'Off', 'TickDir', 'Out', ...
+            'YTickLabel', '')
     else
         text(0.5, 0.5, 'No waveform', 'Parent', ax_wf, ...
             'HorizontalAlignment', 'center');
     end
 
-    % ISI Histogram (Below Waveform)
-    % Positioned dynamically below the taller waveform plot.
-    isi_width = wf_width; % Match width of waveform plot
-    isi_height = iah * 2 + iahs; % Span 2 rows
-    isi_left = iwo;
-    isi_bottom = wf_bottom - iahs - isi_height;
-
-    ax_isi = axes('Position', [isi_left, isi_bottom, isi_width, isi_height]);
+    % ISI Histogram (to the right of waveform)
+    ax_isi = mySubPlot([6,6,27]);
     set(ax_isi, 'Tag', 'ISI_Axis');
     if numel(spike_times) > 1
         isi = diff(spike_times) * 1000; % ms
@@ -328,16 +300,8 @@ for i_cluster = 1:nClusters
     end
 
     %% --- Summary Information ---
-    % Positioned dynamically below the ISI histogram.
-    summary_width = wf_width; % Match width of plots above
-    summary_height = iah * 2 + iahs; % Span 2 rows
-    summary_left = iwo;
-    summary_bottom = isi_bottom - iahs - summary_height;
-
-    ax_summary = axes('Position', [summary_left, summary_bottom, summary_width, summary_height]);
-    set(ax_summary, 'Tag', 'Summary_Axis');
-    axis(ax_summary, 'off')
-
+    % Positioned below the ISI histogram.
+    ax_summary = mySubPlot([6,6,33]);
     screening_status = 'Not Selected';
     if numel(selected_neurons) >= i_cluster && selected_neurons(i_cluster)
         screening_status = 'Selected';
@@ -363,8 +327,7 @@ for i_cluster = 1:nClusters
 
     text(0.1, 0.5, summary_text, 'Parent', ax_summary, ...
         'VerticalAlignment', 'middle', 'FontSize', 10);
-    titleObj = title(ax_summary, 'Summary Information');
-    set(titleObj, 'Position', [0.5 1.5 0.5])
+    
 
     %% --- Final Formatting ---
     % Find all PSTH axes by tag

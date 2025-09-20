@@ -70,7 +70,7 @@ for i_row = 1:n_rows
         end
 
         % Plot mean trace
-        mean_accuracy = mean(accuracy_matrix, 1);
+        mean_accuracy = mean(accuracy_matrix, 1, 'omitnan');
         h_mean = barStairsFill(time_vector, ...
             zeros(size(time_vector)), mean_accuracy);
         delete(h_mean(1:2)); % Delete bar and baseline

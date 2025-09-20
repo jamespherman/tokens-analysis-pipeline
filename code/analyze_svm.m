@@ -67,12 +67,23 @@ svm_results.time_vector = core_data.spikes.(svm_plan.event).time_vector;
 %% --- 2. Time-Resolved SVM Analysis ---
 % Loop over each time bin to perform the classification
 for t = 1:n_time_bins
+
+    % Create the label vector Y
+    % '1' for cond1, '2' for cond2
+    Y = cond2_mask(combined_mask) + 1;
+
     % Prepare the data matrix X for the current time bin
     % X should be [n_trials x n_neurons]
     X = squeeze(binned_spikes(:, :, t));
 
+    % get rid of rows that are all NaN:
+    allNanRows = all(isnan(X), 2);
+    X(allNanRows,:) = [];
+    Y(allNanRows)   = [];
+
     % If there's no variance in the data for this bin, skip it
-    if range(X(:)) == 0
+    xRange = range(X(:));
+    if xRange == 0 || isempty(xRange)
         continue;
     end
 
@@ -85,12 +96,8 @@ for t = 1:n_time_bins
     predictions = kfoldPredict(SVMModel);
 
     % Calculate accuracy
-    try
     n_correct = sum(predictions == Y);
     n_total = numel(Y);
-    catch me
-        keyboard
-    end
 
     % Use binofit to get accuracy and 95% confidence intervals
     [acc, acc_ci] = binofit(n_correct, n_total);
