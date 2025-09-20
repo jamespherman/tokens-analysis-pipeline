@@ -81,16 +81,25 @@ for t = 1:n_time_bins
     X(allNanRows,:) = [];
     Y(allNanRows)   = [];
 
+    % how many observations do we have?
+    n_observations = length(Y);
+
     % If there's no variance in the data for this bin, skip it
     xRange = range(X(:));
-    if xRange == 0 || isempty(xRange)
+    if all(xRange == 0) || isempty(xRange) || ~(n_observations > ...
+            n_neurons)
         continue;
     end
 
     % Train a linear SVM with 10-fold cross-validation
     % Using 'Prior', 'Uniform' to handle unbalanced classes
+    try
     SVMModel = fitcsvm(X, Y, 'KernelFunction', 'linear', ...
-        'Standardize', true, 'CrossVal', 'on', 'Prior', 'Uniform');
+        'Standardize', true, 'CrossVal', 'on', 'Prior', 'Uniform', ...
+        'KFold', 5);
+    catch me
+        keyboard
+    end
 
     % Get the cross-validated predictions
     predictions = kfoldPredict(SVMModel);
