@@ -18,6 +18,8 @@
 - [x] Phase 6: Optimize aggregation script to eliminate redundant file loading.
 - [x] Integrate `define_analysis_plan.m` into the main pipeline. **(Note: This file was made obsolete and removed in favor of a more robust dynamic discovery design.)**
 - [x] Phase 7: Implement aggregation and plotting for baseline vs. post-event analysis.
+- [x] For consistency, add an `is_av_only` flag to the `anova_plan` within `define_task_conditions.m`, similar to the `roc_plan` and `baseline_plan`. This makes the entire analysis plan more uniform and easier to manage programmatically.
+- [x] The `define_task_conditions.m` function now generates a `reward_distributions.pdf` for each session. This side effect is now managed by saving the artifact to the `data/reprocessed` directory.
 
 ## In Progress
 
@@ -26,9 +28,8 @@
 ## To-Do
 
 - [ ] Develop a comprehensive test suite for all analysis and plotting functions.
-- [ ] The `define_task_conditions.m` function now generates a `reward_distributions.pdf` for each session. This is a side effect that is not currently tracked or managed by the main `run_tokens_analysis.m` pipeline. Consider integrating this into the manifest or a similar tracking system.
-- [ ] For consistency, consider adding an `is_av_only` flag to the `anova_plan` within `define_task_conditions.m`, similar to the `roc_plan` and `baseline_plan`. This would make the entire analysis plan more uniform and easier to manage programmatically.
 - ...
 
 ## Agent-Suggested Improvements
+- The project would benefit from a comprehensive test suite to ensure the reliability and accuracy of the analysis and plotting functions. This would involve creating a suite of tests that cover the core functionality of each script, including edge cases and known failure modes. This would also help to prevent regressions as the codebase evolves.
 - ...

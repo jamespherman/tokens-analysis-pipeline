@@ -106,10 +106,12 @@ end
 
 % E. N-way ANOVA Plan
 % Each element defines an N-way ANOVA to be run.
-%   .event:           Alignment event (e.g., 'CUE_ON', 'outcomeOn').
+%   .event:       Alignment event (e.g., 'CUE_ON', 'outcomeOn').
 %   .fields_to_aggregate: Name of the p-value fields to aggregate.
-%   .run:             Boolean, true to run the analysis.
-condition_defs.anova_plan = struct('event', {}, 'fields_to_aggregate', {}, 'run', {});
+%   .is_av_only:  Boolean, true if analysis is specific to AV sessions.
+%   .run:         Boolean, true to run the analysis.
+condition_defs.anova_plan = struct('event', {}, 'fields_to_aggregate', ...
+    {}, 'is_av_only', {}, 'run', {});
 events_for_anova = {'CUE_ON', 'outcomeOn', 'reward'};
 p_value_fields = { ...
     'p_rpe', 'p_dist', 'p_flicker', 'p_rpe_dist', ...
@@ -118,6 +120,7 @@ p_value_fields = { ...
 for i = 1:length(events_for_anova)
     condition_defs.anova_plan(i).event = events_for_anova{i};
     condition_defs.anova_plan(i).fields_to_aggregate = p_value_fields;
+    condition_defs.anova_plan(i).is_av_only = true;
     condition_defs.anova_plan(i).run = true;
 end
 
@@ -220,12 +223,11 @@ hold off;
 
 sgtitle(sprintf('Reward Distributions for Session: %s', unique_id), 'Interpreter', 'none');
 project_root = fullfile(findOneDrive, 'Code', 'tokens-analysis-pipeline');
-figures_dir = fullfile(project_root, 'figures');
-session_figures_dir = fullfile(figures_dir, unique_id);
-if ~exist(session_figures_dir, 'dir')
-    mkdir(session_figures_dir);
+reprocessed_dir = fullfile(project_root, 'data', 'reprocessed');
+if ~exist(reprocessed_dir, 'dir')
+    mkdir(reprocessed_dir);
 end
-file_name = fullfile(session_figures_dir, sprintf('%s_reward_distributions.pdf', unique_id));
+file_name = fullfile(reprocessed_dir, sprintf('%s_reward_distributions.pdf', unique_id));
 pdfSave(file_name, [11 8.5], fig);
 close(fig);
 
