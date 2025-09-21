@@ -6,7 +6,7 @@ This repository contains the MATLAB analysis pipeline for the 'tokens' task. It 
 
 ## Getting Started
 
-Before contributing to this repository, please review the developer guidelines in `code/AGENTS.md`. This document contains critical information regarding coding standards, data structure conventions, and project-specific practices.
+Before contributing to this repository, please review the developer guidelines in `AGENTS.md`. This document contains critical information regarding coding standards, data structure conventions, and project-specific practices.
 
 ## Repository Structure
 
@@ -37,8 +37,8 @@ This project generates several types of data and figures, which are stored in di
 -   **Per-Neuron Diagnostic Figures**: For each session, a PDF containing diagnostic plots for every neuron is automatically generated and saved to a session-specific subdirectory within the root `figures/` directory.
     -   Example: `figures/Feynman_08_05_2025_SNc/`
 
--   **Reward Distribution Figures**: For each session, a PDF visualizing the reward distributions used to define trial conditions is saved to the root `figures/` directory.
-    -   Example: `figures/Feynman_08_05_2025_SNc_reward_distributions.pdf`
+-   **Reward Distribution Figures**: For each session, a PDF visualizing the reward distributions used to define trial conditions is saved to the `data/figures/` directory.
+    -   Example: `data/figures/Feynman_08_05_2025_SNc_reward_distributions.pdf`
 
 -   **Aggregated Summary Figures**: The pipeline can generate publication-quality summary plots (e.g., comparing SC vs. SNc). These figures are **not saved automatically**. The `run_plotting_pipeline.m` script will generate and display them, but the user must save them manually from the MATLAB figure window (e.g., to `data/figures/`).
 
@@ -76,12 +76,18 @@ This section provides a concise overview of the main `.m` files in the `/code` d
 *   `screen_da_neurons.m`: Selects putative dopamine (DA) neurons.
 *   `screen_sc_neurons.m`: Identifies task-modulated neurons in the superior colliculus (SC).
 *   `prepare_core_data.m`: Prepares neuronal and pupil data for analysis.
-*   `define_task_conditions.m`: Defines logical masks for experimental conditions.
 *   `analyze_roc_comparison.m`: Performs bin-by-bin ROC analysis between conditions.
+*   `analyze_baseline_comparison.m`: Compares baseline firing rates to post-event firing rates using ROC analysis.
+*   `analyze_svm.m`: Performs a time-resolved, cross-validated SVM classification analysis.
 *   `analyze_anova.m`: Performs N-way ANOVA on firing rate data.
 *   `generate_neuron_summary_pdf.m`: Generates a PDF of diagnostic plots for each neuron.
+*   `plot_roc_comparison.m`: Creates a summary figure of the ROC comparison results for a single session.
+*   `plot_baseline_comparison.m`: Creates a summary figure of the baseline comparison results for a single session.
 *   `plot_aggregated_roc_comparison.m`: Creates a summary figure from the aggregated ROC analysis results.
+*   `plot_aggregated_baseline_comparison.m`: Creates a summary figure comparing SC and SNc population results from the baseline comparison analysis.
+*   `plot_aggregated_svm.m`: Creates a summary figure from the aggregated SVM classification results.
 *   `plot_aggregated_anova.m`: Creates a summary figure from the aggregated ANOVA results.
+*   `define_task_conditions.m`: Defines logical masks for experimental conditions (utility function in `/code/utils`).
 *   `define_analysis_plan.m`: **Obsolete and removed**. This file was previously a static configuration for analyses but has been replaced by a dynamic discovery process within the aggregation script.
 
 ## Usage
