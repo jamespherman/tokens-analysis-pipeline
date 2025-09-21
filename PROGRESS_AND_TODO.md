@@ -23,13 +23,10 @@
 - [x] Develop a comprehensive test suite for all analysis and plotting functions. **(Note: A master test script `run_all_tests.m` has been created to execute a series of verification functions for the main components of the pipeline.)**
 
 ## In Progress
-
 - ...
 
 ## To-Do
-
 - ...
 
 ## Agent-Suggested Improvements
-- The project would benefit from a comprehensive test suite to ensure the reliability and accuracy of the analysis and plotting functions. This would involve creating a suite of tests that cover the core functionality of each script, including edge cases and known failure modes. This would also help to prevent regressions as the codebase evolves.
 - ...
