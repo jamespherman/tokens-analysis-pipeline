@@ -20,6 +20,7 @@
 - [x] Phase 7: Implement aggregation and plotting for baseline vs. post-event analysis.
 - [x] For consistency, add an `is_av_only` flag to the `anova_plan` within `define_task_conditions.m`, similar to the `roc_plan` and `baseline_plan`. This makes the entire analysis plan more uniform and easier to manage programmatically.
 - [x] The `define_task_conditions.m` function now generates a `reward_distributions.pdf` for each session. This side effect is now managed by saving the artifact to the `data/reprocessed` directory.
+- [x] Develop a comprehensive test suite for all analysis and plotting functions. **(Note: A master test script `run_all_tests.m` has been created to execute a series of verification functions for the main components of the pipeline.)**
 
 ## In Progress
 
@@ -27,7 +28,6 @@
 
 ## To-Do
 
-- [ ] Develop a comprehensive test suite for all analysis and plotting functions.
 - ...
 
 ## Agent-Suggested Improvements

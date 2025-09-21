@@ -24,30 +24,37 @@ aggFileName = fullfile(project_root, 'data', 'processed', ...
 
 % Load aggregated data
 disp('Loading aggregated analysis data...');
-load(aggFileName);
+data = load(aggFileName);
 disp('Data loaded successfully.');
 
-% Call plotting functions for SC data
-disp('--- Generating SC Plots ---');
-disp('Generating aggregated ROC comparison plot for SC...');
-plot_aggregated_roc_comparison(aggregated_sc_data, 'SC');
-disp('Generating aggregated SVM classification plot for SC...');
-plot_aggregated_svm(aggregated_sc_data, 'SC');
-disp('Generating aggregated ANOVA plot for SC...');
-plot_aggregated_anova(aggregated_sc_data, 'SC');
-disp('Generating aggregated baseline comparison plot for SC...');
-plot_aggregated_baseline_comparison(aggregated_sc_data, 'SC');
+% Define the data types to process
+data_types = {'sc', 'snc'};
 
-% Call plotting functions for SNc data
-disp('--- Generating SNc Plots ---');
-disp('Generating aggregated ROC comparison plot for SNc...');
-plot_aggregated_roc_comparison(aggregated_snc_data, 'SNc');
-disp('Generating aggregated SVM classification plot for SNc...');
-plot_aggregated_svm(aggregated_snc_data, 'SNc');
-disp('Generating aggregated ANOVA plot for SNc...');
-plot_aggregated_anova(aggregated_snc_data, 'SNc');
-disp('Generating aggregated baseline comparison plot for SNc...');
-plot_aggregated_baseline_comparison(aggregated_snc_data, 'SNc');
+for i = 1:numel(data_types)
+    type = data_types{i};
+    data_field = ['aggregated_' type '_data'];
+    label = upper(type);
+
+    if isfield(data, data_field)
+        current_data = data.(data_field);
+
+        disp(['--- Generating ' label ' Plots ---']);
+
+        disp(['Generating aggregated ROC comparison plot for ' label '...']);
+        plot_aggregated_roc_comparison(current_data, label);
+
+        disp(['Generating aggregated SVM classification plot for ' label '...']);
+        plot_aggregated_svm(current_data, label);
+
+        disp(['Generating aggregated ANOVA plot for ' label '...']);
+        plot_aggregated_anova(current_data, label);
+
+        disp(['Generating aggregated baseline comparison plot for ' label '...']);
+        plot_aggregated_baseline_comparison(current_data, label);
+    else
+        warning('Data for type ''%s'' not found in aggregated file. Skipping.', type);
+    end
+end
 
 % End timer and provide user feedback
 toc;

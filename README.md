@@ -111,3 +111,21 @@ To run the full analysis from start to finish, execute the main scripts in the f
     >> run_plotting_pipeline
     ```
     This will open the final summary figures. Remember to save them manually if needed.
+
+## Testing
+
+This project includes a test suite to verify the functionality of the main analysis and plotting pipelines. The test suite is designed to be run from the MATLAB command window.
+
+To run the full test suite, execute the following command:
+
+```matlab
+>> run_all_tests
+```
+
+This script will iterate through a predefined set of test sessions and run a series of verification functions for each major component of the pipeline, including:
+- Neuron screening and diagnostic PDF generation
+- Core data preparation
+- Analysis pipeline (ROC, ANOVA, etc.)
+- Aggregated plotting pipeline
+
+The script will print progress to the command window and report any errors that occur.

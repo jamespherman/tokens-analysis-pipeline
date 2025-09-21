@@ -44,7 +44,6 @@ if is_av_session
     all_comparisons = [all_comparisons, av_comparisons];
 end
 
-try
 % Determine which comparisons to run
 if ~isempty(fieldnames(specific_comparison))
     % Run only the specified comparison
@@ -55,10 +54,6 @@ if ~isempty(fieldnames(specific_comparison))
 else
     % Run all defined comparisons
     comparisons_to_run = all_comparisons;
-end
-
-catch me
-    keyboard
 end
 
 %% Pre-calculate Total Workload

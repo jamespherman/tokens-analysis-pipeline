@@ -1,7 +1,15 @@
-%% test_neuron_diagnostics.m
-% This script serves as a step-by-step test of the neuron screening and
-% diagnostic PDF workflow. It runs the necessary functions for a single,
-% hardcoded session.
+function test_neuron_diagnostics_fcn(unique_id)
+%% test_neuron_diagnostics_fcn.m
+%
+%   This function serves as a step-by-step test of the neuron screening and
+%   diagnostic PDF workflow. It runs the necessary functions for a single
+%   session.
+%
+%   Args:
+%       unique_id (char): The unique identifier for the session to be tested.
+%
+% Author: Jules
+% Date: 2025-09-21
 
 % Start timer
 tic;
@@ -15,8 +23,7 @@ giveFeed = @(x)disp([num2str(toc) 's - ' x]);
 [script_dir, ~, ~] = fileparts(mfilename('fullpath'));
 addpath(fullfile(script_dir, 'utils'));
 
-%% Setup
-unique_id = 'Feynman_08_15_2025_SC'; % Hardcoded session
+%% Intro
 giveFeed(sprintf('Testing diagnostic workflow for session: %s', ...
     unique_id));
 
@@ -109,3 +116,5 @@ end
 
 %% Done
 giveFeed('Test complete. Check the generated PDF for session diagnostics.');
+
+end
