@@ -1,20 +1,18 @@
-%% test_core_data_preparation.m
+function test_core_data_preparation_fcn(unique_id)
+%% test_core_data_preparation_fcn.m
 %
-%   This script tests the refactored `prepare_core_data` module. It loads
+%   This function tests the refactored `prepare_core_data` module. It loads
 %   a sample session, runs the data preparation pipeline, and generates a
 %   figure with diagnostic plots to verify the output for all three key
 %   alignment events: CUE_ON, outcomeOn, and reward.
 %
-%   The figure contains two rows:
-%   - Top Row: Grand average PSTHs for neuronal data.
-%   - Bottom Row: Grand average processed pupil traces.
+%   Args:
+%       unique_id (char): The unique identifier for the session to be tested.
 %
 % Author: Jules
-% Date: 2025-09-08
+% Date: 2025-09-21
 
 %% Setup
-clear; clc; close all;
-
 % Start timer
 tic;
 
@@ -25,8 +23,7 @@ giveFeed = @(x)disp([num2str(toc) 's - ' x]);
 [script_dir, ~, ~] = fileparts(mfilename('fullpath'));
 addpath(fullfile(script_dir, 'utils'));
 
-%% Setup
-unique_id = 'Feynman_08_15_2025_SC'; % Hardcoded session
+%% Intro
 giveFeed(sprintf('Testing diagnostic workflow for session: %s', ...
     unique_id));
 
@@ -46,8 +43,6 @@ end
 
 %% Load Data
 % Define the project root and construct the path to a sample data file.
-% NOTE: The user should replace 'sample_session.mat' with a real session
-% file from their 'data/raw' directory.
 giveFeed('Step 2: Loading session data...');
 one_drive_path = findOneDrive;
 data_file = fullfile(one_drive_path, ...
@@ -493,6 +488,7 @@ end
 giveFeed('Step 7: Saving updated manifest...');
 writetable(manifest, manifest_path);
 giveFeed('Manifest saved. Script finished.');
+end
 
 %% Helper function
 function [grand_mean_psth, per_neuron_psth] = calculate_mean_psth(rates, ...
