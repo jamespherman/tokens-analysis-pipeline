@@ -176,6 +176,10 @@ session_data.metadata.sig_epoch_comparison = sig_epoch_comp;
 This ensures that the results of the screening are saved with the session's data.
 
 ---
+## Pupil Analysis Conventions
+- Pupil preprocessing functions should output to `session_data.analysis.pupil`
+- Follow the same event alignment pattern as neuronal data (use `alignAndBinSpikes` pattern)
+- New analysis plans should be added to `define_task_conditions.m`
 
 ## Plotting Conventions
 
