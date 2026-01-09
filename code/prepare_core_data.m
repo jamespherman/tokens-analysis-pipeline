@@ -29,11 +29,14 @@ addpath(fullfile(script_dir, 'utils'));
 % Load the structure containing all task codes
 codes = initCodes();
 
-% Find the indices of trials that belong to the 'tokens' task. Importantly,
-% we should only keep trials that are rewarded:
-tokens_trial_indices = find(session_data.trialInfo.taskCode == ...
-    codes.uniqueTaskCode_tokens & ~cellfun(@isempty, ...
-    session_data.eventTimes.rewardCell) );
+% Find the indices of trials that belong to the 'tokens' task. We keep only
+% trials that are rewarded and have valid cueFile entries. This filtering
+% must match define_task_conditions.m to ensure condition masks align with
+% the prepared data.
+tokens_trial_indices = find( ...
+    session_data.trialInfo.taskCode == codes.uniqueTaskCode_tokens & ...
+    ~cellfun(@isempty, session_data.eventTimes.rewardCell) & ...
+    ~cellfun(@isempty, session_data.trialInfo.cueFile) );
 
 %% Prepare Neuronal Data
 % Pass the alignment events to the neuronal data preparation function

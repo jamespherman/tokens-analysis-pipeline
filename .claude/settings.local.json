@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(matlab -batch:*)",
+      "Bash(dir /b /s \"D:\\\\OneDrive - University of Pittsburgh\\\\Code\\\\tokens-analysis-pipeline\\\\data\\\\*session_data.mat\")",
+      "Bash(dir /b /s \"D:\\\\OneDrive - University of Pittsburgh\\\\*Feynman_08_13_2025_SNc*session_data.mat\")",
+      "Bash(dir /b /s \"D:\\\\OneDrive - University of Pittsburgh\\\\Data\\\\*Feynman*08_13*session*.mat\")",
+      "Bash(dir /b /s \"D:\\\\OneDrive - University of Pittsburgh\\\\*session_data.mat\")",
+      "Bash(findstr:*)",
+      "Bash(powershell:*)"
+    ]
+  }
+}

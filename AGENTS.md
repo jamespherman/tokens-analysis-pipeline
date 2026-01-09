@@ -2,7 +2,20 @@
 
 ## Execution Environment
 
-**The execution environment for this project does not have a functional MATLAB instance.** Any attempt to run or test MATLAB code will fail. Please proceed directly with generating the required code modifications and submit them for external testing.
+MATLAB code can be executed using the `-batch` option:
+```bash
+matlab -batch "run('script_name.m')"
+```
+
+Or for single expressions:
+```bash
+matlab -batch "disp(pwd); disp(version)"
+```
+
+Notes:
+- `-batch` runs without the GUI and exits on completion
+- Errors will return a non-zero exit code
+- Working directory and path setup may need explicit handling
 ---
 ## Refactoring and Impact Analysis Protocol
 

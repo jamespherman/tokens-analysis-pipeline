@@ -160,6 +160,15 @@ for i = 1:height(manifest)
             end
         end
     end
+
+    % Count Pupil ANOVA step (only for AV sessions)
+    if is_av_session
+        if (~isfield(session_data, 'analysis') || ...
+           ~isfield(session_data.analysis, 'pupil_anova')) || ...
+            force_rerun.analyses
+            n_total_steps = n_total_steps + 1;
+        end
+    end
     step_counter = 0;
 
     % --- Pipeline Stages ---
@@ -393,6 +402,34 @@ for i = 1:height(manifest)
         data_updated = true;
     end
 
+    % E. Pupil ANOVA Analysis (AV sessions only)
+    % This analysis requires AV probability conditions, so skip non-AV
+    % sessions.
+    if is_av_session
+        analysis_needed = force_rerun.analyses;
+        if ~analysis_needed
+            try
+                subsref(session_data, substruct('.', 'analysis', ...
+                    '.', 'pupil_anova'));
+            catch
+                analysis_needed = true;
+            end
+        end
+
+        if analysis_needed
+            step_counter = step_counter + 1;
+            fprintf(['\n--- Session %s: Step %d/%d: Pupil ANOVA ' ...
+                '(Dist x AV Prob) ---\n'], unique_id, step_counter, ...
+                n_total_steps);
+            giveFeed('--> Running analyze_pupil_anova...');
+
+            pupil_anova_results = analyze_pupil_anova(core_data, ...
+                conditions);
+            session_data.analysis.pupil_anova = pupil_anova_results;
+            data_updated = true;
+        end
+    end
+
     % --- Save Updated Data ---
     if data_updated
         giveFeed('Data was updated, saving back to session_data.mat...');
@@ -484,6 +521,17 @@ for i = 1:height(manifest)
                     plan.event);
                 break;
             end
+        end
+    end
+
+    % 5. Verify Pupil ANOVA Results (AV sessions only)
+    if is_analysis_complete && is_av_session
+        try
+            subsref(session_data, substruct('.', 'analysis', ...
+                '.', 'pupil_anova'));
+        catch
+            is_analysis_complete = false;
+            fprintf('Manifest Check Failed: Missing Pupil ANOVA\n');
         end
     end
 
