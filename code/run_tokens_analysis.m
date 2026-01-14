@@ -169,6 +169,13 @@ for i = 1:height(manifest)
             n_total_steps = n_total_steps + 1;
         end
     end
+
+    % Count Pupil PE step (all sessions)
+    if (~isfield(session_data, 'analysis') || ...
+       ~isfield(session_data.analysis, 'pupil_pe')) || ...
+        force_rerun.analyses
+        n_total_steps = n_total_steps + 1;
+    end
     step_counter = 0;
 
     % --- Pipeline Stages ---
@@ -430,6 +437,31 @@ for i = 1:height(manifest)
         end
     end
 
+    % F. Pupil PE Analysis (all sessions)
+    % Analyzes pupil responses to Reward Prediction Error (RPE), and for
+    % AV sessions, also Sensory Prediction Error (SPE) and their interaction.
+    analysis_needed = force_rerun.analyses;
+    if ~analysis_needed
+        try
+            subsref(session_data, substruct('.', 'analysis', ...
+                '.', 'pupil_pe'));
+        catch
+            analysis_needed = true;
+        end
+    end
+
+    if analysis_needed
+        step_counter = step_counter + 1;
+        fprintf(['\n--- Session %s: Step %d/%d: Pupil PE Analysis ' ...
+            '---\n'], unique_id, step_counter, n_total_steps);
+        giveFeed('--> Running analyze_pupil_pe...');
+
+        pupil_pe_results = analyze_pupil_pe(core_data, conditions, ...
+            is_av_session);
+        session_data.analysis.pupil_pe = pupil_pe_results;
+        data_updated = true;
+    end
+
     % --- Save Updated Data ---
     if data_updated
         giveFeed('Data was updated, saving back to session_data.mat...');
@@ -532,6 +564,17 @@ for i = 1:height(manifest)
         catch
             is_analysis_complete = false;
             fprintf('Manifest Check Failed: Missing Pupil ANOVA\n');
+        end
+    end
+
+    % 6. Verify Pupil PE Results (all sessions)
+    if is_analysis_complete
+        try
+            subsref(session_data, substruct('.', 'analysis', ...
+                '.', 'pupil_pe'));
+        catch
+            is_analysis_complete = false;
+            fprintf('Manifest Check Failed: Missing Pupil PE\n');
         end
     end
 

@@ -8,8 +8,9 @@
 %   test_pupil_pe()          - Prompts user to select file via uigetfile
 %   test_pupil_pe(file_path) - Uses the provided path to session_data.mat
 %
-% The script will error if the selected session does not contain AV trials,
-% as the pupil PE analysis requires SPE conditions.
+% Supports both AV and non-AV sessions:
+%   - AV sessions: Full analysis with RPE, SPE, and Interaction (8-panel figure)
+%   - Non-AV sessions: RPE-only analysis (2-panel figure)
 %
 % Author: Claude
 % Date: 2026-01-09
@@ -76,13 +77,11 @@ catch ME
         'Failed to define task conditions: %s', ME.message);
 end
 
-if ~is_av_session
-    error('test_pupil_pe:notAVSession', ...
-        ['This session has no AV trials. Select an AV session.\n' ...
-        'The pupil PE analysis requires SPE conditions.']);
+if is_av_session
+    giveFeed('Session confirmed as AV session. Full analysis will run.');
+else
+    giveFeed('Session is NOT an AV session. RPE-only analysis will run.');
 end
-
-giveFeed('Session confirmed as AV session.');
 
 %% Step 3: Prepare Core Data
 giveFeed('Step 3: Preparing core data...');
@@ -136,7 +135,7 @@ giveFeed(sprintf('Core data prepared. Pupil traces: %d trials x %d samples', ...
 giveFeed('Step 4: Running pupil PE analysis...');
 
 try
-    results = analyze_pupil_pe(core_data, conditions);
+    results = analyze_pupil_pe(core_data, conditions, is_av_session);
 catch ME
     error('test_pupil_pe:analysisError', ...
         'Failed to run pupil PE analysis: %s', ME.message);
@@ -168,74 +167,85 @@ fprintf('\n');
 
 alpha = 0.05;
 
-% Panel A: RPE
-fprintf('--- Panel A: RPE (Normal Distribution) ---\n');
-fprintf('  Trial counts: Rare-Low=%d, Common=%d, Rare-High=%d\n', ...
+% Panel A: RPE (Magnitude-Matched)
+fprintf('--- Panel A: RPE (Magnitude-Matched) ---\n');
+fprintf('  Trial counts: Rare-Low=%d, Common-Low=%d, Rare-High=%d, Common-High=%d\n', ...
     results.rpe.trial_counts(1), results.rpe.trial_counts(2), ...
-    results.rpe.trial_counts(3));
+    results.rpe.trial_counts(3), results.rpe.trial_counts(4));
 
-n_sig_rpe = sum(results.rpe.p_rpe < alpha, 'omitnan');
-n_total = sum(~isnan(results.rpe.p_rpe));
-fprintf('  Significant bins (p < %.2f): %d / %d (%.1f%%)\n', ...
-    alpha, n_sig_rpe, n_total, 100 * n_sig_rpe / n_total);
-
-[min_p, idx] = min(results.rpe.p_rpe);
-if ~isnan(min_p)
-    fprintf('  Peak effect: t = %+.3f s, p = %.4f\n', ...
-        results.time_vector(idx), min_p);
-end
-fprintf('\n');
-
-% Panel B: SPE
-fprintf('--- Panel B: SPE ---\n');
-fprintf('  Trial counts: No-Flicker=%d, Omitted=%d, Surprising=%d, ', ...
-    results.spe.trial_counts(1), results.spe.trial_counts(2), ...
-    results.spe.trial_counts(3));
-fprintf('Certain=%d\n', results.spe.trial_counts(4));
-
-n_sig_spe = sum(results.spe.p_contrast < alpha, 'omitnan');
-n_total = sum(~isnan(results.spe.p_contrast));
-fprintf('  Significant contrast bins (p < %.2f): %d / %d (%.1f%%)\n', ...
-    alpha, n_sig_spe, n_total, 100 * n_sig_spe / n_total);
-
-[min_p, idx] = min(results.spe.p_contrast);
-if ~isnan(min_p)
-    fprintf('  Peak contrast: t = %+.3f s, p = %.4f\n', ...
-        results.time_vector(idx), min_p);
-end
-fprintf('\n');
-
-% Panel C: Interaction
-fprintf('--- Panel C: RPE x AV Interaction ---\n');
-fprintf('  Trial counts:\n');
-fprintf('                No-AV    AV\n');
-fprintf('    Common:     %4d   %4d\n', ...
-    results.interaction.trial_counts(1, 1), ...
-    results.interaction.trial_counts(1, 2));
-fprintf('    Rare-High:  %4d   %4d\n', ...
-    results.interaction.trial_counts(2, 1), ...
-    results.interaction.trial_counts(2, 2));
-
-n_sig_rpe_main = sum(results.interaction.p_rpe < alpha, 'omitnan');
-n_sig_av_main = sum(results.interaction.p_av < alpha, 'omitnan');
-n_sig_int = sum(results.interaction.p_int < alpha, 'omitnan');
-n_total = sum(~isnan(results.interaction.p_int));
+n_sig_dist = sum(results.rpe.p_dist < alpha, 'omitnan');
+n_sig_mag = sum(results.rpe.p_mag < alpha, 'omitnan');
+n_sig_int = sum(results.rpe.p_dist_mag_interaction < alpha, 'omitnan');
+n_total = sum(~isnan(results.rpe.p_dist));
 
 fprintf('  Significant bins (p < %.2f):\n', alpha);
-fprintf('    RPE main:      %3d / %d (%.1f%%)\n', ...
-    n_sig_rpe_main, n_total, 100 * n_sig_rpe_main / n_total);
-fprintf('    AV main:       %3d / %d (%.1f%%)\n', ...
-    n_sig_av_main, n_total, 100 * n_sig_av_main / n_total);
+fprintf('    Distribution:  %3d / %d (%.1f%%)\n', ...
+    n_sig_dist, n_total, 100 * n_sig_dist / n_total);
+fprintf('    Magnitude:     %3d / %d (%.1f%%)\n', ...
+    n_sig_mag, n_total, 100 * n_sig_mag / n_total);
 fprintf('    Interaction:   %3d / %d (%.1f%%)\n', ...
     n_sig_int, n_total, 100 * n_sig_int / n_total);
-
-[min_p, idx] = min(results.interaction.p_int);
-if ~isnan(min_p)
-    fprintf('  Peak interaction: t = %+.3f s, p = %.4f\n', ...
-        results.time_vector(idx), min_p);
-end
-
 fprintf('\n');
+
+if is_av_session
+    % Panel B: SPE
+    fprintf('--- Panel B: SPE ---\n');
+    fprintf('  Trial counts: No-Flicker=%d, Omitted=%d, Surprising=%d, ', ...
+        results.spe.trial_counts(1), results.spe.trial_counts(2), ...
+        results.spe.trial_counts(3));
+    fprintf('Certain=%d\n', results.spe.trial_counts(4));
+
+    n_sig_spe = sum(results.spe.p_contrast < alpha, 'omitnan');
+    n_total = sum(~isnan(results.spe.p_contrast));
+    fprintf('  Significant contrast bins (p < %.2f): %d / %d (%.1f%%)\n', ...
+        alpha, n_sig_spe, n_total, 100 * n_sig_spe / n_total);
+
+    [min_p, idx] = min(results.spe.p_contrast);
+    if ~isnan(min_p)
+        fprintf('  Peak contrast: t = %+.3f s, p = %.4f\n', ...
+            results.time_vector(idx), min_p);
+    end
+    fprintf('\n');
+
+    % Panels C/D: RPE x SPE Interaction (3-way ANOVA)
+    fprintf('--- Panels C/D: RPE x SPE Interaction (3-way ANOVA) ---\n');
+    fprintf('  Trial counts:\n');
+    fprintf('                     Expected  Unexpected\n');
+    tc = results.interaction.trial_counts;
+    fprintf('    Rare-Low:        %4d      %4d\n', tc(1), tc(2));
+    fprintf('    Common-Low:      %4d      %4d\n', tc(3), tc(4));
+    fprintf('    Rare-High:       %4d      %4d\n', tc(5), tc(6));
+    fprintf('    Common-High:     %4d      %4d\n', tc(7), tc(8));
+
+    n_sig_dist = sum(results.interaction.p_dist < alpha, 'omitnan');
+    n_sig_spe = sum(results.interaction.p_spe < alpha, 'omitnan');
+    n_sig_mag = sum(results.interaction.p_mag < alpha, 'omitnan');
+    n_sig_dist_spe = sum(results.interaction.p_dist_spe < alpha, 'omitnan');
+    n_sig_dist_mag = sum(results.interaction.p_dist_mag < alpha, 'omitnan');
+    n_sig_spe_mag = sum(results.interaction.p_spe_mag < alpha, 'omitnan');
+    n_sig_3way = sum(results.interaction.p_three_way < alpha, 'omitnan');
+    n_total = sum(~isnan(results.interaction.p_dist));
+
+    fprintf('  Significant bins (p < %.2f):\n', alpha);
+    fprintf('    Distribution:    %3d / %d (%.1f%%)\n', ...
+        n_sig_dist, n_total, 100 * n_sig_dist / n_total);
+    fprintf('    SPE:             %3d / %d (%.1f%%)\n', ...
+        n_sig_spe, n_total, 100 * n_sig_spe / n_total);
+    fprintf('    Magnitude:       %3d / %d (%.1f%%)\n', ...
+        n_sig_mag, n_total, 100 * n_sig_mag / n_total);
+    fprintf('    Dist x SPE:      %3d / %d (%.1f%%)\n', ...
+        n_sig_dist_spe, n_total, 100 * n_sig_dist_spe / n_total);
+    fprintf('    Dist x Mag:      %3d / %d (%.1f%%)\n', ...
+        n_sig_dist_mag, n_total, 100 * n_sig_dist_mag / n_total);
+    fprintf('    SPE x Mag:       %3d / %d (%.1f%%)\n', ...
+        n_sig_spe_mag, n_total, 100 * n_sig_spe_mag / n_total);
+    fprintf('    3-way:           %3d / %d (%.1f%%)\n', ...
+        n_sig_3way, n_total, 100 * n_sig_3way / n_total);
+    fprintf('\n');
+else
+    fprintf('--- No-AV session: SPE and Interaction analyses skipped ---\n');
+    fprintf('\n');
+end
 fprintf('============================================================\n');
 fprintf('Time window: [%.2f, %.2f] s relative to outcome onset\n', ...
     results.time_vector(1), results.time_vector(end));

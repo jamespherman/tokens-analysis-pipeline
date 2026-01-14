@@ -7,7 +7,12 @@
       "Bash(dir /b /s \"D:\\\\OneDrive - University of Pittsburgh\\\\Data\\\\*Feynman*08_13*session*.mat\")",
       "Bash(dir /b /s \"D:\\\\OneDrive - University of Pittsburgh\\\\*session_data.mat\")",
       "Bash(findstr:*)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(dir /s /b \"D:\\\\OneDrive - University of Pittsburgh\\\\Code\\\\tokens-analysis-pipeline\\\\data\\\\*.mat\")",
+      "Bash(where:*)",
+      "Bash(matlab -nodisplay -nodesktop -batch:*)",
+      "Bash(matlab -nodesktop -batch:*)",
+      "Bash(dir /s /b \"D:\\\\OneDrive - University of Pittsburgh\\\\Code\\\\tokens-analysis-pipeline\")"
     ]
   }
 }

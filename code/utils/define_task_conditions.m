@@ -180,6 +180,18 @@ conditions.is_unif_low = conditions.is_uniform_dist & (trialInfo.rewardAmt <= un
 conditions.is_unif_mid = conditions.is_uniform_dist & (trialInfo.rewardAmt > unif_p25 & trialInfo.rewardAmt < unif_p75);
 conditions.is_unif_high = conditions.is_uniform_dist & (trialInfo.rewardAmt >= unif_p75);
 
+% C2. Magnitude-Matched RPE Conditions (for cross-distribution comparison)
+% Compute magnitude thresholds from Normal distribution: bottom 30% = low, top 30% = high
+mag_thresholds = prctile(reward_norm, [30 70]);
+mag_low_thresh = mag_thresholds(1);
+mag_high_thresh = mag_thresholds(2);
+
+% Apply same thresholds to both distributions for magnitude-matched comparison
+conditions.is_rare_low = conditions.is_normal_dist & (trialInfo.rewardAmt <= mag_low_thresh);
+conditions.is_common_low = conditions.is_uniform_dist & (trialInfo.rewardAmt <= mag_low_thresh);
+conditions.is_rare_high = conditions.is_normal_dist & (trialInfo.rewardAmt >= mag_high_thresh);
+conditions.is_common_high = conditions.is_uniform_dist & (trialInfo.rewardAmt >= mag_high_thresh);
+
 % D. Sensory Prediction Error (SPE) Conditions
 if is_av_session
     conditions.is_flicker_certain = contains(trialInfo.cueFile, '_03.jpg') & trialInfo.isAVTrial == true;
